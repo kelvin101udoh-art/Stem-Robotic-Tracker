@@ -1,6 +1,7 @@
 import Image from "next/image";
 
-export default function Home() {
+ /* 
+ export default function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
@@ -62,4 +63,37 @@ export default function Home() {
       </main>
     </div>
   );
+}
+
+ */
+
+
+export default function Home() {
+return (
+<main className="min-h-screen flex flex-col">
+<header className="p-6 border-b">
+<div className="max-w-5xl mx-auto flex items-center justify-between">
+<h1 className="text-2xl font-bold">STEM Robotics Challenge Platform</h1>
+<a className="text-sm underline" href="/login">Teacher Login</a>
+</div>
+</header>
+<section className="max-w-5xl mx-auto p-6 grid gap-4">
+<h2 className="text-xl font-semibold">Capture once, reuse everywhere.</h2>
+<p className="text-gray-600">Log challenge results in seconds. Auto‑build student portfolios. Share term highlights with parents.</p>
+<div className="grid sm:grid-cols-3 gap-4">
+{[
+{title:'Quick Capture',desc:'Stopwatch + score + rubric in <30s'},
+{title:'Student Portfolios',desc:'Timeline of results & badges'},
+{title:'Manager Insights',desc:'Cohort trends & dashboards'}
+].map((c)=> (
+<div key={c.title} className="border rounded-xl p-4">
+<h3 className="font-medium">{c.title}</h3>
+<p className="text-sm text-gray-600">{c.desc}</p>
+</div>
+))}
+</div>
+</section>
+<footer className="mt-auto p-6 text-center text-xs text-gray-500">© {new Date().getFullYear()} Kelvin Edet</footer>
+</main>
+);
 }
