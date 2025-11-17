@@ -73,7 +73,7 @@ return (
 <main className="min-h-screen flex flex-col">
 <header className="p-6 border-b">
 <div className="max-w-5xl mx-auto flex items-center justify-between">
-<h1 className="text-2xl font-bold">STEM Robotics Challenge Platform</h1>
+<h1 className="text-2xl font-bold">STEM Robotics Progress Tracker</h1>
 <a className="text-sm underline" href="/login">Teacher Login</a>
 </div>
 </header>
