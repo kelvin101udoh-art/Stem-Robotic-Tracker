@@ -1,2 +1,1 @@
-# stem-robotics-platform
-Stem Robotic Progress Tracker
+EdTech platform for tracking STEM/robotics learning progress and performance.
