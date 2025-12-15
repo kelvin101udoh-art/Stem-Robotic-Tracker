@@ -146,7 +146,7 @@ export default function Home() {
                 </a>
 
                 <a
-                  href="/student-demo"
+                  href="//log"
                   className="inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm transition"
                 >
                   View sample student profile
