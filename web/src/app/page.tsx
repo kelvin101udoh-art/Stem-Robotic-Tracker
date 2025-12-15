@@ -138,7 +138,7 @@ export default function Home() {
               {/* CTAs */}
               <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">
                 <a
-                  href="/log"
+                  href="/session-log"
                   className="inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-200 transition"
                 >
                   Start Tracking Now
