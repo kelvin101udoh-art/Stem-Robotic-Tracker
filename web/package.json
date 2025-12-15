@@ -8,6 +8,32 @@
     "start": "next start",
     "lint": "eslint"
   },
+  {
+  "name": "stem-robotic-tracker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
+
+  "dependencies": {
+    "sharp": "^0.34.5",
+    "unrs-resolver": "^1.11.1"
+    // ... other dependencies
+  }
+},
+
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.81.1",
