@@ -70,7 +70,7 @@ import Image from "next/image";
  */
 
 
-<a href="/student-demo" className="text-sm underline">View sample student profile →</a>
+
 
 
 export default function Home() {
@@ -82,6 +82,9 @@ return (
 <a className="text-sm underline" href="/login">Teacher Login</a>
 </div>
 </header>
+
+<a href="/student-demo" className="text-sm underline">View sample student profile →</a>
+
 <section className="max-w-5xl mx-auto p-6 grid gap-4">
 <h2 className="text-xl font-semibold">Capture once, reuse everywhere.</h2>
 <p className="text-gray-600">Log challenge results in seconds. Auto‑build student portfolios. Share term highlights with parents.</p>
