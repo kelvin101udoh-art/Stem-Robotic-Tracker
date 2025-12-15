@@ -1,40 +1,28 @@
 {
   "name": "web",
   "version": "0.1.0",
+  "description": "",
   "private": true,
+  "main": "index.js",
   "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
-  {
-  "name": "stem-robotic-tracker",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-
   "pnpm": {
     "onlyBuiltDependencies": [
       "sharp",
       "unrs-resolver"
     ]
   },
-
   "dependencies": {
     "sharp": "^0.34.5",
-    "unrs-resolver": "^1.11.1"
-    // ... other dependencies
-  }
-},
-
-  "dependencies": {
+    "unrs-resolver": "^1.11.1",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.81.1",
     "@tanstack/react-query": "^5.90.8",
@@ -47,7 +35,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types_node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
