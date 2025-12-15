@@ -1,9 +1,77 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { mockChallenges, mockStudents, type SessionEntry } from '@/data/mock';
-import { generateInsight } from '@/lib/insights';
-import { buildWeeklySummary } from '@/lib/weeklySummary';
+
+const mockStudents = ['Aisha Okoro', 'Ben Li', 'Chloe Ahmed'];
+const mockChallenges = ['Line Follower Time Trial', 'Maze Solve', 'Sumo Bot'];
+
+type SessionEntry = {
+  student: string;
+  challenge: string;
+  score: string; // e.g. "38.2s" or "87/100" or "Completed"
+  note: string;
+  createdAt: string;
+};
+
+function parseSeconds(score: string): number | null {
+  const m = score.trim().match(/^(\d+(\.\d+)?)s$/i);
+  if (!m) return null;
+  return Number(m[1]);
+}
+
+type Insight = {
+  label: 'Improving' | 'Needs practice' | 'Consistent performer' | 'Not enough data';
+  reason: string;
+};
+
+function generateInsight(student: string, entries: SessionEntry[]): Insight {
+  const sEntries = entries.filter(e => e.student === student).slice().reverse(); // oldest -> newest
+  if (sEntries.length < 2) {
+    return { label: 'Not enough data', reason: 'Log at least 2 sessions to generate a trend insight.' };
+  }
+
+  const times = sEntries.map(e => parseSeconds(e.score)).filter((v): v is number => v !== null);
+  if (times.length >= 2) {
+    const first = times[0];
+    const last = times[times.length - 1];
+    const change = ((first - last) / first) * 100;
+
+    if (change >= 10) {
+      return {
+        label: 'Improving',
+        reason: `Time reduced from ${first.toFixed(1)}s to ${last.toFixed(1)}s (≈${change.toFixed(0)}% improvement).`,
+      };
+    }
+    if (change <= -10) {
+      return {
+        label: 'Needs practice',
+        reason: `Time increased from ${first.toFixed(1)}s to ${last.toFixed(1)}s. Consider extra calibration practice.`,
+      };
+    }
+    return { label: 'Consistent performer', reason: 'Performance is stable across recent sessions (small variation).' };
+  }
+
+  const completedCount = sEntries.filter(e => /completed|top/i.test(e.score)).length;
+  if (completedCount >= 2) {
+    return { label: 'Consistent performer', reason: `Multiple successful outcomes logged (${completedCount} achievements).` };
+  }
+
+  return { label: 'Needs practice', reason: 'Add one more score/time to generate a stronger trend insight.' };
+}
+
+function buildWeeklySummary(entries: SessionEntry[]) {
+  return mockStudents.map(student => {
+    const sEntries = entries.filter(e => e.student === student);
+    const insight = generateInsight(student, entries);
+    const latest = sEntries[0];
+
+    const highlight = latest
+      ? `Latest: ${latest.challenge} — ${latest.score}${latest.note ? ` (“${latest.note}”)` : ''}`
+      : 'No sessions logged yet.';
+
+    return { student, entriesCount: sEntries.length, insight, highlight };
+  });
+}
 
 export default function LogPage() {
   const [student, setStudent] = useState('');
@@ -18,15 +86,16 @@ export default function LogPage() {
     e.preventDefault();
     if (!student || !challenge) return;
 
-    const createdAt = new Date().toLocaleString();
-    const entry: SessionEntry = { student, challenge, score, note, createdAt };
-    setEntries(prev => [entry, ...prev]);
+    setEntries(prev => [
+      { student, challenge, score, note, createdAt: new Date().toLocaleString() },
+      ...prev,
+    ]);
 
     setScore('');
     setNote('');
   }
 
-  const weekly = useMemo(() => buildWeeklySummary(entries, mockStudents, 'Weekly summary (generated)'), [entries]);
+  const weekly = useMemo(() => buildWeeklySummary(entries), [entries]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white via-white to-slate-50">
@@ -38,16 +107,13 @@ export default function LogPage() {
             </div>
             <div className="leading-tight">
               <p className="text-sm font-semibold text-slate-900">Session Log</p>
-              <p className="text-xs text-slate-500 -mt-0.5">Challenge logging + AI insights (Month 3)</p>
+              <p className="text-xs text-slate-500 -mt-0.5">AI insights + automation preview (Month 3)</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <a href="/" className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">
-              ← Home
-            </a>
-            <a href="/student-demo" className="rounded-xl px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition">
-              Student demo →
+              ← Back to Home
             </a>
           </div>
         </div>
@@ -55,13 +121,13 @@ export default function LogPage() {
 
       <section className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
         <div className="grid lg:grid-cols-12 gap-6 items-start">
-          {/* Form */}
+          {/* Left: Form */}
           <div className="lg:col-span-5">
             <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="p-6 border-b border-slate-100">
-                <h1 className="text-lg font-semibold text-slate-900">Log Challenge Result</h1>
+                <h1 className="text-lg md:text-xl font-semibold text-slate-900">Log Challenge Result</h1>
                 <p className="mt-1 text-sm text-slate-600">
-                  Month 3: Capture entries + generate explainable insights (rule-based).
+                  Log sessions and generate explainable insights (rule-based foundation).
                 </p>
               </div>
 
@@ -69,7 +135,7 @@ export default function LogPage() {
                 <div className="grid gap-2">
                   <label className="text-sm font-medium text-slate-900">Student</label>
                   <select
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={student}
                     onChange={e => setStudent(e.target.value)}
                   >
@@ -81,7 +147,7 @@ export default function LogPage() {
                 <div className="grid gap-2">
                   <label className="text-sm font-medium text-slate-900">Challenge</label>
                   <select
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={challenge}
                     onChange={e => setChallenge(e.target.value)}
                   >
@@ -94,29 +160,23 @@ export default function LogPage() {
                   <div className="grid gap-2">
                     <label className="text-sm font-medium text-slate-900">Score / Time</label>
                     <input
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={score}
                       onChange={e => setScore(e.target.value)}
-                      placeholder="e.g. 38.2s or 87/100 or Completed"
+                      placeholder="e.g. 45.0s then 38.2s"
                     />
+                    <p className="text-xs text-slate-500">Use “38.2s” format to trigger time-trend insights.</p>
                   </div>
 
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium text-slate-900">Quick tip</label>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
-                      Use “38.2s” for time-trial trend insights.
-                    </div>
+                    <label className="text-sm font-medium text-slate-900">Notes</label>
+                    <input
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={note}
+                      onChange={e => setNote(e.target.value)}
+                      placeholder="Short coaching note"
+                    />
                   </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium text-slate-900">Notes</label>
-                  <textarea
-                    className="min-h-[110px] rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
-                    placeholder="Short coaching note (what improved / what to practice next)"
-                  />
                 </div>
 
                 <button
@@ -127,8 +187,7 @@ export default function LogPage() {
                     canSave ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-md' : 'bg-slate-200 text-slate-500 cursor-not-allowed',
                   ].join(' ')}
                 >
-                  Save entry (mock)
-                  <span className="ml-2" aria-hidden="true">→</span>
+                  Save entry (mock) <span className="ml-2" aria-hidden="true">→</span>
                 </button>
 
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
@@ -141,25 +200,22 @@ export default function LogPage() {
             </div>
           </div>
 
-          {/* Right: Entries + AI */}
+          {/* Right: Weekly Summary + Log */}
           <div className="lg:col-span-7 grid gap-6">
             {/* Weekly Summary (auto-generated) */}
             <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="p-6 border-b border-slate-100">
                 <h2 className="text-lg font-semibold text-slate-900">Weekly Progress Summary (auto-generated)</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Automation preview: generates student statements from session logs.
-                </p>
+                <p className="mt-1 text-sm text-slate-600">Automation preview: generates progress statements from logs.</p>
               </div>
               <div className="p-6 grid gap-4">
-                {weekly.students.map(s => (
+                {weekly.map(s => (
                   <div key={s.student} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{s.student}</p>
                         <p className="text-xs text-slate-600">{s.entriesCount} entries logged</p>
                       </div>
-
                       <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border bg-white text-slate-700 border-slate-200">
                         {s.insight.label}
                       </span>
@@ -172,12 +228,12 @@ export default function LogPage() {
               </div>
             </div>
 
-            {/* Session Log Table */}
+            {/* Session Log */}
             <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="p-6 border-b border-slate-100 flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Session Log</h2>
-                  <p className="mt-1 text-sm text-slate-600">Newest entries appear at the top.</p>
+                  <h2 className="text-lg font-semibold text-slate-900">Session log</h2>
+                  <p className="mt-1 text-sm text-slate-600">Latest entries appear at the top.</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-2 text-sm text-slate-700">
                   Total: <span className="font-semibold text-slate-900">{entries.length}</span>
@@ -187,53 +243,46 @@ export default function LogPage() {
               <div className="p-6">
                 {entries.length === 0 ? (
                   <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
-                    <div className="mx-auto h-12 w-12 rounded-2xl bg-white border border-slate-200 grid place-items-center">
-                      <span className="text-lg">🧾</span>
-                    </div>
-                    <h3 className="mt-4 font-semibold text-slate-900">No entries yet</h3>
-                    <p className="mt-2 text-sm text-slate-600 max-w-md mx-auto">
-                      Log your first result to generate an insight and weekly summary.
+                    <h3 className="font-semibold text-slate-900">No entries yet</h3>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Log at least 2 time-trial scores for Aisha (e.g., 45.0s then 38.2s) to see “Improving”.
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-hidden rounded-2xl border border-slate-200">
-                    <div className="grid grid-cols-12 bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-200">
-                      <div className="col-span-3 px-4 py-3">Student</div>
-                      <div className="col-span-4 px-4 py-3">Challenge</div>
-                      <div className="col-span-2 px-4 py-3">Score/Time</div>
-                      <div className="col-span-3 px-4 py-3">AI Insight</div>
-                    </div>
-
-                    <ul className="divide-y divide-slate-200">
-                      {entries.map((e, i) => {
-                        const insight = generateInsight(e.student, entries);
-                        return (
-                          <li key={i} className="grid grid-cols-12 text-sm">
-                            <div className="col-span-3 px-4 py-3 font-semibold text-slate-900">{e.student}</div>
-                            <div className="col-span-4 px-4 py-3 text-slate-700">
-                              <p>{e.challenge}</p>
-                              <p className="text-xs text-slate-500 line-clamp-1">{e.note || '—'}</p>
+                  <ul className="grid gap-3">
+                    {entries.map((e, i) => {
+                      const insight = generateInsight(e.student, entries);
+                      return (
+                        <li key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{e.student}</p>
+                              <p className="text-sm text-slate-700">{e.challenge}</p>
+                              <p className="text-xs text-slate-500 mt-1">{e.createdAt}</p>
                             </div>
-                            <div className="col-span-2 px-4 py-3">
+
+                            <div className="text-right">
                               <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                                 {e.score || '—'}
                               </span>
+                              <p className="text-xs font-semibold text-slate-900 mt-2">{insight.label}</p>
+                              <p className="text-xs text-slate-500 max-w-[260px]">{insight.reason}</p>
                             </div>
-                            <div className="col-span-3 px-4 py-3">
-                              <p className="text-xs font-semibold text-slate-900">{insight.label}</p>
-                              <p className="text-xs text-slate-500 line-clamp-2">{insight.reason}</p>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
+                          </div>
+
+                          {e.note ? (
+                            <p className="mt-3 text-xs text-slate-600">Note: {e.note}</p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
               </div>
             </div>
 
             <p className="text-xs text-slate-500">
-              Month 3: mock logic only (in-memory). Month 4/5: connect Supabase + real persistence.
+              Month 3: mock logic only (in-memory). Month 4: persist to Supabase.
             </p>
           </div>
         </div>
