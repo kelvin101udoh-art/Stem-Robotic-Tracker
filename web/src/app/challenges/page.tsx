@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import type { Challenge } from '@/lib/mock';
-import { loadChallenges } from '@/lib/mock';
+import type { Challenge } from '@/data/mock';
+import { loadChallenges } from '@/data/mock';
 
 
 export default function ChallengesPage(){

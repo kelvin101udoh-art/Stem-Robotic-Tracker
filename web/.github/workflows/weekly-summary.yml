@@ -1,0 +1,25 @@
+name: Weekly Summary (Demo)
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Mondays 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write summary note
+        run: |
+          echo "Weekly Summary generated on $(date -u)" > WEEKLY_SUMMARY.md
+          echo "" >> WEEKLY_SUMMARY.md
+          echo "- This is an automation demo for Month 3." >> WEEKLY_SUMMARY.md
+          echo "- Next step: connect to real stored entries (Supabase) and generate real summaries." >> WEEKLY_SUMMARY.md
+
+      - name: Upload summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-summary
+          path: WEEKLY_SUMMARY.md
