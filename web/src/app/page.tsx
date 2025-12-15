@@ -70,46 +70,78 @@ export default function Home() {
 */
 
 
-
-
-
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col">
-      <header className="p-6 border-b">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold">STEM Robotics Progress Tracker</h1>
-          <a className="text-sm underline" href="/login">Teacher Login</a>
+    // Main container ensures the footer is pushed to the bottom of the screen
+    <main className="min-h-screen flex flex-col font-sans">
+      
+      {/* Header/Navigation Bar */}
+      <header className="p-4 md:p-6 border-b bg-white shadow-sm">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">
+            STEM Robotics Progress Tracker
+          </h1>
+          {/* Use a clear call-to-action button style for login */}
+          <a
+            href="/login"
+            className="px-4 py-2 text-sm font-semibold text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition duration-150"
+          >
+            Teacher Login
+          </a>
         </div>
       </header>
 
-      <section>
-        <div className="sample1-hero bg-blue-600 text-white py-20">
-          <div className="smaple2 border rounded-xl p-4">
-            <a href="/student-demo" className="text-sm underline">View sample student profile →</a>
+      {/* Hero Section */}
+      <section className="bg-blue-700 text-white py-16 md:py-24">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 text-center">
+          <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
+            Capture once, reuse everywhere.
+          </h2>
+          <p className="max-w-2xl mx-auto text-blue-100 mb-10 text-lg md:text-xl">
+            Log challenge results in seconds. Auto‑build student portfolios. Share term highlights with parents.
+          </p>
+          
+          {/* Demo Section (formerly smaple2) - Centered with inline content border */}
+          <div className="flex justify-center mb-10">
+            {/* The span wraps tightly around the text, allowing the border to fit the word width */}
+            <span className="inline-block border-2 border-blue-300 bg-blue-600 rounded-lg px-4 py-2 shadow-md">
+              <a href="/student-demo" className="text-sm font-medium hover:underline">
+                View sample student profile →
+              </a>
+            </span>
           </div>
-        </div>
 
+          {/* Centered Call-to-Action Button */}
+          <div className="flex justify-center">
+            <button className="bg-white hover:bg-gray-100 text-blue-700 font-bold py-3 px-8 rounded-lg shadow-lg transition duration-150 transform hover:scale-105">
+              Start Tracking Now
+            </button>
+          </div>
+          
+        </div>
       </section>
 
-
-      <section className="max-w-5xl mx-auto p-6 grid gap-4">
-        <h2 className="text-xl font-semibold">Capture once, reuse everywhere.</h2>
-        <p className="text-gray-600">Log challenge results in seconds. Auto‑build student portfolios. Share term highlights with parents.</p>
-        <div className="grid sm:grid-cols-3 gap-4">
+      {/* Feature Cards Section */}
+      <section className="max-w-6xl mx-auto p-4 md:p-8">
+        <div className="grid sm:grid-cols-1 md:grid-cols-3 gap-6">
           {[
             { title: 'Quick Capture', desc: 'Stopwatch + score + rubric in <30s' },
             { title: 'Student Portfolios', desc: 'Timeline of results & badges' },
             { title: 'Manager Insights', desc: 'Cohort trends & dashboards' }
           ].map((c) => (
-            <div key={c.title} className="border rounded-xl p-4">
-              <h3 className="font-medium">{c.title}</h3>
-              <p className="text-sm text-gray-600">{c.desc}</p>
+            <div key={c.title} className="border border-gray-200 rounded-xl p-6 shadow-sm bg-white hover:shadow-md transition duration-300">
+              {/* Optional: Add an icon here for a more professional look */}
+              <h3 className="font-semibold text-lg mb-2 text-gray-800">{c.title}</h3>
+              <p className="text-sm text-gray-500">{c.desc}</p>
             </div>
           ))}
         </div>
       </section>
-      <footer className="mt-auto p-6 text-center text-xs text-gray-500">© {new Date().getFullYear()} Kelvin Edet</footer>
+
+      {/* Footer (Pushed to bottom using mt-auto on the main container) */}
+      <footer className="mt-auto p-6 text-center text-xs text-gray-500 border-t">
+        © {new Date().getFullYear()} Kelvin Edet
+      </footer>
     </main>
   );
 }
