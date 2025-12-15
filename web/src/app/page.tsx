@@ -70,6 +70,9 @@ import Image from "next/image";
  */
 
 
+<a href="/student-demo" className="text-sm underline">View sample student profile →</a>
+
+
 export default function Home() {
 return (
 <main className="min-h-screen flex flex-col">
