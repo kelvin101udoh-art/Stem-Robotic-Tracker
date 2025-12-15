@@ -83,7 +83,10 @@ return (
 </div>
 </header>
 
+<section>
 <a href="/student-demo" className="text-sm underline">View sample student profile →</a>
+</section>
+
 
 <section className="max-w-5xl mx-auto p-6 grid gap-4">
 <h2 className="text-xl font-semibold">Capture once, reuse everywhere.</h2>
