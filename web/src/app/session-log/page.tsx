@@ -76,8 +76,10 @@ function buildWeeklySummary(entries: SessionEntry[]) {
 export default function LogPage() {
   const [student, setStudent] = useState('');
   const [challenge, setChallenge] = useState('');
-  const [score, setScore] = useState('');
+  const [scoreValue, setScoreValue] = useState(''); // user types: 38.2
+  const [scoreUnit, setScoreUnit] = useState<'seconds' | 'points' | 'status'>('seconds');
   const [note, setNote] = useState('');
+
   const [entries, setEntries] = useState<SessionEntry[]>([]);
 
   const canSave = useMemo(() => Boolean(student && challenge), [student, challenge]);
@@ -86,14 +88,29 @@ export default function LogPage() {
     e.preventDefault();
     if (!student || !challenge) return;
 
+    // Build a nicer score string for storage + AI parsing
+    let computedScore = scoreValue.trim();
+
+    if (scoreUnit === 'seconds') {
+      // user types "38.2" → store "38.2s"
+      computedScore = computedScore ? `${computedScore}s` : '';
+    } else if (scoreUnit === 'points') {
+      // user types "87" → store "87/100" (example)
+      computedScore = computedScore ? `${computedScore}/100` : '';
+    } else {
+      // status: user types "Completed" or "Top 3"
+      computedScore = computedScore;
+    }
+
     setEntries(prev => [
-      { student, challenge, score, note, createdAt: new Date().toLocaleString() },
+      { student, challenge, score: computedScore, note, createdAt: new Date().toLocaleString() },
       ...prev,
     ]);
 
-    setScore('');
+    setScoreValue('');
     setNote('');
   }
+
 
   const weekly = useMemo(() => buildWeeklySummary(entries), [entries]);
 
@@ -156,39 +173,66 @@ export default function LogPage() {
                   </select>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium text-slate-900">Score / Time</label>
-                    <input
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={score}
-                      onChange={e => setScore(e.target.value)}
-                      placeholder="e.g. 45.0s then 38.2s"
-                    />
-                    <p className="text-xs text-slate-500">Use “38.2s” format to trigger time-trend insights.</p>
+                <div className="grid gap-4">
+                  <div className="grid md:grid-cols-12 gap-4 items-end">
+                    {/* Result */}
+                    <div className="md:col-span-8 grid gap-2">
+                      <label className="text-sm font-medium text-slate-900">Result</label>
+
+                      <div className="flex gap-2">
+                        <input
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={scoreValue}
+                          onChange={(e) => setScoreValue(e.target.value)}
+                          placeholder={
+                            scoreUnit === 'seconds'
+                              ? 'e.g. 38.2'
+                              : scoreUnit === 'points'
+                                ? 'e.g. 87'
+                                : 'e.g. Completed'
+                          }
+                          inputMode={scoreUnit === 'seconds' || scoreUnit === 'points' ? 'decimal' : 'text'}
+                        />
+
+                        <select
+                          className="min-w-[140px] rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={scoreUnit}
+                          onChange={(e) => setScoreUnit(e.target.value as any)}
+                        >
+                          <option value="seconds">Seconds</option>
+                          <option value="points">Points</option>
+                          <option value="status">Status</option>
+                        </select>
+                      </div>
+
+                      <p className="text-xs text-slate-500">
+                        Tip: choose <b>Seconds</b> to trigger time-trend insights automatically.
+                      </p>
+                    </div>
+
+                    {/* Save */}
+                    <div className="md:col-span-4">
+                      <button
+                        type="submit"
+                        className="w-full rounded-2xl px-5 py-3 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-md transition"
+                      >
+                        Save entry <span className="ml-2">→</span>
+                      </button>
+                    </div>
                   </div>
 
+                  {/* Notes */}
                   <div className="grid gap-2">
                     <label className="text-sm font-medium text-slate-900">Notes</label>
-                    <input
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <textarea
+                      className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={note}
-                      onChange={e => setNote(e.target.value)}
-                      placeholder="Short coaching note"
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="Short coaching note (what improved / what to practice next)"
                     />
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={!canSave}
-                  className={[
-                    'rounded-2xl px-5 py-3 text-sm font-semibold transition inline-flex items-center justify-center',
-                    canSave ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-md' : 'bg-slate-200 text-slate-500 cursor-not-allowed',
-                  ].join(' ')}
-                >
-                  Save entry (mock) <span className="ml-2" aria-hidden="true">→</span>
-                </button>
 
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
                   <p className="text-xs font-semibold text-blue-700">AI ethics note</p>
