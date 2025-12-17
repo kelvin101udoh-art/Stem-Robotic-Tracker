@@ -96,8 +96,7 @@ function BrandMark() {
           fill
           className="object-contain p-1"
           priority
-          onError={(e) => {
-            (e.currentTarget as any).style.opacity = 0;
+          
           }}
         />
         <div className="absolute inset-0 grid place-items-center">
