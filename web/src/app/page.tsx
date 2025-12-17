@@ -339,20 +339,6 @@ export default function Page() {
               and clubs can run with.
             </p>
 
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <a
-                href="#who"
-                className="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                Who it’s for
-              </a>
-              <a
-                href="#get"
-                className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                What you get
-              </a>
-            </div>
 
             <div className="mt-6">
               <RoleTiles />
