@@ -279,10 +279,12 @@ export default function Page() {
       {/* NAV */}
       <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <BrandMark />
           </Link>
 
+          {/* Main navigation */}
           <nav className="hidden items-center gap-6 md:flex">
             {navItems.map((it) => (
               <a
@@ -293,30 +295,20 @@ export default function Page() {
                 {it.label}
               </a>
             ))}
-            <Link href="/session-log" className="text-sm text-slate-600 hover:text-slate-900">
-              Session log
-            </Link>
-            <Link href="/student-demo" className="text-sm text-slate-600 hover:text-slate-900">
-              Student demo
-            </Link>
           </nav>
 
+          {/* Right-side action (prototype-safe) */}
           <div className="hidden sm:flex items-center gap-2">
-            <Link
-              href="/student-demo"
+            <button
+              type="button"
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              View demo
-            </Link>
-            <Link
-              href="/session-log"
-              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              Start logging
-            </Link>
+              Explore more
+            </button>
           </div>
         </div>
       </header>
+
 
       {/* HERO */}
       <section className="mx-auto max-w-6xl px-4 pt-14 sm:pt-18">
