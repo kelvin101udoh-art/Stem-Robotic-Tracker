@@ -106,7 +106,7 @@ function BrandMark() {
       </div>
 
       <div className="leading-tight">
-        <div className="text-sm font-semibold text-slate-900">STEM—Track</div>
+        <div className="text-sm font-semibold text-slate-900">STEMTrack</div>
         <div className="text-xs text-slate-500">Simple progress • Clear updates</div>
       </div>
     </div>
