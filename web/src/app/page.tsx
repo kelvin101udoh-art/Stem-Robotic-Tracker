@@ -423,17 +423,12 @@ export default function Page() {
               </p>
             </div>
             <div className="flex flex-wrap justify-start gap-3 md:justify-end">
+
               <Link
-                href="/session-log"
-                className="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                Open session log
-              </Link>
-              <Link
-                href="/student-demo"
+                href="#"
                 className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                Open student demo
+                Explore more
               </Link>
             </div>
           </div>
