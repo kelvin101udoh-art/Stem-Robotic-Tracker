@@ -1,6 +1,8 @@
+
 // app/page.tsx
 import Link from "next/link";
 import Image from "next/image";
+
 
 const navItems = [
   { label: "Benefits", href: "#benefits" },
@@ -85,8 +87,9 @@ const faqs = [
   },
 ];
 
+
+
 function BrandMark() {
-  // Uses /public/logo.svg if present; falls back to SR if missing.
   return (
     <div className="flex items-center gap-2">
       <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -96,10 +99,8 @@ function BrandMark() {
           fill
           className="object-contain p-1"
           priority
-          
-          }}
         />
-        <div className="absolute inset-0 grid place-items-center">
+        <div className="absolute inset-0 grid place-items-center pointer-events-none">
           <span className="text-xs font-extrabold tracking-tight text-slate-900">SR</span>
         </div>
       </div>
@@ -111,6 +112,7 @@ function BrandMark() {
     </div>
   );
 }
+
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
