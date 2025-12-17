@@ -106,7 +106,7 @@ function BrandMark() {
       </div>
 
       <div className="leading-tight">
-        <div className="text-sm font-semibold text-slate-900">STEM Club Tracker</div>
+        <div className="text-sm font-semibold text-slate-900">STEM—Track</div>
         <div className="text-xs text-slate-500">Simple progress • Clear updates</div>
       </div>
     </div>
@@ -448,9 +448,7 @@ export default function Page() {
                 {it.label}
               </a>
             ))}
-            <Link href="/login" className="text-slate-600 hover:text-slate-900">
-              Teacher login
-            </Link>
+            
           </div>
         </div>
       </footer>
