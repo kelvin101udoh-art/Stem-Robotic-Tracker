@@ -1,5 +1,6 @@
 // app/page.tsx
 import Link from "next/link";
+import Image from "next/image";
 
 const navItems = [
   { label: "Benefits", href: "#benefits" },
@@ -84,6 +85,34 @@ const faqs = [
   },
 ];
 
+function BrandMark() {
+  // Uses /public/logo.svg if present; falls back to SR if missing.
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <Image
+          src="/logo.svg"
+          alt="STEM Club Tracker logo"
+          fill
+          className="object-contain p-1"
+          priority
+          onError={(e) => {
+            (e.currentTarget as any).style.opacity = 0;
+          }}
+        />
+        <div className="absolute inset-0 grid place-items-center">
+          <span className="text-xs font-extrabold tracking-tight text-slate-900">SR</span>
+        </div>
+      </div>
+
+      <div className="leading-tight">
+        <div className="text-sm font-semibold text-slate-900">STEM Club Tracker</div>
+        <div className="text-xs text-slate-500">Simple progress • Clear updates</div>
+      </div>
+    </div>
+  );
+}
+
 function Pill({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
@@ -140,8 +169,8 @@ function SimplePreview() {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-900">Parent view preview</div>
-        <span className="text-xs text-slate-500">plain language</span>
+        <div className="text-sm font-semibold text-slate-900">Preview (parent-friendly)</div>
+        <span className="text-xs text-slate-500">mock data</span>
       </div>
 
       <div className="mt-4 rounded-2xl bg-slate-50 p-4">
@@ -161,8 +190,7 @@ function SimplePreview() {
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="text-xs font-semibold text-slate-500">Progress</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">Getting stronger at</div>
+            <div className="text-xs font-semibold text-slate-500">Getting stronger at</div>
             <ul className="mt-3 space-y-2 text-sm text-slate-700">
               {["Problem solving", "Teamwork", "Building confidence"].map((x) => (
                 <li key={x} className="flex gap-2">
@@ -174,15 +202,14 @@ function SimplePreview() {
           </div>
 
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="text-xs font-semibold text-slate-500">Gallery</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">My builds</div>
+            <div className="text-xs font-semibold text-slate-500">Build gallery</div>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div className="h-14 rounded-xl bg-slate-100" />
               <div className="h-14 rounded-xl bg-slate-100" />
               <div className="h-14 rounded-xl bg-slate-100" />
             </div>
             <p className="mt-3 text-xs text-slate-500">
-              Students can upload photos/code so mentors don’t chase evidence.
+              Students upload photos/code so mentors don’t chase evidence.
             </p>
           </div>
         </div>
@@ -194,24 +221,24 @@ function SimplePreview() {
 function RoleTiles() {
   const tiles = [
     {
-      title: "Parent preview",
-      desc: "See simple weekly highlights and progress snapshots.",
-      href: "/parent-demo",
-    },
-    {
-      title: "Student preview",
-      desc: "See a personal showcase of builds and improvements.",
+      title: "Student demo",
+      desc: "Profile, progress, and recent challenges (demo data).",
       href: "/student-demo",
     },
     {
-      title: "Mentor preview",
-      desc: "See lightweight logging and coach notes (prototype screens).",
-      href: "/mentor-demo",
+      title: "Session log",
+      desc: "Log a result + note (prototype flow).",
+      href: "/session-log",
     },
     {
-      title: "Club owner preview",
-      desc: "See how clubs keep progress consistent across terms.",
-      href: "/club-demo",
+      title: "Challenge templates",
+      desc: "View your challenge library (mock load).",
+      href: "/challenges",
+    },
+    {
+      title: "Teacher login",
+      desc: "Prototype login UI (Month 1/2 style).",
+      href: "/login",
     },
   ];
 
@@ -219,7 +246,7 @@ function RoleTiles() {
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-slate-900">Explore the prototype</div>
-        <span className="text-xs text-slate-500">role-based previews</span>
+        <span className="text-xs text-slate-500">real routes</span>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -227,12 +254,12 @@ function RoleTiles() {
           <Link
             key={t.title}
             href={t.href}
-            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:bg-slate-50"
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50"
           >
             <div className="text-sm font-semibold text-slate-900">{t.title}</div>
             <p className="mt-1 text-sm text-slate-600">{t.desc}</p>
             <p className="mt-3 text-xs font-medium text-slate-700 underline underline-offset-4">
-              Open preview →
+              Open →
             </p>
           </Link>
         ))}
@@ -252,26 +279,40 @@ export default function Page() {
       <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link href="/" className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-xl bg-slate-900" />
-            <div className="leading-tight">
-              <div className="text-sm font-semibold">STEM Club Tracker</div>
-              <div className="text-xs text-slate-500">Simple progress • Clear updates</div>
-            </div>
+            <BrandMark />
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
             {navItems.map((it) => (
-              <a key={it.href} href={it.href} className="text-sm text-slate-600 hover:text-slate-900">
+              <a
+                key={it.href}
+                href={it.href}
+                className="text-sm text-slate-600 hover:text-slate-900"
+              >
                 {it.label}
               </a>
             ))}
+            <Link href="/session-log" className="text-sm text-slate-600 hover:text-slate-900">
+              Session log
+            </Link>
+            <Link href="/student-demo" className="text-sm text-slate-600 hover:text-slate-900">
+              Student demo
+            </Link>
           </nav>
 
-          {/* Prototype-friendly: no “Get started” or “View demo” buttons */}
           <div className="hidden sm:flex items-center gap-2">
-            <a href="#who" className="text-sm text-slate-700 underline underline-offset-4">
-              Explore roles
-            </a>
+            <Link
+              href="/student-demo"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              View demo
+            </Link>
+            <Link
+              href="/session-log"
+              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              Start logging
+            </Link>
           </div>
         </div>
       </header>
@@ -296,23 +337,21 @@ export default function Page() {
               and clubs can run with.
             </p>
 
-            {/* Prototype-friendly: no strong CTA. Just gentle navigation. */}
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <a
                 href="#who"
                 className="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
               >
-                Explore who it’s for
+                Who it’s for
               </a>
               <a
                 href="#get"
                 className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                See what you get
+                What you get
               </a>
             </div>
 
-            {/* Role previews: honest prototype navigation */}
             <div className="mt-6">
               <RoleTiles />
             </div>
@@ -360,7 +399,7 @@ export default function Page() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {whatYouGet.map((x) => (
             <div key={x.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="text-sm font-semibold">{x.title}</div>
+              <div className="text-sm font-semibold text-slate-900">{x.title}</div>
               <p className="mt-2 text-sm text-slate-600">{x.desc}</p>
             </div>
           ))}
@@ -385,7 +424,6 @@ export default function Page() {
           ))}
         </div>
 
-        {/* Prototype-friendly footer note instead of CTA buttons */}
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
           <div className="grid items-center gap-6 md:grid-cols-2">
             <div>
@@ -393,22 +431,22 @@ export default function Page() {
                 Prototype focus: clarity first.
               </h2>
               <p className="mt-3 text-sm text-slate-600 sm:text-base">
-                This homepage stays simple for families. Role previews show the flow using mock data.
+                Use the role previews to navigate real prototype pages. Keep iterating from there.
               </p>
             </div>
             <div className="flex flex-wrap justify-start gap-3 md:justify-end">
-              <a
-                href="#who"
-                className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Explore roles
-              </a>
-              <a
-                href="#get"
+              <Link
+                href="/session-log"
                 className="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
               >
-                See what you get
-              </a>
+                Open session log
+              </Link>
+              <Link
+                href="/student-demo"
+                className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Open student demo
+              </Link>
             </div>
           </div>
         </div>
@@ -420,12 +458,16 @@ export default function Page() {
           <div className="text-sm text-slate-600">
             © {new Date().getFullYear()} STEM Club Tracker. All rights reserved.
           </div>
+
           <div className="flex flex-wrap gap-4 text-sm">
             {navItems.map((it) => (
               <a key={it.href} href={it.href} className="text-slate-600 hover:text-slate-900">
                 {it.label}
               </a>
             ))}
+            <Link href="/login" className="text-slate-600 hover:text-slate-900">
+              Teacher login
+            </Link>
           </div>
         </div>
       </footer>
