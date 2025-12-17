@@ -227,27 +227,31 @@ function RoleTiles() {
       href: "/student-demo",
     },
     {
-      title: "Session log",
-      desc: "Log a result + note (prototype flow).",
-      href: "/session-log",
+      title: "Parent demo",
+      desc: "Plain-language weekly highlights and progress snapshots.",
+      href: "/parent-demo",
     },
     {
-      title: "Challenge templates",
-      desc: "View your challenge library (mock load).",
-      href: "/challenges",
+      title: "Teacher demo",
+      desc: "Lightweight logging flow and coach notes (prototype UI).",
+      href: "/teacher-demo",
     },
     {
-      title: "Teacher login",
-      desc: "Prototype login UI (Month 1/2 style).",
-      href: "/login",
+      title: "Admin demo",
+      desc: "Club-level overview for consistency and reporting (mock data).",
+      href: "/admin-demo",
     },
   ];
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-900">Explore the prototype</div>
-        <span className="text-xs text-slate-500">real routes</span>
+        <div className="text-sm font-semibold text-slate-900">
+          Explore the prototype
+        </div>
+        <span className="text-xs text-slate-500">
+          role-based demos
+        </span>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -255,11 +259,15 @@ function RoleTiles() {
           <Link
             key={t.title}
             href={t.href}
-            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50"
+            className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50"
           >
-            <div className="text-sm font-semibold text-slate-900">{t.title}</div>
-            <p className="mt-1 text-sm text-slate-600">{t.desc}</p>
-            <p className="mt-3 text-xs font-medium text-slate-700 underline underline-offset-4">
+            <div className="text-sm font-semibold text-slate-900">
+              {t.title}
+            </div>
+            <p className="mt-1 text-sm text-slate-600">
+              {t.desc}
+            </p>
+            <p className="mt-3 text-xs font-medium text-slate-700 underline underline-offset-4 group-hover:text-slate-900">
               Open →
             </p>
           </Link>
@@ -267,11 +275,12 @@ function RoleTiles() {
       </div>
 
       <p className="mt-4 text-xs text-slate-500">
-        Prototype mode: UI + mock data. Database wiring can come later.
+        Prototype mode: UI + mock data only. Database wiring comes later.
       </p>
     </div>
   );
 }
+
 
 export default function Page() {
   return (
