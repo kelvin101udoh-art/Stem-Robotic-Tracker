@@ -76,7 +76,7 @@ const faqs = [
   },
   {
     q: "Is this production-ready already?",
-    a: "It’s a prototype. You can demo the flow now. Later you can connect Supabase for real data and exports.",
+    a: "It’s a prototype. It shows the flow using sample screens and mock data. You can connect Supabase later.",
   },
   {
     q: "Can a small club use this?",
@@ -191,6 +191,60 @@ function SimplePreview() {
   );
 }
 
+function RoleTiles() {
+  const tiles = [
+    {
+      title: "Parent preview",
+      desc: "See simple weekly highlights and progress snapshots.",
+      href: "/parent-demo",
+    },
+    {
+      title: "Student preview",
+      desc: "See a personal showcase of builds and improvements.",
+      href: "/student-demo",
+    },
+    {
+      title: "Mentor preview",
+      desc: "See lightweight logging and coach notes (prototype screens).",
+      href: "/mentor-demo",
+    },
+    {
+      title: "Club owner preview",
+      desc: "See how clubs keep progress consistent across terms.",
+      href: "/club-demo",
+    },
+  ];
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-semibold text-slate-900">Explore the prototype</div>
+        <span className="text-xs text-slate-500">role-based previews</span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {tiles.map((t) => (
+          <Link
+            key={t.title}
+            href={t.href}
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:bg-slate-50"
+          >
+            <div className="text-sm font-semibold text-slate-900">{t.title}</div>
+            <p className="mt-1 text-sm text-slate-600">{t.desc}</p>
+            <p className="mt-3 text-xs font-medium text-slate-700 underline underline-offset-4">
+              Open preview →
+            </p>
+          </Link>
+        ))}
+      </div>
+
+      <p className="mt-4 text-xs text-slate-500">
+        Prototype mode: UI + mock data. Database wiring can come later.
+      </p>
+    </div>
+  );
+}
+
 export default function Page() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
@@ -213,19 +267,11 @@ export default function Page() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
-            <Link
-              href="/student-demo"
-              className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex"
-            >
-              View demo
-            </Link>
-            <Link
-              href="/session-log"
-              className="inline-flex rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              Get started
-            </Link>
+          {/* Prototype-friendly: no “Get started” or “View demo” buttons */}
+          <div className="hidden sm:flex items-center gap-2">
+            <a href="#who" className="text-sm text-slate-700 underline underline-offset-4">
+              Explore roles
+            </a>
           </div>
         </div>
       </header>
@@ -246,43 +292,29 @@ export default function Page() {
             </h1>
 
             <p className="mt-4 text-base text-slate-600 sm:text-lg">
-              Track activities, improvements, and projects in a clean way that parents understand and clubs can run with.
+              Track activities, improvements, and projects in a clean way that parents understand
+              and clubs can run with.
             </p>
 
+            {/* Prototype-friendly: no strong CTA. Just gentle navigation. */}
             <div className="mt-7 flex flex-wrap items-center gap-3">
-              <Link
-                href="/session-log"
+              <a
+                href="#who"
                 className="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
               >
-                Start logging
-              </Link>
-              <Link
-                href="/student-demo"
+                Explore who it’s for
+              </a>
+              <a
+                href="#get"
                 className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                View student demo
-              </Link>
+                See what you get
+              </a>
             </div>
 
-            {/* Quick links strip */}
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-medium text-slate-900">Quick links</p>
-                <div className="flex flex-wrap gap-2">
-                  <Link href="/session-log" className="text-sm text-slate-700 underline underline-offset-4">
-                    Session log
-                  </Link>
-                  <Link href="/student-demo" className="text-sm text-slate-700 underline underline-offset-4">
-                    Student profile
-                  </Link>
-                  <Link href="/login" className="text-sm text-slate-700 underline underline-offset-4">
-                    Teacher login
-                  </Link>
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Prototype mode: UI + mock data. Supabase wiring can come next.
-              </p>
+            {/* Role previews: honest prototype navigation */}
+            <div className="mt-6">
+              <RoleTiles />
             </div>
           </div>
 
@@ -341,14 +373,11 @@ export default function Page() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {faqs.map((f) => (
-            <details
-              key={f.q}
-              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-            >
+            <details key={f.q} className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <summary className="cursor-pointer list-none text-base font-semibold text-slate-900">
                 <span className="flex items-center justify-between gap-4">
                   {f.q}
-                  <span className="text-slate-400 group-open:rotate-45 transition">+</span>
+                  <span className="text-slate-400 transition group-open:rotate-45">+</span>
                 </span>
               </summary>
               <p className="mt-3 text-sm text-slate-600">{f.a}</p>
@@ -356,29 +385,30 @@ export default function Page() {
           ))}
         </div>
 
+        {/* Prototype-friendly footer note instead of CTA buttons */}
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
           <div className="grid items-center gap-6 md:grid-cols-2">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                Want to see the full workflow?
+                Prototype focus: clarity first.
               </h2>
               <p className="mt-3 text-sm text-slate-600 sm:text-base">
-                Use the demo routes now, then we can wire database + exports when ready.
+                This homepage stays simple for families. Role previews show the flow using mock data.
               </p>
             </div>
             <div className="flex flex-wrap justify-start gap-3 md:justify-end">
-              <Link
-                href="/student-demo"
+              <a
+                href="#who"
                 className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                View demo
-              </Link>
-              <Link
-                href="/session-log"
+                Explore roles
+              </a>
+              <a
+                href="#get"
                 className="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
               >
-                Start logging
-              </Link>
+                See what you get
+              </a>
             </div>
           </div>
         </div>
