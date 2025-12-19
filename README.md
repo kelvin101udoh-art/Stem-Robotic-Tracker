@@ -78,3 +78,22 @@ npm run dev
 
 Visit http://localhost:3000
  to view the app locally.
+
+```
+
+### 📁 Architecture
+
+```text
+Stem-Robotic-Tracker/
+├── web/                    # Next.js app (run npm install here)
+│   ├── app/                # Next.js App Router (if used)
+│   ├── components/         # Reusable UI components
+│   ├── lib/                # Utilities/helpers
+│   ├── public/             # Static assets
+│   ├── styles/             # Styling (if present)
+│   ├── package.json        # Web app dependencies
+│   └── next.config.*       # Next.js configuration
+├── docs/                   # Documentation (optional)
+├── assets/                 # Screenshots/media for README (optional)
+└── README.md               # Project overview
+
