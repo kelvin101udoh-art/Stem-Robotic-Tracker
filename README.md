@@ -1,7 +1,7 @@
 # 🌟 STEM Robotic Tracker
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](github.com)
+[![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)]()
 
 > **EdTech platform for tracking STEM and robotics learning progress.**  
 > A student-focused, instructor-friendly tool to log sessions, visualise progress, and assess robotics learning outcomes.
@@ -10,15 +10,15 @@
 
 ## 📌 Table of Contents
 
-1. [📖 About the Project](#-about-the-project)  
-2. [✨ Features](#-features)  
-3. [🧰 Tech Stack](#-tech-stack)  
-4. [🚀 Getting Started](#-getting-started)  
-5. [📁 Architecture](#-architecture)  
-6. [🧪 Examples & Screenshots](#-examples--screenshots)  
-7. [🤝 Contributing](#-contributing)  
-8. [📝 License](#-license)  
-9. [📞 Contact](#-contact)
+1. 📖 [About the Project](#-about-the-project)  
+2. ✨ [Features](#-features)  
+3. 🧰 [Tech Stack](#-tech-stack)  
+4. 🚀 [Getting Started](#-getting-started)  
+5. 📁 [Architecture](#-architecture)  
+6. 🧪 [Examples & Screenshots](#-examples--screenshots)  
+7. 🤝 [Contributing](#-contributing)  
+8. 📝 [License](#-license)  
+9. 📞 [Contact](#-contact)
 
 ---
 
@@ -28,22 +28,43 @@
 
 The platform reduces paperwork for instructors while giving parents and students meaningful, easy-to-understand progress insights.
 
-🌐 **Live Demo:** [stem-robotics-platform.vercel.app](https://stem-robotics-platform.vercel.app/)
+🌐 **Live Demo:** https://stem-robotics-platform.vercel.app/
 
-> [!IMPORTANT]
-> This project is currently in **early prototype stage**. Some features use mock data while workflows are still being refined.
+> ⚠️ This project is currently in **early prototype stage**. Some features use mock data while workflows are still being refined.
 
 ---
 
 ## ✨ Features
 
-- 📊 **Learning Progress Dashboard** — Track skills and development over time.
-- 📅 **Session Logging & Notes** — Record activities, outcomes, and next steps.
-- 👥 **User Profiles** — Student, mentor, and admin views.
-- 📈 **Progress Trends** — Visualise improvements across sessions.
-- 🔐 **Role-based Access** — Designed for multi-user STEM clubs.
+- 📊 **Learning Progress Dashboard** — Track skills and development over time  
+- 📅 **Session Logging & Notes** — Record activities, outcomes, and next steps  
+- 👥 **User Profiles** — Student, mentor, and admin views  
+- 📈 **Progress Trends** — Visualise improvements across sessions  
+- 🔐 **Role-based Access** — Designed for multi-user STEM clubs  
 
 ---
 
 ## 🧰 Tech Stack
 
+| Layer | Technology |
+|------|-----------|
+| Frontend | Next.js, React, TypeScript |
+| Backend | Supabase (planned / partial) |
+| Database | PostgreSQL (via Supabase) |
+| Hosting | Vercel |
+
+---
+
+## 🚀 Getting Started
+
+### 🧾 Prerequisites
+
+- Node.js **v16 or higher**
+- npm or yarn
+
+### ⬇ Installation
+
+```bash
+git clone https://github.com/kelvin101udoh-art/Stem-Robotic-Tracker.git
+cd Stem-Robotic-Tracker/web
+npm install
