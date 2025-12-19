@@ -76,7 +76,12 @@ npm install
 ```bash
 npm run dev
 ```
-Visit http://localhost:3000 -- to view the app locally.
+---
+### Visit 
+```text
+http://localhost:3000
+
+To view the app locally.
 ---
 
 ### 📁 Architecture
