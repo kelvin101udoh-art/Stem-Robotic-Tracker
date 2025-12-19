@@ -68,7 +68,9 @@ The platform reduces paperwork for instructors while giving parents and students
 git clone https://github.com/kelvin101udoh-art/Stem-Robotic-Tracker.git
 cd Stem-Robotic-Tracker/web
 npm install
-`​``
+
+**
+
 ### ▶ Usage
 
 ```bash
