@@ -219,64 +219,96 @@ function SimplePreview() {
   );
 }
 
+
 function RoleTiles() {
   const tiles = [
     {
-      title: "Student demo",
-      desc: "Profile, progress, and recent challenges (demo data).",
-      href: "/student-demo",
+      title: "Student view",
+      desc: "Profile, progress, and recent challenges.",
+      tags: ["Progress", "Challenges", "Portfolio"],
+      status: "Available",
     },
     {
-      title: "Parent demo",
+      title: "Parent view",
       desc: "Plain-language weekly highlights and progress snapshots.",
-      href: "/parent-demo",
+      tags: ["Weekly highlights", "Simple language", "Support tips"],
+      status: "Available",
     },
     {
-      title: "Teacher demo",
-      desc: "Lightweight logging flow and coach notes (prototype UI).",
-      href: "/teacher-demo",
+      title: "Teacher view",
+      desc: "Lightweight session capture and coach notes.",
+      tags: ["Logging", "Notes", "Continuity"],
+      status: "Available",
     },
     {
-      title: "Admin demo",
-      desc: "Club-level overview for consistency and reporting (mock data).",
-      href: "/admin-demo",
+      title: "Admin view",
+      desc: "Club-level overview for consistency and reporting.",
+      tags: ["Oversight", "Consistency", "Reporting"],
+      status: "Available",
     },
   ];
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-900">
-          Explore the prototype
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Explore the platform</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Role-based views designed for clarity and simple progress tracking.
+          </p>
         </div>
-        <span className="text-xs text-slate-500">
-          role-based demos
+
+        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+          Role views
         </span>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {tiles.map((t) => (
-          <Link
+          <div
             key={t.title}
-            href={t.href}
-            className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50"
+            role="button"
+            tabIndex={0}
+            className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-300"
           >
-            <div className="text-sm font-semibold text-slate-900">
-              {t.title}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{t.title}</p>
+                <p className="mt-1 text-sm text-slate-600">{t.desc}</p>
+              </div>
+
+              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                {t.status}
+              </span>
             </div>
-            <p className="mt-1 text-sm text-slate-600">
-              {t.desc}
-            </p>
-            <p className="mt-3 text-xs font-medium text-slate-700 underline underline-offset-4 group-hover:text-slate-900">
-              Open →
-            </p>
-          </Link>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {t.tags.map((x) => (
+                <span
+                  key={x}
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700"
+                >
+                  {x}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-xs text-slate-500">Access route will be linked later</p>
+              <span className="text-xs font-semibold text-slate-700 opacity-0 transition group-hover:opacity-100">
+                Explore →
+              </span>
+            </div>
+          </div>
         ))}
       </div>
 
-      <p className="mt-4 text-xs text-slate-500">
-        Prototype mode: UI + mock data only. Database wiring comes later.
-      </p>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <p className="text-sm font-semibold text-slate-900">Keep it simple</p>
+        <p className="mt-1 text-sm text-slate-600">
+          Each view is designed to show only what that role needs — without clutter.
+        </p>
+      </div>
     </div>
   );
 }
@@ -312,7 +344,7 @@ export default function Page() {
               type="button"
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Explore more
+              Get Started
             </button>
           </div>
         </div>
@@ -428,7 +460,7 @@ export default function Page() {
                 href="#"
                 className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                Explore more
+                Get Started
               </Link>
             </div>
           </div>
