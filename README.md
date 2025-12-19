@@ -83,8 +83,8 @@ http://localhost:3000
 
 ```
 To view the app locally.
-
 ---
+
 ### 📁 Architecture
 
 ```text
