@@ -122,8 +122,8 @@ See the `LICENSE` file for details.
 **Maintainer:** Kelvin Udoh  
 
 - 📧 Email: kelvin101udoh@gmail.com  
-- 🔗 LinkedIn: [*(add if you wish)*](https://www.linkedin.com/in/kelvin-udoh-b6197a398/)  
-- 🐦 Twitter/X: [*(optional)*](https://x.com/udoh_kelvin_101)
+- 🔗 LinkedIn: https://www.linkedin.com/in/kelvin-udoh-b6197a398
+- 🐦 Twitter/X: https://x.com/udoh_kelvin_101
 
 
 ---
