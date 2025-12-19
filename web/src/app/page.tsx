@@ -220,98 +220,104 @@ function SimplePreview() {
 }
 
 
+
 function RoleTiles() {
-  const tiles = [
+  const roles = [
     {
-      title: "Student view",
-      desc: "Profile, progress, and recent challenges.",
-      tags: ["Progress", "Challenges", "Portfolio"],
-      status: "Available",
+      title: "Student",
+      desc: "See your progress, builds, and recent challenges in one place.",
+      points: ["Personal portfolio", "Progress timeline", "Challenge history"],
+      icon: "🎒",
     },
     {
-      title: "Parent view",
-      desc: "Plain-language weekly highlights and progress snapshots.",
-      tags: ["Weekly highlights", "Simple language", "Support tips"],
-      status: "Available",
+      title: "Parent",
+      desc: "Simple weekly highlights that explain growth in plain language.",
+      points: ["Weekly updates", "What improved", "How to support next"],
+      icon: "👨‍👩‍👧‍👦",
     },
     {
-      title: "Teacher view",
-      desc: "Lightweight session capture and coach notes.",
-      tags: ["Logging", "Notes", "Continuity"],
-      status: "Available",
+      title: "Teacher",
+      desc: "Capture quick session notes and keep continuity across weeks.",
+      points: ["Lightweight logging", "Coach notes", "Next-session guidance"],
+      icon: "🧑‍🏫",
     },
     {
-      title: "Admin view",
-      desc: "Club-level overview for consistency and reporting.",
-      tags: ["Oversight", "Consistency", "Reporting"],
-      status: "Available",
+      title: "Admin",
+      desc: "Oversee cohorts and maintain consistent delivery across terms.",
+      points: ["Cohort overview", "Consistency checks", "Reporting-ready view"],
+      icon: "🧭",
     },
   ];
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-900">Explore the platform</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Role-based views designed for clarity and simple progress tracking.
+          <p className="text-xs font-semibold tracking-widest text-slate-500">
+            ROLE VIEWS
+          </p>
+          <h3 className="mt-2 text-xl font-semibold text-slate-900">
+            Explore the platform by role
+          </h3>
+          <p className="mt-1 text-sm text-slate-600">
+            Each view is focused, simple, and tailored to what that role needs.
           </p>
         </div>
 
-        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-          Role views
-        </span>
+        {/* Optional badge */}
+        <div className="inline-flex w-fit items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+          Minimal • Clear • Practical
+        </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {tiles.map((t) => (
+      {/* Grid */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        {roles.map((r) => (
           <div
-            key={t.title}
-            role="button"
-            tabIndex={0}
-            className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-300"
+            key={r.title}
+            className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{t.title}</p>
-                <p className="mt-1 text-sm text-slate-600">{t.desc}</p>
+              <div className="flex items-start gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-100 text-lg">
+                  {r.icon}
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-slate-900">
+                    {r.title} view
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">{r.desc}</p>
+                </div>
               </div>
 
-              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                {t.status}
+              {/* Disabled-style CTA */}
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                Explore
               </span>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {t.tags.map((x) => (
-                <span
-                  key={x}
-                  className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700"
-                >
-                  {x}
-                </span>
+            <div className="mt-4 h-px bg-slate-100" />
+
+            <ul className="mt-4 space-y-2 text-sm text-slate-700">
+              {r.points.map((p) => (
+                <li key={p} className="flex gap-2">
+                  <span className="mt-2 inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
+                  <span>{p}</span>
+                </li>
               ))}
-            </div>
+            </ul>
 
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-xs text-slate-500">Access route will be linked later</p>
-              <span className="text-xs font-semibold text-slate-700 opacity-0 transition group-hover:opacity-100">
-                Explore →
-              </span>
-            </div>
+            <p className="mt-4 text-xs text-slate-500">
+              Link will be connected later.
+            </p>
           </div>
         ))}
       </div>
-
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-900">Keep it simple</p>
-        <p className="mt-1 text-sm text-slate-600">
-          Each view is designed to show only what that role needs — without clutter.
-        </p>
-      </div>
-    </div>
+    </section>
   );
 }
+
 
 
 export default function Page() {
