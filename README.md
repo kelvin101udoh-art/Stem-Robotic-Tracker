@@ -75,11 +75,9 @@ npm install
 
 ```bash
 npm run dev
-
-Visit http://localhost:3000
- to view the app locally.
-
 ```
+Visit http://localhost:3000 -- to view the app locally.
+---
 
 ### 📁 Architecture
 
@@ -98,6 +96,12 @@ Stem-Robotic-Tracker/
 └── README.md               # Project overview
 
 ```
+---
+
+## 🧪 Examples & Screenshots
+
+Screenshots and demo recordings will be added as the prototype evolves.
+
 ---
 
 ## 🤝 Contributing
