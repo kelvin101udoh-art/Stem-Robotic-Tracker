@@ -98,6 +98,7 @@ Stem-Robotic-Tracker/
 └── README.md               # Project overview
 
 ```
+---
 
 ## 🤝 Contributing
 
@@ -120,9 +121,9 @@ See the `LICENSE` file for details.
 
 **Maintainer:** Kelvin Udoh  
 
-- 📧 Email: *(add if you wish)*  
-- 🔗 LinkedIn: *(add if you wish)*  
-- 🐦 Twitter/X: *(optional)*
+- 📧 Email: kelvin101udoh@gmail.com  
+- 🔗 LinkedIn: [*(add if you wish)*](https://www.linkedin.com/in/kelvin-udoh-b6197a398/)  
+- 🐦 Twitter/X: [*(optional)*](https://x.com/udoh_kelvin_101)
 
 
 ---
