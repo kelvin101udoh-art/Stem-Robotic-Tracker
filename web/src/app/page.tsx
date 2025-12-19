@@ -166,24 +166,24 @@ function Card({
   );
 }
 
+// Drop-in replacement: SimplePreview + RoleTiles
+// Assumes you already have <Pill /> in the same file.
+
 function SimplePreview() {
   return (
     <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-slate-500">
-            SAMPLE OUTPUT
-          </p>
-          <h3 className="mt-2 text-lg font-semibold text-slate-900">
-            Parent Weekly Summary
-          </h3>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-widest text-slate-500">SAMPLE OUTPUT</p>
+          <h3 className="mt-2 text-lg font-semibold text-slate-900">Parent Weekly Summary</h3>
           <p className="mt-1 text-sm text-slate-600">
-            Plain-language updates designed for families — short, clear, and actionable.
+            Short, plain-language updates — built for families. Clear enough to read in 30 seconds.
           </p>
         </div>
 
-        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+        <span className="shrink-0 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
           Example format
         </span>
       </div>
@@ -193,26 +193,40 @@ function SimplePreview() {
         {/* Highlight */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold text-slate-500">This week’s highlight</p>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-500">This week</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">
-                Racing car build + improved turning control
+                Racing car build — turning control improved
               </p>
             </div>
-            <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-              Progress noted
+
+            <span className="shrink-0 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+              Progress
             </span>
           </div>
 
           <p className="mt-3 text-sm text-slate-600">
-            Built a simple racing car and practised troubleshooting. Strong teamwork during
-            testing and better steering accuracy by the end of the session.
+            Built a simple racing car and practised troubleshooting. Teamwork stayed strong during testing,
+            and steering accuracy improved by the end.
           </p>
 
           <div className="mt-4 flex flex-wrap gap-2">
             <Pill>Project</Pill>
             <Pill>Improvement</Pill>
-            <Pill>Confidence building</Pill>
+            <Pill>Confidence</Pill>
+          </div>
+
+          {/* Micro “read time / session meta” to feel real */}
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+              Week 3 • Autumn term
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+              45 mins
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+              Robotics basics
+            </span>
           </div>
         </div>
 
@@ -220,20 +234,36 @@ function SimplePreview() {
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {/* Skills */}
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold text-slate-500">Getting stronger at</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Getting stronger at</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">Key improvements</p>
+              </div>
+              <span className="text-xs text-slate-500">Summary</span>
+            </div>
+
             <ul className="mt-3 space-y-2 text-sm text-slate-700">
-              {["Problem solving", "Teamwork", "Building confidence"].map((x) => (
-                <li key={x} className="flex gap-2">
-                  <span className="mt-2 inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>{x}</span>
+              {[
+                { label: "Problem solving", level: "Strong" },
+                { label: "Teamwork", level: "Improving" },
+                { label: "Confidence", level: "Growing" },
+              ].map((x) => (
+                <li key={x.label} className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
+                    {x.label}
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
+                    {x.level}
+                  </span>
                 </li>
               ))}
             </ul>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-600">Next small focus</p>
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-700">Next small focus</p>
               <p className="mt-1 text-xs text-slate-600">
-                Practise smoother turns by testing different wheel alignment positions.
+                Practise smoother turns by testing wheel alignment positions and comparing results.
               </p>
             </div>
           </div>
@@ -245,27 +275,54 @@ function SimplePreview() {
                 <p className="text-xs font-semibold text-slate-500">Build gallery</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">Recent uploads</p>
               </div>
-              <span className="text-xs text-slate-500">Student-led</span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
+                Student-led
+              </span>
             </div>
 
+            {/* “real product” placeholders */}
             <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="h-14 rounded-xl bg-slate-100" />
-              <div className="h-14 rounded-xl bg-slate-100" />
-              <div className="h-14 rounded-xl bg-slate-100" />
+              <div className="relative h-14 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <div className="absolute inset-0 grid place-items-center text-xs text-slate-400">
+                  photo
+                </div>
+              </div>
+              <div className="relative h-14 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <div className="absolute inset-0 grid place-items-center text-xs text-slate-400">
+                  build
+                </div>
+              </div>
+              <div className="relative h-14 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <div className="absolute inset-0 grid place-items-center text-xs text-slate-400">
+                  code
+                </div>
+              </div>
             </div>
 
             <p className="mt-3 text-xs text-slate-500">
               Learners can upload photos or code snippets, so mentors don’t need to chase evidence.
             </p>
+
+            {/* A tiny “status row” makes it feel like an app */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-3">
+              <div className="text-xs text-slate-600">
+                <span className="font-semibold text-slate-700">Uploads:</span> 3 this week
+              </div>
+              <div className="text-xs text-slate-500">Last update: 2 days ago</div>
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Footer note (keeps it honest as prototype) */}
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <p className="text-xs text-slate-600">
+          Prototype sample. Wording, layout, and outputs can be tailored to your club style.
+        </p>
       </div>
     </aside>
   );
 }
-
-
-
 
 function RoleTiles() {
   const roles = [
@@ -274,24 +331,28 @@ function RoleTiles() {
       desc: "Profile, progress, builds, and recent challenges.",
       points: ["Portfolio", "Progress timeline", "Challenges"],
       icon: "🎒",
+      status: "Preview",
     },
     {
       title: "Parent",
       desc: "Weekly highlights and progress snapshots in plain language.",
       points: ["Weekly summary", "Simple language", "Support tips"],
       icon: "👨‍👩‍👧‍👦",
+      status: "Preview",
     },
     {
       title: "Teacher",
       desc: "Lightweight session capture and coach notes.",
-      points: ["Quick logging", "Notes", "Continuity"],
+      points: ["Quick capture", "Notes", "Continuity"],
       icon: "🧑‍🏫",
+      status: "Prototype",
     },
     {
       title: "Admin",
       desc: "Club-level overview for consistency and reporting.",
-      points: ["Oversight", "Consistency", "Reporting"],
+      points: ["Oversight", "Consistency", "Export-ready"],
       icon: "🧭",
+      status: "Prototype",
     },
   ];
 
@@ -299,22 +360,22 @@ function RoleTiles() {
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold tracking-widest text-slate-500">ROLE VIEWS</p>
           <h3 className="mt-2 text-xl font-semibold text-slate-900">
             Role-based views built for clarity
           </h3>
           <p className="mt-1 text-sm text-slate-600">
-            Each role sees only what they need — no clutter, no confusion.
+            Each role sees only what they need — clean, focused, and easy to use.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Clear for families
+            Family-friendly
           </span>
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Lightweight for mentors
+            Club-ready structure
           </span>
         </div>
       </div>
@@ -337,9 +398,8 @@ function RoleTiles() {
                 </div>
               </div>
 
-              {/* no href yet */}
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                Explore
+              <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                {r.status}
               </span>
             </div>
 
@@ -353,19 +413,29 @@ function RoleTiles() {
                 </span>
               ))}
             </div>
+
+            {/* Subtle CTA that doesn’t “promise” functionality */}
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-3">
+              <p className="text-xs text-slate-600">
+                <span className="font-semibold text-slate-700">Note:</span> Screens can be connected
+                to routes when finalised.
+              </p>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* One note only (professional) */}
+      {/* One clean note only */}
       <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
         <p className="text-xs text-slate-600">
-          Links will be connected as routes are finalised. For now, this section presents the role structure clearly.
+          This section shows the role structure (what each user sees). Deep workflow details are kept
+          inside the app to avoid confusion on the public homepage.
         </p>
       </div>
     </section>
   );
 }
+
 
 
 
