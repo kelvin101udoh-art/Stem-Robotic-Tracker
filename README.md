@@ -80,9 +80,9 @@ npm run dev
 ### Visit 
 ```text
 http://localhost:3000
-
 ```
 To view the app locally.
+
 ---
 
 ### 📁 Architecture
