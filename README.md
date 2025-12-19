@@ -97,3 +97,32 @@ Stem-Robotic-Tracker/
 ├── assets/                 # Screenshots/media for README (optional)
 └── README.md               # Project overview
 
+```
+
+## 🤝 Contributing
+
+Contributions are welcome.
+
+1. Fork the repository  
+2. Create a new feature branch  
+3. Commit your changes  
+4. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the **MIT License**.  
+See the `LICENSE` file for details.
+
+---
+## 📞 Contact
+
+**Maintainer:** Kelvin Udoh  
+
+- 📧 Email: *(add if you wish)*  
+- 🔗 LinkedIn: *(add if you wish)*  
+- 🐦 Twitter/X: *(optional)*
+
+
+---
