@@ -175,267 +175,192 @@ function Card({
 // - Still signals “club-grade” professionalism
 // - No “links will be connected” note
 
+
+
+
+// Drop-in replacement for your current SimplePreview()
+// - Removes "Parent Weekly Summary" + all family language
+// - Repositions as a CLUB OWNER product panel (competitor-safe, still powerful)
+// - Tight spacing, aligned tags, consistent borders, clean grid
+
 function SimplePreview() {
-  return (
-    <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-slate-500">
-            FAMILY UPDATE
-          </p>
-          <h3 className="mt-2 text-lg font-semibold text-slate-900">
-            Weekly Summary
-          </h3>
-          <p className="mt-1 text-sm text-slate-600">
-            A clear snapshot of what happened, what improved, and what to try next.
-          </p>
-        </div>
+  const opsPills = ["Quick capture", "Student uploads", "Term consistency"];
+  const buyerPills = ["Club-ready", "Staff-proof", "Audit-friendly"];
 
-        <div className="flex flex-col items-end gap-2">
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Week 3 • Autumn Term
-          </span>
-          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            Ready to share
-          </span>
-        </div>
-      </div>
+  const kpis = [
+    { label: "Sessions captured", value: "24", hint: "this term" },
+    { label: "Learners active", value: "38", hint: "current cohort" },
+    { label: "Projects stored", value: "112", hint: "gallery items" },
+    { label: "Coach notes", value: "56", hint: "lightweight" },
+  ];
 
-      {/* Body */}
-      <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-        {/* Highlight */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold text-slate-500">This week</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">
-                Racing car build — smoother turning and better control
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-                Project complete
-              </span>
-              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                Improvement
-              </span>
-            </div>
-          </div>
-
-          <p className="mt-3 text-sm text-slate-600">
-            Built a racing car and tested it through short laps. Teamwork improved during
-            troubleshooting, and steering accuracy was noticeably better by the end of the session.
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Pill>Problem solving</Pill>
-            <Pill>Teamwork</Pill>
-            <Pill>Confidence</Pill>
-          </div>
-        </div>
-
-        {/* Two-column */}
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {/* Progress */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Progress snapshot</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">Getting stronger at</p>
-              </div>
-              <span className="text-xs font-medium text-slate-500">last 4 sessions</span>
-            </div>
-
-            <ul className="mt-3 space-y-2 text-sm text-slate-700">
-              {[
-                { label: "Problem solving", level: "Strong" },
-                { label: "Teamwork", level: "Improving" },
-                { label: "Confidence", level: "Growing" },
-              ].map((x) => (
-                <li key={x.label} className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block h-2 w-2 rounded-full bg-slate-400" />
-                    <span>{x.label}</span>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-600">{x.level}</span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-600">Next focus (small step)</p>
-              <p className="mt-1 text-xs text-slate-600">
-                Practise smoother turns by testing two wheel alignment positions and comparing results.
-              </p>
-            </div>
-          </div>
-
-          {/* Evidence / Gallery */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Project gallery</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">Recent uploads</p>
-              </div>
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-                3 items
-              </span>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="h-14 rounded-xl bg-slate-100" />
-              <div className="h-14 rounded-xl bg-slate-100" />
-              <div className="h-14 rounded-xl bg-slate-100" />
-            </div>
-
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-600">What’s included</p>
-              <p className="mt-1 text-xs text-slate-600">
-                Photos, short build notes, and optional code snippets — organised for easy review.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer row */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-slate-500">Share with family</p>
-            <p className="mt-1 text-sm font-medium text-slate-900">
-              Weekly summary format designed to be understood in under 60 seconds.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-              Plain language
-            </span>
-            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-              Actionable next step
-            </span>
-          </div>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-function RoleTiles() {
-  const roles = [
+  const features = [
     {
-      title: "Club Owner",
-      desc: "Overview of groups, consistency across terms, and quality checks.",
-      points: ["Groups overview", "Consistency", "Outputs"],
-      icon: "🧭",
-      badge: "Buyer view",
+      title: "Standardised club delivery",
+      desc: "Run every group with the same structure—activities, outcomes, and follow-ups stay consistent across mentors.",
+      tags: ["Templates", "Term plan", "Consistency"],
     },
     {
-      title: "Mentor",
-      desc: "Lightweight capture that doesn’t interrupt teaching time.",
-      points: ["Quick capture", "Coach notes", "Continuity"],
-      icon: "🧑‍🏫",
-      badge: "Staff view",
+      title: "Evidence-ready project library",
+      desc: "Keep builds, photos, and code together per learner and per cohort—easy to review when needed.",
+      tags: ["Gallery", "Artifacts", "History"],
     },
     {
-      title: "Parent",
-      desc: "Clear weekly summaries and progress snapshots—no jargon.",
-      points: ["Weekly summary", "Progress snapshot", "Support tips"],
-      icon: "👨‍👩‍👧‍👦",
-      badge: "Family view",
+      title: "Continuity when staff rotate",
+      desc: "New mentors pick up instantly with context: what was taught, what improved, and what to focus on next.",
+      tags: ["Handover", "Notes", "Continuity"],
     },
     {
-      title: "Student",
-      desc: "A personal showcase of builds, learning goals, and improvements.",
-      points: ["Showcase", "Goals", "Challenges"],
-      icon: "🎒",
-      badge: "Learner view",
+      title: "Owner-level oversight",
+      desc: "See progress at a glance across cohorts—spot who needs support and which sessions are performing best.",
+      tags: ["Overview", "Cohorts", "Visibility"],
     },
   ];
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <aside className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-slate-500">ROLE VIEWS</p>
-          <h3 className="mt-2 text-xl font-semibold text-slate-900">
-            Simple views for families — powerful structure for clubs
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-widest text-slate-500">CLUB OWNER VIEW</p>
+          <h3 className="mt-2 text-lg font-semibold text-slate-900">
+            Operations dashboard for STEM clubs
           </h3>
           <p className="mt-1 text-sm text-slate-600">
-            Each role sees only what they need. Clubs get consistency; families get clarity.
+            Designed to keep delivery consistent, reduce admin, and keep progress reviewable—without
+            jargon.
           </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {buyerPills.map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Parent-friendly
-          </span>
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Club-ready
-          </span>
-        </div>
+        <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+          Sample layout
+        </span>
       </div>
 
-      {/* Grid */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        {roles.map((r) => (
+      {/* KPI strip */}
+      <div className="mt-5 grid gap-3 sm:grid-cols-4">
+        {kpis.map((k) => (
           <div
-            key={r.title}
-            className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+            key={k.label}
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
           >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-100 text-lg">
-                  {r.icon}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-base font-semibold text-slate-900">{r.title}</p>
-                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
-                      {r.badge}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600">{r.desc}</p>
-                </div>
-              </div>
-
-              {/* UI affordance — feels real but doesn’t promise navigation */}
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 group-hover:bg-slate-50">
-                View
-              </span>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {r.points.map((p) => (
-                <span
-                  key={p}
-                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
-                >
-                  {p}
-                </span>
-              ))}
-            </div>
-
-            {/* subtle “product” micro-row */}
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-600">What this view focuses on</p>
-              <p className="mt-1 text-xs text-slate-600">
-                Clear information, organised layout, and only the essentials for this role.
-              </p>
-            </div>
+            <p className="text-xs font-semibold text-slate-500">{k.label}</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{k.value}</p>
+            <p className="mt-1 text-xs text-slate-500">{k.hint}</p>
           </div>
         ))}
       </div>
 
-      {/* No “prototype note” — replace with a confident product line */}
-      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs text-slate-600">
-          Role access is managed by the club, so each person sees the right information automatically.
-        </p>
+      {/* Body */}
+      <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+        {/* Top row: Ops signals + Focus */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {/* Ops Signals */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-500">Operational advantage</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  Lightweight capture that doesn’t slow sessions
+                </p>
+              </div>
+              <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                Low admin
+              </span>
+            </div>
+
+            <p className="mt-3 text-sm text-slate-600">
+              Mentors save only the essentials. Learners attach builds and media themselves. The club
+              stays organised even when weeks get busy.
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {opsPills.map((t) => (
+                <Pill key={t}>{t}</Pill>
+              ))}
+            </div>
+          </div>
+
+          {/* Focus Box */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-semibold text-slate-500">Owner focus</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">What’s happening across cohorts</p>
+
+            <div className="mt-3 space-y-2">
+              {[
+                { label: "Cohort A", note: "On track • strong build completion" },
+                { label: "Cohort B", note: "Needs support • low uploads this week" },
+                { label: "Cohort C", note: "Improving • consistent mentoring notes" },
+              ].map((x) => (
+                <div
+                  key={x.label}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                >
+                  <span className="text-sm font-semibold text-slate-900">{x.label}</span>
+                  <span className="text-xs text-slate-600">{x.note}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-600">Next club action</p>
+              <p className="mt-1 text-xs text-slate-600">
+                Prompt uploads for Cohort B and reuse the “Week 6 build template” to keep delivery
+                consistent.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature grid */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {features.map((f) => (
+            <div key={f.title} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">{f.title}</p>
+                  <p className="mt-1 text-sm text-slate-600">{f.desc}</p>
+                </div>
+                <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                  Included
+                </span>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {f.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom note */}
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold tracking-widest text-slate-500">POSITIONING</p>
+          <p className="mt-2 text-sm text-slate-600">
+            Most tools stop at attendance, chat, and billing. This platform is built for club
+            delivery quality: structure, continuity, and a clean record of progress over time.
+          </p>
+        </div>
       </div>
-    </section>
+    </aside>
   );
 }
 
