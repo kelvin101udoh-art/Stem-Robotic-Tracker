@@ -201,7 +201,7 @@ function SimplePreview() {
     { label: "Sessions captured", value: "24", hint: "This term" },
     { label: "Learners active", value: "38", hint: "Current cohort" },
     { label: "Projects stored", value: "112", hint: "Gallery items" },
-    { label: "Coach notes", value: "56", hint: "Lightweight" },
+    { label: "Coach notes", value: "56", hint: "Lightweight signal" },
   ];
 
   const features = [
