@@ -365,60 +365,47 @@ function SimplePreview() {
 }
 
 
+// New content for this section (replace your RoleTiles بالكامل)
+// NOT role cards anymore.
+// Now: "Why clubs switch" — product differentiators + outcomes (buyer-first), competitor-safe.
+
 function RoleTiles() {
-  const roles = [
+  const differentiators = [
     {
-      title: "Club Owner",
-      subtitle: "Run your programme with consistency and clarity",
+      eyebrow: "DELIVERY SYSTEM",
+      title: "Run every cohort the same way",
       desc:
-        "Maintain delivery standards across mentors, sessions, and cohorts without adding admin overhead.",
-      points: [
-        "Programme oversight",
-        "Cohort consistency",
-        "Progress visibility",
-        "Review-ready records",
-      ],
-      badge: "Primary buyer",
+        "Turn your programme into a repeatable system—templates, weekly flow, and outcomes stay consistent even when staff rotate.",
+      tags: ["Programme templates", "Term structure", "Cohort consistency"],
     },
     {
-      title: "Mentor / Coach",
-      subtitle: "Keep sessions flowing, capture what matters",
+      eyebrow: "CLUB OPERATIONS",
+      title: "Keep admin low, quality high",
       desc:
-        "Lightweight capture during or after sessions—no long forms, no end-of-day reporting.",
-      points: [
-        "Quick capture",
-        "Session continuity",
-        "Coach notes",
-        "Clear next focus",
-      ],
-      badge: "Daily user",
+        "Capture only the essentials and keep everything organised automatically—so mentors focus on teaching, not paperwork.",
+      tags: ["Light capture", "Auto organisation", "Less admin"],
     },
     {
-      title: "Student",
-      subtitle: "Build a personal learning record",
+      eyebrow: "STUDENT PORTFOLIO",
+      title: "Projects stay attached to progress",
       desc:
-        "A structured place for projects, builds, and improvements over time.",
-      points: [
-        "Project gallery",
-        "Progress timeline",
-        "Challenge history",
-        "Skill development",
-      ],
-      badge: "Learner view",
+        "A clean archive of builds, artifacts, and improvements—easy to review for learner growth and club performance over time.",
+      tags: ["Project library", "Artifacts", "Progress history"],
     },
     {
-      title: "Administrator",
-      subtitle: "Keep records organised and reviewable",
+      eyebrow: "OWNER OVERSIGHT",
+      title: "See what’s working across the club",
       desc:
-        "Support compliance, reporting, and long-term record keeping without disrupting delivery.",
-      points: [
-        "Structured records",
-        "Cohort tracking",
-        "Export-ready data",
-        "Audit support",
-      ],
-      badge: "Operational",
+        "A simple owner view that highlights cohort health, follow-through, and where support is needed—without exposing internal complexity.",
+      tags: ["Cohort health", "Visibility", "Consistency checks"],
     },
+  ];
+
+  const competitorContrast = [
+    { left: "Attendance + chat", right: "A structured delivery system" },
+    { left: "Notes scattered in WhatsApp", right: "Organised, reviewable records" },
+    { left: "Hard to prove learning", right: "Projects linked to progress" },
+    { left: "Staff changes break continuity", right: "Built-in handover and structure" },
   ];
 
   return (
@@ -427,67 +414,50 @@ function RoleTiles() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold tracking-widest text-slate-500">
-            ROLE-BASED EXPERIENCE
+            WHY CLUBS CHOOSE THIS
           </p>
           <h3 className="mt-2 text-xl font-semibold text-slate-900">
-            One platform, structured for every role
+            A club operating system — not another tracker
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            Each role sees only what they need—designed to keep delivery smooth, records clean,
-            and oversight simple.
+            Built for STEM club owners who want consistent delivery, low admin load, and a clean
+            record of progress and projects across cohorts.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Buyer-led design
+            Owner-first
           </span>
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
             Low admin
           </span>
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Clear ownership
+            Consistency at scale
           </span>
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Differentiator cards */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        {roles.map((r) => (
+        {differentiators.map((d) => (
           <div
-            key={r.title}
+            key={d.title}
             className="flex h-full flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
           >
-            {/* Top */}
             <div>
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-base font-semibold text-slate-900">
-                    {r.title}
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-600">
-                    {r.subtitle}
-                  </p>
-                </div>
-
-                <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                  {r.badge}
-                </span>
-              </div>
-
-              <p className="mt-3 text-sm text-slate-600">
-                {r.desc}
-              </p>
+              <p className="text-xs font-semibold tracking-widest text-slate-500">{d.eyebrow}</p>
+              <p className="mt-2 text-base font-semibold text-slate-900">{d.title}</p>
+              <p className="mt-2 text-sm text-slate-600">{d.desc}</p>
             </div>
 
-            {/* Points */}
             <div className="mt-4 flex flex-wrap gap-2">
-              {r.points.map((p) => (
+              {d.tags.map((t) => (
                 <span
-                  key={p}
+                  key={t}
                   className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
                 >
-                  {p}
+                  {t}
                 </span>
               ))}
             </div>
@@ -495,12 +465,49 @@ function RoleTiles() {
         ))}
       </div>
 
-      {/* Bottom positioning note */}
-      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs text-slate-600">
-          Unlike generic attendance or messaging tools, this platform is structured around
-          **delivery quality**—supporting people, sessions, and progress in a single system.
-        </p>
+      {/* Competitor-safe comparison (no names, no secret sauce) */}
+      <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold tracking-widest text-slate-500">
+              POSITIONING
+            </p>
+            <p className="mt-2 text-base font-semibold text-slate-900">
+              What most tools do vs what you actually need
+            </p>
+          </div>
+          <span className="mt-2 inline-flex w-fit items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 sm:mt-0">
+            Competitor-safe summary
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {competitorContrast.map((row) => (
+            <div
+              key={row.left}
+              className="rounded-2xl border border-slate-200 bg-white p-4"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-500">Typical</p>
+                  <p className="mt-1 text-sm font-medium text-slate-700">{row.left}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-500">This platform</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{row.right}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold tracking-widest text-slate-500">CLUB PROMISE</p>
+          <p className="mt-2 text-sm text-slate-600">
+            Deliver a consistent STEM programme, keep admin light, and maintain a clear progress +
+            project record across cohorts — without turning mentoring into paperwork.
+          </p>
+        </div>
       </div>
     </section>
   );
