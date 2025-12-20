@@ -299,7 +299,7 @@ function SimplePreview() {
                   Operational advantage
                 </p>
                 <p className="mt-1 text-sm font-semibold leading-snug text-slate-900">
-                  Lightweight capture that doesn’t slow sessions
+                  Lightweight capture
                 </p>
               </div>
 
