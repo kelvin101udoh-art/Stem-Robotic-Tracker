@@ -268,7 +268,7 @@ function SimplePreview() {
         </div>
 
         <span className="w-fit shrink-0 inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-          Sample layout
+          Club layout
         </span>
       </div>
 
@@ -363,7 +363,7 @@ function SimplePreview() {
                   <p className="text-sm font-semibold leading-snug text-slate-900">
                     {f.title}
                   </p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600 w-45 line-clamp-2">
                     {f.desc}
                   </p>
                 </div>
