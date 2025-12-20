@@ -567,6 +567,7 @@ export default function Page() {
           <div className="hidden sm:flex items-center gap-2">
             <button
               type="button"
+              href="get-started/page.tsx"
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Get Started
