@@ -298,8 +298,8 @@ function SimplePreview() {
                 <p className="text-xs font-semibold text-slate-500">
                   Operational advantage
                 </p>
-                <p className="mt-1 text-sm font-semibold leading-snug text-slate-900">
-                  Lightweight capture
+                <p className="mt-1 text-sm font-semibold leading-snug text-slate-900 w-64 line-clamp-2">
+                  Lightweight capture that doesn’t slow sessions
                 </p>
               </div>
 
