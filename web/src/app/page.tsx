@@ -363,7 +363,7 @@ function SimplePreview() {
                   <p className="text-sm font-semibold leading-snug text-slate-900">
                     {f.title}
                   </p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600 w-45 line-clamp-2">
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600 w-50 line-clamp-2">
                     {f.desc}
                   </p>
                 </div>
