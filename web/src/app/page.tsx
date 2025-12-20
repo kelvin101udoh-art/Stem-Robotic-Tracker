@@ -365,6 +365,146 @@ function SimplePreview() {
 }
 
 
+function RoleTiles() {
+  const roles = [
+    {
+      title: "Club Owner",
+      subtitle: "Run your programme with consistency and clarity",
+      desc:
+        "Maintain delivery standards across mentors, sessions, and cohorts without adding admin overhead.",
+      points: [
+        "Programme oversight",
+        "Cohort consistency",
+        "Progress visibility",
+        "Review-ready records",
+      ],
+      badge: "Primary buyer",
+    },
+    {
+      title: "Mentor / Coach",
+      subtitle: "Keep sessions flowing, capture what matters",
+      desc:
+        "Lightweight capture during or after sessions—no long forms, no end-of-day reporting.",
+      points: [
+        "Quick capture",
+        "Session continuity",
+        "Coach notes",
+        "Clear next focus",
+      ],
+      badge: "Daily user",
+    },
+    {
+      title: "Student",
+      subtitle: "Build a personal learning record",
+      desc:
+        "A structured place for projects, builds, and improvements over time.",
+      points: [
+        "Project gallery",
+        "Progress timeline",
+        "Challenge history",
+        "Skill development",
+      ],
+      badge: "Learner view",
+    },
+    {
+      title: "Administrator",
+      subtitle: "Keep records organised and reviewable",
+      desc:
+        "Support compliance, reporting, and long-term record keeping without disrupting delivery.",
+      points: [
+        "Structured records",
+        "Cohort tracking",
+        "Export-ready data",
+        "Audit support",
+      ],
+      badge: "Operational",
+    },
+  ];
+
+  return (
+    <section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-widest text-slate-500">
+            ROLE-BASED EXPERIENCE
+          </p>
+          <h3 className="mt-2 text-xl font-semibold text-slate-900">
+            One platform, structured for every role
+          </h3>
+          <p className="mt-1 max-w-2xl text-sm text-slate-600">
+            Each role sees only what they need—designed to keep delivery smooth, records clean,
+            and oversight simple.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+            Buyer-led design
+          </span>
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+            Low admin
+          </span>
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+            Clear ownership
+          </span>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        {roles.map((r) => (
+          <div
+            key={r.title}
+            className="flex h-full flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+          >
+            {/* Top */}
+            <div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-slate-900">
+                    {r.title}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-600">
+                    {r.subtitle}
+                  </p>
+                </div>
+
+                <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                  {r.badge}
+                </span>
+              </div>
+
+              <p className="mt-3 text-sm text-slate-600">
+                {r.desc}
+              </p>
+            </div>
+
+            {/* Points */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {r.points.map((p) => (
+                <span
+                  key={p}
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
+                >
+                  {p}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom positioning note */}
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <p className="text-xs text-slate-600">
+          Unlike generic attendance or messaging tools, this platform is structured around
+          **delivery quality**—supporting people, sessions, and progress in a single system.
+        </p>
+      </div>
+    </section>
+  );
+}
 
 
 
