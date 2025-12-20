@@ -565,13 +565,12 @@ export default function Page() {
 
           {/* Right-side action (prototype-safe) */}
           <div className="hidden sm:flex items-center gap-2">
-            <button
-              type="button"
-              href="get-started/page.tsx"
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            <Link
+              href="/get-started"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 inline-block"
             >
               Get Started
-            </button>
+            </Link>
           </div>
         </div>
       </header>
@@ -683,7 +682,7 @@ export default function Page() {
             <div className="flex flex-wrap justify-start gap-3 md:justify-end">
 
               <Link
-                href="#"
+                href="/get-started"
                 className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Get Started
@@ -706,7 +705,7 @@ export default function Page() {
                 {it.label}
               </a>
             ))}
-            
+
           </div>
         </div>
       </footer>
