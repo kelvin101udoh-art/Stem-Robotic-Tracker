@@ -183,67 +183,91 @@ function Card({
 // - Repositions as a CLUB OWNER product panel (competitor-safe, still powerful)
 // - Tight spacing, aligned tags, consistent borders, clean grid
 
+// ✅ FIXED: alignment, widths, borders, and typography consistency
+// Drop-in replacements for BOTH components below.
+// Key changes:
+// - Added consistent "card" styling + ring for crisp borders
+// - Normalized padding, gap, and text leading
+// - Prevented awkward wrapping with line-clamp + leading-tight
+// - Made KPI cards equal height + consistent hierarchy
+// - Fixed tag/pill alignment with consistent classes
+// - Improved contrast blocks so borders look “fitted” (no floating feel)
+
 function SimplePreview() {
   const opsPills = ["Quick capture", "Student uploads", "Term consistency"];
   const buyerPills = ["Club-ready", "Staff-proof", "Audit-friendly"];
 
   const kpis = [
-    { label: "Sessions captured", value: "24", hint: "this term" },
-    { label: "Learners active", value: "38", hint: "current cohort" },
-    { label: "Projects stored", value: "112", hint: "gallery items" },
-    { label: "Coach notes", value: "56", hint: "lightweight" },
+    { label: "Sessions captured", value: "24", hint: "This term" },
+    { label: "Learners active", value: "38", hint: "Current cohort" },
+    { label: "Projects stored", value: "112", hint: "Gallery items" },
+    { label: "Coach notes", value: "56", hint: "Lightweight" },
   ];
 
   const features = [
     {
       title: "Standardised club delivery",
-      desc: "Run every group with the same structure—activities, outcomes, and follow-ups stay consistent across mentors.",
+      desc:
+        "Run every group with the same structure so outcomes stay consistent across mentors.",
       tags: ["Templates", "Term plan", "Consistency"],
     },
     {
       title: "Evidence-ready project library",
-      desc: "Keep builds, photos, and code together per learner and per cohort—easy to review when needed.",
+      desc:
+        "Keep builds, photos, and code together per learner and cohort for quick review.",
       tags: ["Gallery", "Artifacts", "History"],
     },
     {
       title: "Continuity when staff rotate",
-      desc: "New mentors pick up instantly with context: what was taught, what improved, and what to focus on next.",
+      desc:
+        "New mentors pick up fast with context: what changed, what improved, what’s next.",
       tags: ["Handover", "Notes", "Continuity"],
     },
     {
       title: "Owner-level oversight",
-      desc: "See progress at a glance across cohorts—spot who needs support and which sessions are performing best.",
+      desc:
+        "See cohort health at a glance and spot where support is needed without digging.",
       tags: ["Overview", "Cohorts", "Visibility"],
     },
   ];
 
+  const pillClass =
+    "inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700";
+
+  const tagClass =
+    "inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700";
+
+  const cardClass =
+    "rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-200/40";
+
   return (
-    <aside className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <aside className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm ring-1 ring-slate-200/40">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-widest text-slate-500">CLUB OWNER VIEW</p>
-          <h3 className="mt-2 text-lg font-semibold text-slate-900">
+          <p className="text-xs font-semibold tracking-widest text-slate-500">
+            CLUB OWNER VIEW
+          </p>
+
+          <h3 className="mt-2 text-lg font-semibold leading-tight text-slate-900">
             Operations dashboard for STEM clubs
           </h3>
-          <p className="mt-1 text-sm text-slate-600">
-            Designed to keep delivery consistent, reduce admin, and keep progress reviewable—without
-            jargon.
+
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
+            Keep delivery consistent, reduce admin, and review progress across cohorts—without
+            clutter.
           </p>
 
           <div className="mt-4 flex flex-wrap gap-2">
             {buyerPills.map((t) => (
-              <span
-                key={t}
-                className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
-              >
+              <span key={t} className={pillClass}>
                 {t}
               </span>
             ))}
           </div>
         </div>
 
-        <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+        <span className="w-fit shrink-0 inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
           Sample layout
         </span>
       </div>
@@ -251,73 +275,80 @@ function SimplePreview() {
       {/* KPI strip */}
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
         {kpis.map((k) => (
-          <div
-            key={k.label}
-            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-          >
+          <div key={k.label} className={`${cardClass} p-4`}>
             <p className="text-xs font-semibold text-slate-500">{k.label}</p>
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{k.value}</p>
-            <p className="mt-1 text-xs text-slate-500">{k.hint}</p>
+            <div className="mt-2 flex items-baseline justify-between gap-2">
+              <p className="text-2xl font-semibold tracking-tight text-slate-900">
+                {k.value}
+              </p>
+              <p className="text-xs text-slate-500">{k.hint}</p>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Body */}
-      <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-        {/* Top row: Ops signals + Focus */}
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 ring-1 ring-slate-200/40">
+        {/* Top row */}
         <div className="grid gap-3 sm:grid-cols-2">
           {/* Ops Signals */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className={`${cardClass} p-4`}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-500">Operational advantage</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
+                <p className="text-xs font-semibold text-slate-500">
+                  Operational advantage
+                </p>
+                <p className="mt-1 text-sm font-semibold leading-snug text-slate-900">
                   Lightweight capture that doesn’t slow sessions
                 </p>
               </div>
-              <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                Low admin
-              </span>
+
+              <span className={pillClass}>Low admin</span>
             </div>
 
-            <p className="mt-3 text-sm text-slate-600">
-              Mentors save only the essentials. Learners attach builds and media themselves. The club
-              stays organised even when weeks get busy.
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              Mentors save only essentials. Learners attach builds/media themselves. Records stay
+              tidy even when weeks get busy.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {opsPills.map((t) => (
-                <Pill key={t}>{t}</Pill>
+                <span key={t} className={tagClass}>
+                  {t}
+                </span>
               ))}
             </div>
           </div>
 
           {/* Focus Box */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className={`${cardClass} p-4`}>
             <p className="text-xs font-semibold text-slate-500">Owner focus</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">What’s happening across cohorts</p>
+            <p className="mt-1 text-sm font-semibold leading-snug text-slate-900">
+              Cohort status at a glance
+            </p>
 
             <div className="mt-3 space-y-2">
               {[
-                { label: "Cohort A", note: "On track • strong build completion" },
-                { label: "Cohort B", note: "Needs support • low uploads this week" },
-                { label: "Cohort C", note: "Improving • consistent mentoring notes" },
+                { label: "Cohort A", note: "On track • strong completion" },
+                { label: "Cohort B", note: "Needs support • low uploads" },
+                { label: "Cohort C", note: "Improving • consistent notes" },
               ].map((x) => (
                 <div
                   key={x.label}
                   className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
                 >
-                  <span className="text-sm font-semibold text-slate-900">{x.label}</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {x.label}
+                  </span>
                   <span className="text-xs text-slate-600">{x.note}</span>
                 </div>
               ))}
             </div>
 
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-600">Next club action</p>
-              <p className="mt-1 text-xs text-slate-600">
-                Prompt uploads for Cohort B and reuse the “Week 6 build template” to keep delivery
-                consistent.
+              <p className="text-xs font-semibold text-slate-600">Next action</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                Prompt Cohort B uploads and reuse the Week 6 template to keep delivery consistent.
               </p>
             </div>
           </div>
@@ -326,23 +357,25 @@ function SimplePreview() {
         {/* Feature grid */}
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {features.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div key={f.title} className={`${cardClass} p-4`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">{f.title}</p>
-                  <p className="mt-1 text-sm text-slate-600">{f.desc}</p>
+                  <p className="text-sm font-semibold leading-snug text-slate-900">
+                    {f.title}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                    {f.desc}
+                  </p>
                 </div>
-                <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+
+                <span className="shrink-0 inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
                   Included
                 </span>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {f.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700"
-                  >
+                  <span key={t} className={tagClass}>
                     {t}
                   </span>
                 ))}
@@ -352,11 +385,13 @@ function SimplePreview() {
         </div>
 
         {/* Bottom note */}
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold tracking-widest text-slate-500">POSITIONING</p>
-          <p className="mt-2 text-sm text-slate-600">
+        <div className={`${cardClass} mt-4 p-4`}>
+          <p className="text-xs font-semibold tracking-widest text-slate-500">
+            POSITIONING
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
             Most tools stop at attendance, chat, and billing. This platform is built for club
-            delivery quality: structure, continuity, and a clean record of progress over time.
+            delivery quality: structure, continuity, and a clean progress record over time.
           </p>
         </div>
       </div>
@@ -364,99 +399,91 @@ function SimplePreview() {
   );
 }
 
-
-// New content for this section (replace your RoleTiles بالكامل)
-// NOT role cards anymore.
-// Now: "Why clubs switch" — product differentiators + outcomes (buyer-first), competitor-safe.
-
 function RoleTiles() {
   const differentiators = [
     {
       eyebrow: "DELIVERY SYSTEM",
       title: "Run every cohort the same way",
       desc:
-        "Turn your programme into a repeatable system—templates, weekly flow, and outcomes stay consistent even when staff rotate.",
+        "Turn your programme into a repeatable system so delivery stays consistent across mentors.",
       tags: ["Programme templates", "Term structure", "Cohort consistency"],
     },
     {
       eyebrow: "CLUB OPERATIONS",
       title: "Keep admin low, quality high",
       desc:
-        "Capture only the essentials and keep everything organised automatically—so mentors focus on teaching, not paperwork.",
+        "Capture essentials only and keep everything organised so mentors stay focused on teaching.",
       tags: ["Light capture", "Auto organisation", "Less admin"],
     },
     {
-      eyebrow: "STUDENT PORTFOLIO",
+      eyebrow: "PROJECT ARCHIVE",
       title: "Projects stay attached to progress",
       desc:
-        "A clean archive of builds, artifacts, and improvements—easy to review for learner growth and club performance over time.",
+        "Keep builds and artifacts linked to progress so reviews and handovers are easy.",
       tags: ["Project library", "Artifacts", "Progress history"],
     },
     {
       eyebrow: "OWNER OVERSIGHT",
       title: "See what’s working across the club",
       desc:
-        "A simple owner view that highlights cohort health, follow-through, and where support is needed—without exposing internal complexity.",
+        "Spot cohort health and follow-through quickly without digging through notes.",
       tags: ["Cohort health", "Visibility", "Consistency checks"],
     },
   ];
 
   const competitorContrast = [
-    { left: "Attendance + chat", right: "A structured delivery system" },
-    { left: "Notes scattered in WhatsApp", right: "Organised, reviewable records" },
-    { left: "Hard to prove learning", right: "Projects linked to progress" },
-    { left: "Staff changes break continuity", right: "Built-in handover and structure" },
+    { left: "Attendance + chat", right: "Structured delivery system" },
+    { left: "Notes scattered across apps", right: "Organised, reviewable records" },
+    { left: "Hard to show progress clearly", right: "Projects linked to progress" },
+    { left: "Staff changes break continuity", right: "Built-in handover structure" },
   ];
 
+  const tagClass =
+    "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700";
+  const chipClass =
+    "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600";
+  const cardClass =
+    "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm ring-1 ring-slate-200/40";
+
   return (
-    <section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm ring-1 ring-slate-200/40">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold tracking-widest text-slate-500">
             WHY CLUBS CHOOSE THIS
           </p>
-          <h3 className="mt-2 text-xl font-semibold text-slate-900">
+          <h3 className="mt-2 text-xl font-semibold leading-tight text-slate-900">
             A club operating system — not another tracker
           </h3>
-          <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            Built for STEM club owners who want consistent delivery, low admin load, and a clean
-            record of progress and projects across cohorts.
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+            Built for club owners who want consistent delivery, low admin load, and a clean record
+            of progress and projects across cohorts.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Owner-first
-          </span>
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Low admin
-          </span>
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-            Consistency at scale
-          </span>
+          <span className={chipClass}>Owner-first</span>
+          <span className={chipClass}>Low admin</span>
+          <span className={chipClass}>Consistency at scale</span>
         </div>
       </div>
 
       {/* Differentiator cards */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {differentiators.map((d) => (
-          <div
-            key={d.title}
-            className="flex h-full flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
-          >
-            <div>
-              <p className="text-xs font-semibold tracking-widest text-slate-500">{d.eyebrow}</p>
-              <p className="mt-2 text-base font-semibold text-slate-900">{d.title}</p>
-              <p className="mt-2 text-sm text-slate-600">{d.desc}</p>
-            </div>
+          <div key={d.title} className={cardClass}>
+            <p className="text-xs font-semibold tracking-widest text-slate-500">
+              {d.eyebrow}
+            </p>
+            <p className="mt-2 text-base font-semibold leading-snug text-slate-900">
+              {d.title}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">{d.desc}</p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {d.tags.map((t) => (
-                <span
-                  key={t}
-                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
-                >
+                <span key={t} className={tagClass}>
                   {t}
                 </span>
               ))}
@@ -465,36 +492,33 @@ function RoleTiles() {
         ))}
       </div>
 
-      {/* Competitor-safe comparison (no names, no secret sauce) */}
-      <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold tracking-widest text-slate-500">
-              POSITIONING
-            </p>
-            <p className="mt-2 text-base font-semibold text-slate-900">
-              What most tools do vs what you actually need
+      {/* Comparison */}
+      <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 ring-1 ring-slate-200/40">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold tracking-widest text-slate-500">POSITIONING</p>
+            <p className="mt-2 text-base font-semibold leading-snug text-slate-900">
+              Typical tools vs this platform
             </p>
           </div>
-          <span className="mt-2 inline-flex w-fit items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 sm:mt-0">
+          <span className="w-fit whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
             Competitor-safe summary
           </span>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {competitorContrast.map((row) => (
-            <div
-              key={row.left}
-              className="rounded-2xl border border-slate-200 bg-white p-4"
-            >
-              <div className="grid grid-cols-2 gap-3">
+            <div key={row.left} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-500">Typical</p>
-                  <p className="mt-1 text-sm font-medium text-slate-700">{row.left}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-700">{row.left}</p>
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-500">This platform</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">{row.right}</p>
+                  <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-900">
+                    {row.right}
+                  </p>
                 </div>
               </div>
             </div>
@@ -503,9 +527,9 @@ function RoleTiles() {
 
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-semibold tracking-widest text-slate-500">CLUB PROMISE</p>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
             Deliver a consistent STEM programme, keep admin light, and maintain a clear progress +
-            project record across cohorts — without turning mentoring into paperwork.
+            project record across cohorts—without turning mentoring into paperwork.
           </p>
         </div>
       </div>
