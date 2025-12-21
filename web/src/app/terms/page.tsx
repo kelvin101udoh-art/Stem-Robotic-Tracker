@@ -6,8 +6,8 @@ export const metadata = {
   description: "Terms of use for the STEM Club Tracker platform.",
 };
 
-const COMPANY_NAME = "STEM Club Tracker";
-const CONTACT_EMAIL = "support@yourdomain.com"; // change later
+const COMPANY_NAME = "STEMTrack";
+const CONTACT_EMAIL = "kelvin101udoh@gmail.com"; // change later
 
 export default function TermsPage() {
   const lastUpdated = new Date().toLocaleDateString();

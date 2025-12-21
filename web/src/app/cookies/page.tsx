@@ -86,5 +86,3 @@ export default function CookiesPage() {
     </main>
   );
 }
-const COMPANY_NAME = "STEM Club Tracker";
-const CONTACT_EMAIL = "kelvin101udoh@gmail.com";
