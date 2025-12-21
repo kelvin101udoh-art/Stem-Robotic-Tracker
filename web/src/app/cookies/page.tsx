@@ -3,17 +3,19 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Cookie Notice • STEM Club Tracker",
-  description: "Prototype cookie notice for the STEM Club Tracker platform.",
+  description: "Cookie notice for the STEM Club Tracker platform.",
 };
 
 export default function CookiesPage() {
+  const lastUpdated = new Date().toLocaleDateString();
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-5">
           <div className="leading-tight">
             <h1 className="text-lg font-semibold">Cookie Notice</h1>
-            <p className="text-xs text-slate-500">Prototype version</p>
+            <p className="text-xs text-slate-500">Last updated: {lastUpdated}</p>
           </div>
           <Link
             href="/"
@@ -26,42 +28,32 @@ export default function CookiesPage() {
 
       <section className="mx-auto max-w-4xl px-4 py-10">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-sm text-slate-600">
-            <span className="font-semibold text-slate-900">Last updated:</span>{" "}
-            {new Date().toLocaleDateString()}
-          </p>
-
-          <div className="mt-6 space-y-6 text-sm leading-7 text-slate-700">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="font-semibold text-slate-900">Prototype notice</p>
-              <p className="mt-1">
-                This prototype may not use cookies beyond what is necessary to run the site. If
-                analytics/authentication are added later, this notice will be updated.
-              </p>
-            </div>
-
+          <div className="grid gap-7 text-sm leading-7 text-slate-700">
             <section>
               <h2 className="text-base font-semibold text-slate-900">1. What cookies are</h2>
               <p className="mt-2">
-                Cookies are small text files stored on your device to help websites function and
-                remember preferences.
+                Cookies are small text files stored on your device. They help websites function, keep you signed in,
+                and remember preferences.
               </p>
             </section>
 
             <section>
-              <h2 className="text-base font-semibold text-slate-900">2. Cookies we may use</h2>
+              <h2 className="text-base font-semibold text-slate-900">2. Cookies we use</h2>
+              <p className="mt-2">
+                The Platform may use the following categories of cookies:
+              </p>
               <ul className="mt-2 list-disc pl-5">
                 <li>
-                  <span className="font-semibold">Essential cookies</span> — required for core site
-                  functionality (if applicable).
+                  <span className="font-semibold">Essential cookies</span> — required for core functionality (e.g.,
+                  security, session management).
                 </li>
                 <li>
-                  <span className="font-semibold">Analytics cookies</span> — only if enabled later,
-                  to understand usage and improve the product.
+                  <span className="font-semibold">Authentication cookies</span> — used to keep you signed in when
+                  login is enabled (e.g., Supabase auth session).
                 </li>
                 <li>
-                  <span className="font-semibold">Authentication cookies</span> — only if login is
-                  enabled later.
+                  <span className="font-semibold">Analytics cookies</span> — if enabled, to understand usage and
+                  improve performance (only where configured and permitted).
                 </li>
               </ul>
             </section>
@@ -69,8 +61,8 @@ export default function CookiesPage() {
             <section>
               <h2 className="text-base font-semibold text-slate-900">3. Managing cookies</h2>
               <p className="mt-2">
-                You can control cookies via your browser settings. Blocking cookies may affect site
-                functionality.
+                You can control cookies through your browser settings. Blocking some cookies may affect platform
+                features such as login and secure areas.
               </p>
             </section>
 
@@ -94,3 +86,5 @@ export default function CookiesPage() {
     </main>
   );
 }
+const COMPANY_NAME = "STEM Club Tracker";
+const CONTACT_EMAIL = "kelvin101udoh@gmail.com";
