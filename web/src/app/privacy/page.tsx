@@ -6,8 +6,8 @@ export const metadata = {
   description: "Privacy policy for the STEM Club Tracker platform.",
 };
 
-const COMPANY_NAME = "STEM Club Tracker";
-const CONTACT_EMAIL = "privacy@yourdomain.com"; // change later
+const COMPANY_NAME = "STEMTrack";
+const CONTACT_EMAIL = "kelvin101udoh@gmail.com"; // change later
 const JURISDICTION = "United Kingdom";
 
 export default function PrivacyPage() {
