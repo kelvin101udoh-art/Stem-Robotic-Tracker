@@ -13,7 +13,6 @@ type UserRole = "club_admin" | "teacher" | "student" | "parent";
 
 type RegisterState = {
   clubName: string; // clubs.name
-  clubCode: string; // clubs.club_code (unique)
   fullName: string; // profiles.full_name
   email: string;
   password: string;
@@ -22,10 +21,7 @@ type RegisterState = {
 type LoginState = {
   email: string;
   password: string;
-  clubCode: string; // verify against clubs.club_code
 };
-
-const normalizeClubCode = (v: string) => v.trim().toUpperCase();
 
 function routeForRole(role: UserRole) {
   switch (role) {
@@ -42,6 +38,29 @@ function routeForRole(role: UserRole) {
   }
 }
 
+/** Make a short readable prefix from club name (e.g., "MDX STEM Club" -> "MDX") */
+function clubPrefix(name: string) {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^a-zA-Z0-9]/g, ""))
+    .filter(Boolean);
+
+  const first = (words[0] || "CLUB").toUpperCase();
+  return first.slice(0, 3).padEnd(3, "X"); // always 3 chars
+}
+
+/** Random part (uppercase base36) */
+function randomChunk(len = 5) {
+  // e.g., "7K4P2"
+  return Math.random().toString(36).slice(2, 2 + len).toUpperCase();
+}
+
+/** Final code like "MDX-7K4P2" */
+function generateClubCode(clubName: string) {
+  return `${clubPrefix(clubName)}-${randomChunk(5)}`;
+}
+
 export default function GetStartedPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -50,7 +69,6 @@ export default function GetStartedPage() {
 
   const [register, setRegister] = useState<RegisterState>({
     clubName: "",
-    clubCode: "",
     fullName: "",
     email: "",
     password: "",
@@ -59,18 +77,20 @@ export default function GetStartedPage() {
   const [login, setLogin] = useState<LoginState>({
     email: "",
     password: "",
-    clubCode: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
+  // Show generated club code after successful registration
+  const [createdClubCode, setCreatedClubCode] = useState<string>("");
+
   const valueTiles = useMemo(
     () => [
       {
         title: "Owner overview",
-        desc: "See cohorts, delivery consistency, and programme coverage in one view.",
+        desc: "See cohorts, progress consistency, and programme coverage in one view.",
       },
       {
         title: "Programme templates",
@@ -96,6 +116,7 @@ export default function GetStartedPage() {
   function updateRegister<K extends keyof RegisterState>(key: K, value: RegisterState[K]) {
     setRegister((s) => ({ ...s, [key]: value }));
     resetAlerts();
+    setCreatedClubCode("");
   }
 
   function updateLogin<K extends keyof LoginState>(key: K, value: LoginState[K]) {
@@ -103,12 +124,40 @@ export default function GetStartedPage() {
     resetAlerts();
   }
 
+  async function createClubWithUniqueCode(clubName: string) {
+    // Try a few times in case club_code unique collision
+    for (let i = 0; i < 6; i++) {
+      const code = generateClubCode(clubName);
+
+      const { data, error } = await supabase
+        .from("clubs")
+        .insert({ name: clubName, club_code: code })
+        .select("id, club_code")
+        .single();
+
+      if (!error && data?.id) return data;
+
+      // If it's a duplicate code, retry; otherwise throw
+      const msg = (error as any)?.message?.toLowerCase?.() || "";
+      const isDup =
+        msg.includes("duplicate") ||
+        msg.includes("unique") ||
+        msg.includes("club_code") ||
+        (error as any)?.code === "23505"; // Postgres unique violation
+
+      if (!isDup) throw error;
+    }
+
+    throw new Error("Could not generate a unique club code. Please try again.");
+  }
+
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     resetAlerts();
+    setCreatedClubCode("");
 
+    // ✅ Validation
     if (!register.clubName.trim()) return setError("Please enter your club name.");
-    if (!register.clubCode.trim()) return setError("Please enter your club code.");
     if (!register.fullName.trim()) return setError("Please enter your full name.");
     if (!register.email.trim()) return setError("Please enter your email.");
     if (register.password.trim().length < 6) return setError("Password must be at least 6 characters.");
@@ -116,26 +165,22 @@ export default function GetStartedPage() {
     setLoading(true);
 
     try {
-      const email = register.email.trim().toLowerCase();
-      const password = register.password.trim();
       const clubName = register.clubName.trim();
-      const clubCode = normalizeClubCode(register.clubCode);
-      const fullName = register.fullName.trim();
 
       // 1) Create auth user
       const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
+        email: register.email.trim(),
+        password: register.password.trim(),
       });
       if (signUpError) throw signUpError;
 
-      // 2) Ensure we are authenticated for RLS inserts
+      // 2) Sign in right away so inserts pass your RLS policies
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: register.email.trim(),
+        password: register.password.trim(),
       });
 
-      // If email confirmation is enabled, sign-in may fail until confirmed.
+      // If email confirmation is enabled, sign-in may fail here.
       if (signInError || !signInData.user?.id) {
         setMsg("Account created. Please confirm your email, then return here to log in.");
         return;
@@ -143,25 +188,17 @@ export default function GetStartedPage() {
 
       const userId = signInData.user.id;
 
-      // 3) Ensure club exists (clubs.club_code unique)
-      // NOTE: This upsert may update the club name if club_code already exists.
-      // If you want to prevent that, replace upsert with: insert then select fallback.
-      const { data: clubRow, error: clubUpsertError } = await supabase
-        .from("clubs")
-        .upsert({ name: clubName, club_code: clubCode }, { onConflict: "club_code" })
-        .select("id, club_code")
-        .single();
+      // 3) Create club with an auto-generated unique code
+      const clubRow = await createClubWithUniqueCode(clubName);
+      setCreatedClubCode(clubRow.club_code);
 
-      if (clubUpsertError) throw clubUpsertError;
-      if (!clubRow?.id) throw new Error("Could not create/find club. Please try again.");
-
-      // 4) Create/Upsert profile (matches: id, club_id, role, full_name, is_active, created_at, updated_at)
+      // 4) Create/Upsert profile
       const { error: profileError } = await supabase.from("profiles").upsert(
         {
           id: userId,
           club_id: clubRow.id,
           role: "club_admin" as UserRole,
-          full_name: fullName,
+          full_name: register.fullName.trim(),
           is_active: true,
           updated_at: new Date().toISOString(),
         },
@@ -170,8 +207,7 @@ export default function GetStartedPage() {
 
       if (profileError) throw profileError;
 
-      setMsg("Admin account created. Redirecting…");
-      router.push(routeForRole("club_admin"));
+      setMsg("Admin account created. Your club code is ready.");
     } catch (err: any) {
       setError(err?.message || "Registration failed. Please try again.");
     } finally {
@@ -183,68 +219,38 @@ export default function GetStartedPage() {
     e.preventDefault();
     resetAlerts();
 
-    if (!login.email.trim() || !login.password.trim()) return setError("Please enter your email and password.");
-    if (!login.clubCode.trim()) return setError("Please enter your club code.");
+    if (!login.email.trim() || !login.password.trim()) {
+      return setError("Please enter your email and password.");
+    }
 
     setLoading(true);
 
     try {
-      const email = login.email.trim().toLowerCase();
-      const password = login.password.trim();
-      const provided = normalizeClubCode(login.clubCode);
-
       // 1) Sign in
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: login.email.trim(),
+        password: login.password.trim(),
       });
       if (signInError) throw signInError;
 
       const userId = signInData.user?.id;
       if (!userId) throw new Error("Login failed. Please try again.");
 
-      // 2) Fetch profile (club_id + role)
+      // 2) Fetch profile role and redirect
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("club_id, role, is_active")
+        .select("role, is_active")
         .eq("id", userId)
         .single();
 
       if (profileError) throw profileError;
-
-      if (!profile?.club_id) {
-        await supabase.auth.signOut();
-        throw new Error("No club assigned to this account. Please contact your club admin.");
-      }
-
-      // Optional: block inactive accounts
+      if (!profile) throw new Error("Profile not found. Please contact your club admin.");
       if (profile.is_active === false) {
         await supabase.auth.signOut();
-        throw new Error("This account is not active. Please contact your club admin.");
+        throw new Error("This account is inactive. Please contact your club admin.");
       }
 
-      // 3) Fetch club_code from clubs table
-      const { data: club, error: clubError } = await supabase
-        .from("clubs")
-        .select("club_code")
-        .eq("id", profile.club_id)
-        .single();
-
-      if (clubError) throw clubError;
-
-      const expected = normalizeClubCode(club?.club_code || "");
-      if (!expected) {
-        await supabase.auth.signOut();
-        throw new Error("Club code not found for this club. Please contact support.");
-      }
-
-      if (expected !== provided) {
-        await supabase.auth.signOut();
-        throw new Error("Club code does not match this account.");
-      }
-
-      // 4) Redirect by role
-      const role = (profile.role || "student") as UserRole;
+      const role = (profile.role as UserRole) || "student";
       setMsg("Login successful. Redirecting…");
       router.push(routeForRole(role));
     } catch (err: any) {
@@ -254,19 +260,28 @@ export default function GetStartedPage() {
     }
   }
 
+  async function copyCode() {
+    if (!createdClubCode) return;
+    try {
+      await navigator.clipboard.writeText(createdClubCode);
+      setMsg("Club code copied to clipboard.");
+    } catch {
+      setMsg("Could not copy automatically. Please select and copy the club code.");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
       {/* Top bar */}
       <header className="border-b border-slate-200/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <Link href="/" className="flex items-center gap-3">
-            {/* LOGO */}
             <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-900 text-white shadow-sm">
               <span className="text-sm font-bold">ST</span>
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold">STEMTrack</div>
-              <div className="text-xs text-slate-500">Get started • Club access</div>
+              <div className="text-xs text-slate-500">Get started • Club admin</div>
             </div>
           </Link>
 
@@ -289,8 +304,8 @@ export default function GetStartedPage() {
             </h1>
             <p className="mt-2 text-sm text-slate-600">
               {mode === "register"
-                ? "Create the first admin for a club. This creates both the club and your profile."
-                : "Sign in with your credentials. Club code is used as an extra verification step."}
+                ? "Create the first admin for your club. We’ll automatically generate a unique club code."
+                : "Sign in with your email and password. You’ll be redirected based on your role."}
             </p>
 
             {/* Switch */}
@@ -300,9 +315,12 @@ export default function GetStartedPage() {
                 onClick={() => {
                   setMode("register");
                   resetAlerts();
+                  setCreatedClubCode("");
                 }}
                 className={`rounded-xl px-3 py-2 text-sm font-medium ${
-                  mode === "register" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  mode === "register"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 Register
@@ -312,9 +330,12 @@ export default function GetStartedPage() {
                 onClick={() => {
                   setMode("login");
                   resetAlerts();
+                  setCreatedClubCode("");
                 }}
                 className={`rounded-xl px-3 py-2 text-sm font-medium ${
-                  mode === "login" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  mode === "login"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 Login
@@ -331,11 +352,43 @@ export default function GetStartedPage() {
 
             {msg ? (
               <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <p className="text-sm font-semibold text-emerald-800">Message</p>
+                <p className="text-sm font-semibold text-emerald-800">Update</p>
                 <p className="mt-1 text-sm text-emerald-700">{msg}</p>
               </div>
             ) : null}
 
+            {/* Success panel for generated club code */}
+            {mode === "register" && createdClubCode ? (
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold tracking-widest text-slate-500">YOUR CLUB CODE</p>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                    <p className="text-sm font-semibold text-slate-900">{createdClubCode}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Save this. You’ll use it to invite teachers, students, and parents.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={copyCode}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Copy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/app/admin")}
+                      className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                    >
+                      Go to dashboard
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {/* FORMS */}
             {mode === "register" ? (
               <form onSubmit={handleRegister} className="mt-6 space-y-4">
                 <div>
@@ -347,18 +400,9 @@ export default function GetStartedPage() {
                     placeholder="MDX STEM Club"
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
                   />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700">Club code</label>
-                  <input
-                    value={register.clubCode}
-                    onChange={(e) => updateRegister("clubCode", e.target.value)}
-                    type="text"
-                    placeholder="e.g., MDX-STEM"
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
-                  />
-                  <p className="mt-1 text-xs text-slate-500">Unique and used for club separation + verification.</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    We’ll generate your club code automatically after you register.
+                  </p>
                 </div>
 
                 <div>
@@ -423,33 +467,20 @@ export default function GetStartedPage() {
                     value={login.email}
                     onChange={(e) => updateLogin("email", e.target.value)}
                     type="email"
-                    placeholder="admin@yourclub.com"
+                    placeholder="you@yourclub.com"
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
                   />
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700">Password</label>
-                    <input
-                      value={login.password}
-                      onChange={(e) => updateLogin("password", e.target.value)}
-                      type="password"
-                      placeholder="••••••••"
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700">Club code</label>
-                    <input
-                      value={login.clubCode}
-                      onChange={(e) => updateLogin("clubCode", e.target.value)}
-                      type="text"
-                      placeholder="e.g., MDX-STEM"
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
-                    />
-                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700">Password</label>
+                  <input
+                    value={login.password}
+                    onChange={(e) => updateLogin("password", e.target.value)}
+                    type="password"
+                    placeholder="••••••••"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                  />
                 </div>
 
                 <button
@@ -487,11 +518,8 @@ export default function GetStartedPage() {
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold tracking-widest text-slate-500">NOTE</p>
               <p className="mt-2 text-sm text-slate-600">
-                This page matches your schema: <span className="font-medium">clubs</span> →{" "}
-                <span className="font-medium">profiles</span> (club_id), with enum roles and RLS-friendly inserts.
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Club codes are normalized to uppercase for consistent verification.
+                This page matches your schema: <span className="font-medium">clubs</span> (id, name, club_code, created_at)
+                → <span className="font-medium">profiles</span> (id, club_id, role, full_name, is_active, created_at, updated_at).
               </p>
             </div>
           </div>
