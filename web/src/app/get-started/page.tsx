@@ -374,7 +374,7 @@ export default function GetStartedPage() {
                                     resetAlerts();
                                     setCreatedClubCode("");
                                 }}
-                                className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${mode === "register"
+                                className={`cursor-pointer rounded-xl px-3 py-2 text-sm font-medium transition-colors ${mode === "register"
                                     ? "bg-white text-slate-900 shadow-sm"
                                     : "text-slate-600 hover:bg-white/70 hover:text-slate-900"
                                     }`}
@@ -389,7 +389,7 @@ export default function GetStartedPage() {
                                     resetAlerts();
                                     setCreatedClubCode("");
                                 }}
-                                className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${mode === "login"
+                                className={`cursor-pointer rounded-xl px-3 py-2 text-sm font-medium transition-colors ${mode === "login"
                                     ? "bg-white text-slate-900 shadow-sm"
                                     : "text-slate-600 hover:bg-white/70 hover:text-slate-900"
                                     }`}
@@ -510,7 +510,7 @@ export default function GetStartedPage() {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 hover:shadow disabled:opacity-60"
+                                    className="cursor-pointer inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 hover:shadow disabled:opacity-60"
                                 >
                                     {loading ? "Creating…" : "Create admin account"}
                                 </button>
@@ -554,7 +554,7 @@ export default function GetStartedPage() {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 hover:shadow disabled:opacity-60"
+                                    className="cursor-pointer inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 hover:shadow disabled:opacity-60"
                                 >
                                     {loading ? "Signing in…" : "Sign in"}
                                 </button>
