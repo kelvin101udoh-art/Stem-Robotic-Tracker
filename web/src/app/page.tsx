@@ -707,7 +707,7 @@ export default function Page() {
             ))}
 
           </div>
-          <div>
+          <div className="flex flex-wrap gap-4 text-sm">
             <Link className="text-slate-600 hover:text-slate-900" href="/privacy">Privacy</Link>
             <Link className="text-slate-600 hover:text-slate-900" href="/terms">Terms</Link>
             <Link className="text-slate-600 hover:text-slate-900" href="/cookies">Cookies</Link>
