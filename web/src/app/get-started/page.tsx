@@ -586,8 +586,8 @@ export default function GetStartedPage() {
                         <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <p className="text-xs font-semibold tracking-widest text-slate-500">NOTE</p>
                             <p className="mt-2 text-sm text-slate-600">
-                                Built for real club operations: <span className="font-medium">Accounts</span> teams, and 
-                                → <span className="font-medium">roles</span> are structured to keep clubs organised, secure, and easy to manage from day one.
+                                Built for real club operations: <span className="font-medium">Accounts</span> teams, and roles
+                                → <span className="font-medium">are structured to keep clubs organised, secure, and easy to manage from day one.</span>
                             </p>
                         </div>
                     </div>
