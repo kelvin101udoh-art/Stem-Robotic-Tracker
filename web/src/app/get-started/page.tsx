@@ -458,7 +458,7 @@ export default function GetStartedPage() {
                                         className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
                                     />
                                     <p className="mt-1 text-xs text-slate-500">
-                                        We’ll generate your club code automatically after you register.
+                                        
                                     </p>
                                 </div>
 
