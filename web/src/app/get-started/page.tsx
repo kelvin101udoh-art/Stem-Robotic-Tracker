@@ -586,8 +586,8 @@ export default function GetStartedPage() {
                         <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <p className="text-xs font-semibold tracking-widest text-slate-500">NOTE</p>
                             <p className="mt-2 text-sm text-slate-600">
-                                This page matches your schema: <span className="font-medium">clubs</span> (id, name, club_code, created_at)
-                                → <span className="font-medium">profiles</span> (id, club_id, role, full_name, is_active, created_at, updated_at).
+                                Built for real club operations: <span className="font-medium">Accounts</span> teams, and 
+                                → <span className="font-medium">roles</span> are structured to keep clubs organised, secure, and easy to manage from day one.
                             </p>
                         </div>
                     </div>
