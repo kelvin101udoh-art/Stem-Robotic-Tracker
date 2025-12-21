@@ -306,7 +306,7 @@ export default function GetStartedPage() {
             <footer className="border-t border-slate-200 bg-white">
                 <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-10 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-slate-600">
-                        © {new Date().getFullYear()} STEM Club Tracker
+                        © {new Date().getFullYear()} STEMTrack
                     </p>
                     <div className="flex flex-wrap gap-4 text-sm">
                         <Link href="/" className="text-slate-600 hover:text-slate-900">
@@ -315,9 +315,14 @@ export default function GetStartedPage() {
                         <Link href="/get-started" className="text-slate-600 hover:text-slate-900">
                             Get started
                         </Link>
-                        <Link href="/login" className="text-slate-600 hover:text-slate-900">
-                            Teacher login
+                        <Link href="/faq" className="text-slate-600 hover:text-slate-900">
+                            Faq
                         </Link>
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-sm">
+                        <Link className="text-slate-600 hover:text-slate-900" href="/privacy">Privacy</Link>
+                        <Link className="text-slate-600 hover:text-slate-900" href="/terms">Terms</Link>
+                        <Link className="text-slate-600 hover:text-slate-900" href="/cookies">Cookies</Link>
                     </div>
                 </div>
             </footer>
