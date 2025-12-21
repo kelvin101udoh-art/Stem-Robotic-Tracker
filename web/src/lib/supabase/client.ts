@@ -1,7 +1,6 @@
 // web/src/lib/supabase/client.ts
 
 
-export const createClient = () => createClientComponentClient();
 
 import { createBrowserClient } from "@supabase/ssr";
 
