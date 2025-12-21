@@ -707,6 +707,11 @@ export default function Page() {
             ))}
 
           </div>
+          <div>
+            <Link className="text-slate-600 hover:text-slate-900" href="/privacy">Privacy</Link>
+            <Link className="text-slate-600 hover:text-slate-900" href="/terms">Terms</Link>
+            <Link className="text-slate-600 hover:text-slate-900" href="/cookies">Cookies</Link>
+          </div>
         </div>
       </footer>
     </main>
