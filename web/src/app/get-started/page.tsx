@@ -139,6 +139,43 @@ export default function GetStartedPage() {
         setRegModalOpen(true);
     }
 
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+    const [loginModalMsg, setLoginModalMsg] = useState("");
+
+    function openLoginError(message: string) {
+        setLoginModalMsg(message);
+        setLoginModalOpen(true);
+    }
+
+    const [resetLoading, setResetLoading] = useState(false);
+
+    async function handleForgotPassword() {
+        // You can require only email OR email + club code. Here we require email only.
+        const email = login.email.trim();
+        if (!email) return openLoginError("Enter your email first, then click “Forgot password?”");
+
+        setResetLoading(true);
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                // IMPORTANT: set this to your real reset route
+                redirectTo:
+                    typeof window !== "undefined"
+                        ? `${window.location.origin}/reset-password`
+                        : undefined,
+            });
+
+            if (error) throw error;
+
+            // Use the modal as a success message too (simple + consistent)
+            setLoginModalMsg("Password reset link sent. Please check your email inbox.");
+            setLoginModalOpen(true);
+        } catch (err: any) {
+            openLoginError(err?.message || "Could not send reset link. Please try again.");
+        } finally {
+            setResetLoading(false);
+        }
+    }
+
 
     const [mode, setMode] = useState<Mode>("register");
 
@@ -352,7 +389,11 @@ export default function GetStartedPage() {
         resetAlerts();
 
         if (!login.email.trim() || !login.password.trim()) {
-            return setError("Please enter your email and password.");
+            return openLoginError("Please enter your email and password.");
+        }
+
+        if (!login.clubCode.trim()) {
+            return openLoginError("Please enter your club code.");
         }
 
         setLoading(true);
@@ -386,10 +427,18 @@ export default function GetStartedPage() {
             setMsg("Login successful. Redirecting…");
             router.push(routeForRole(role));
         } catch (err: any) {
-            setError(err?.message || "Login failed. Please try again.");
+            const raw = (err?.message || "").toLowerCase();
+
+            // Supabase commonly returns "Invalid login credentials"
+            if (raw.includes("invalid login credentials")) {
+                openLoginError("Invalid login credentials.");
+            } else {
+                openLoginError(err?.message || "Login failed. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
+
     }
 
     async function copyCode() {
@@ -431,6 +480,13 @@ export default function GetStartedPage() {
                 title="Error"
                 message={regModalMsg}
                 onClose={() => setRegModalOpen(false)}
+            />
+
+            <ErrorModal
+                open={loginModalOpen}
+                title="Error"
+                message={loginModalMsg}
+                onClose={() => setLoginModalOpen(false)}
             />
 
             <section className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
@@ -641,7 +697,19 @@ export default function GetStartedPage() {
                                     {loading ? "Signing in…" : "Sign in"}
                                 </button>
 
-                                <p className="text-xs text-slate-500">Password reset can be added later.</p>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs text-slate-500">Forgot your password?</p>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleForgotPassword}
+                                        disabled={resetLoading}
+                                        className="cursor-pointer text-xs font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900 transition disabled:opacity-60"
+                                    >
+                                        {resetLoading ? "Sending…" : "Forgot password?"}
+                                    </button>
+                                </div>
+
                             </form>
                         )}
                     </div>
