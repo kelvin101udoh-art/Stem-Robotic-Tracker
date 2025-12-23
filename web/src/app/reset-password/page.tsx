@@ -1,4 +1,3 @@
-// /web/src/app/reset-password/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -49,39 +48,47 @@ export default function ResetPasswordPage() {
     setSuccessOpen(true);
   }
 
-  // ✅ IMPORTANT: Recovery links often arrive with tokens in the URL.
-  // This call parses the URL and stores the session in the client.
+  // ✅ For supabase-js v2: check session + subscribe to auth changes.
+  // Password recovery links will establish a session after redirect.
   useEffect(() => {
     let mounted = true;
 
-    async function initFromRecoveryLink() {
+    async function init() {
       try {
-        // supabase-js v2 supports this helper for magic/recovery links
-        const { data, error } = await supabase.auth.getSessionFromUrl({
-          storeSession: true,
-        });
+        // 1) Try to read any existing session (after redirect)
+        const { data, error } = await supabase.auth.getSession();
 
         if (!mounted) return;
 
         if (error) {
           setHasRecoverySession(false);
-          openError("This reset link is invalid or expired. Please request a new one.");
         } else {
           setHasRecoverySession(Boolean(data.session));
         }
       } catch {
         if (!mounted) return;
         setHasRecoverySession(false);
-        openError("Unable to open reset link. Please request a new one.");
       } finally {
         if (!mounted) return;
         setReady(true);
       }
     }
 
-    initFromRecoveryLink();
+    init();
+
+    // 2) Listen for the password recovery session being set
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      // When the reset link is opened, Supabase typically fires PASSWORD_RECOVERY / SIGNED_IN
+      if (!mounted) return;
+      setHasRecoverySession(Boolean(session));
+      setReady(true);
+    });
+
     return () => {
       mounted = false;
+      subscription.unsubscribe();
     };
   }, [supabase]);
 
@@ -99,7 +106,7 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
-      // ✅ Update password for the currently authenticated recovery session
+      // ✅ Update password for the currently authenticated (recovery) session
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
@@ -111,7 +118,6 @@ export default function ResetPasswordPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        // fallback: go to login
         router.replace("/get-started");
         return;
       }
@@ -124,10 +130,16 @@ export default function ResetPasswordPage() {
 
       const role = (profile?.role || "student") as UserRole;
 
-      // Small delay so user sees success modal briefly
       setTimeout(() => router.replace(routeForRole(role)), 900);
     } catch (err: any) {
-      openError(err?.message || "Could not update password. Please try again.");
+      const raw = (err?.message || "").toLowerCase();
+
+      // Helpful message for expired/invalid recovery sessions
+      if (raw.includes("auth session") || raw.includes("jwt") || raw.includes("expired")) {
+        openError("This reset link is invalid or expired. Please request a new one.");
+      } else {
+        openError(err?.message || "Could not update password. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
