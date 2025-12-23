@@ -392,9 +392,7 @@ export default function GetStartedPage() {
             return openLoginError("Please enter your email and password.");
         }
 
-        if (!login.clubCode.trim()) {
-            return openLoginError("Please enter your club code.");
-        }
+       
 
         setLoading(true);
 
