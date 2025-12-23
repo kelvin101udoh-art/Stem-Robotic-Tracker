@@ -62,9 +62,83 @@ function generateClubCode(clubName: string) {
     return `${clubPrefix(clubName)}-${randomChunk(5)}`;
 }
 
+function ErrorModal({
+    open,
+    title = "Error",
+    message,
+    onClose,
+}: {
+    open: boolean;
+    title?: string;
+    message: string;
+    onClose: () => void;
+}) {
+    if (!open) return null;
+
+    return (
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+        >
+            {/* Backdrop */}
+            <button
+                type="button"
+                aria-label="Close error dialog"
+                onClick={onClose}
+                className="absolute inset-0 cursor-pointer bg-slate-900/40"
+            />
+
+            {/* Modal */}
+            <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl ring-1 ring-slate-200/60">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p
+                            id="modal-title"
+                            className="text-sm font-semibold text-slate-900"
+                        >
+                            {title}
+                        </p>
+                        <p className="mt-2 text-sm text-slate-600">{message}</p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                    >
+                        Close
+                    </button>
+                </div>
+
+                <div className="mt-5 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="cursor-pointer rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition"
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
 export default function GetStartedPage() {
     const router = useRouter();
     const supabase = createClient();
+
+    const [regModalOpen, setRegModalOpen] = useState(false);
+    const [regModalMsg, setRegModalMsg] = useState("");
+
+    function openRegError(message: string) {
+        setRegModalMsg(message);
+        setRegModalOpen(true);
+    }
+
 
     const [mode, setMode] = useState<Mode>("register");
 
@@ -208,15 +282,16 @@ export default function GetStartedPage() {
         // ✅ Validation
         if (!register.clubName.trim()) return setError("Please enter your club name.");
         if (!register.fullName.trim()) return setError("Please enter your full name.");
-        if (!register.email.trim()) return setError("Please enter your school admin email.");
+
+        if (!register.email.trim()) return openRegError("Please enter your email.");
         if (!isSchoolEmail(register.email)) {
-            return setError("Please use a school/institution email address (no personal emails).");
+            return openRegError("Please use a school/institution email address (no personal emails).");
         }
         if (register.password.trim().length < 6) {
-            return setError("Password must be at least 6 characters.");
+            return openRegError("Password must be at least 6 characters.");
         }
         if (register.password !== register.confirmPassword) {
-            return setError("Passwords do not match. Please confirm your password.");
+            return openRegError("Passwords do not match. Please confirm your password.");
         }
 
         setLoading(true);
@@ -239,7 +314,7 @@ export default function GetStartedPage() {
 
             // If email confirmation is enabled, sign-in may fail here.
             if (signInError || !signInData.user?.id) {
-                setMsg("Account created. Please confirm your email, then return here to log in.");
+                router.push("/get-started/confirm");
                 return;
             }
 
@@ -351,6 +426,13 @@ export default function GetStartedPage() {
                 </div>
             </header>
 
+            <ErrorModal
+                open={regModalOpen}
+                title="Error"
+                message={regModalMsg}
+                onClose={() => setRegModalOpen(false)}
+            />
+
             <section className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
                 <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
                     {/* LEFT: Auth */}
@@ -458,7 +540,7 @@ export default function GetStartedPage() {
                                         className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
                                     />
                                     <p className="mt-1 text-xs text-slate-500">
-                                        
+
                                     </p>
                                 </div>
 
