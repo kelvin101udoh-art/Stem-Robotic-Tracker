@@ -126,7 +126,6 @@ function ErrorModal({
     );
 }
 
-
 export default function GetStartedPage() {
     const router = useRouter();
     const supabase = createClient();
@@ -147,34 +146,48 @@ export default function GetStartedPage() {
         setLoginModalOpen(true);
     }
 
-    const [resetLoading, setResetLoading] = useState(false);
+    // const [resetLoading, setResetLoading] = useState(false);
 
-    async function handleForgotPassword() {
-        // You can require only email OR email + club code. Here we require email only.
-        const email = login.email.trim();
-        if (!email) return openLoginError("Enter your email first, then click “Forgot password?”");
+    async function handleForgotPasswordSubmit() {
+        if (!forgotEmail.trim()) {
+            openLoginError("Please enter your email address.");
+            return;
+        }
 
-        setResetLoading(true);
+        setForgotLoading(true);
+
         try {
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                // IMPORTANT: set this to your real reset route
-                redirectTo:
-                    typeof window !== "undefined"
-                        ? `${window.location.origin}/reset-password`
-                        : undefined,
-            });
+            const { error } = await supabase.auth.resetPasswordForEmail(
+                forgotEmail.trim(),
+                {
+                    redirectTo:
+                        typeof window !== "undefined"
+                            ? `${window.location.origin}/reset-password`
+                            : undefined,
+                }
+            );
 
             if (error) throw error;
 
-            // Use the modal as a success message too (simple + consistent)
-            setLoginModalMsg("Password reset link sent. Please check your email inbox.");
+            setForgotOpen(false);
+            setLoginModalMsg(
+                "Password reset link sent. Please check your email inbox."
+            );
             setLoginModalOpen(true);
+            setForgotEmail("");
         } catch (err: any) {
-            openLoginError(err?.message || "Could not send reset link. Please try again.");
+            openLoginError(
+                err?.message || "Unable to send reset link. Please try again."
+            );
         } finally {
-            setResetLoading(false);
+            setForgotLoading(false);
         }
     }
+
+
+    const [forgotOpen, setForgotOpen] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState("");
+    const [forgotLoading, setForgotLoading] = useState(false);
 
 
     const [mode, setMode] = useState<Mode>("register");
@@ -392,7 +405,7 @@ export default function GetStartedPage() {
             return openLoginError("Please enter your email and password.");
         }
 
-       
+
 
         setLoading(true);
 
@@ -486,6 +499,54 @@ export default function GetStartedPage() {
                 message={loginModalMsg}
                 onClose={() => setLoginModalOpen(false)}
             />
+
+            {forgotOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                        <h3 className="text-lg font-semibold text-slate-900">
+                            Reset password
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-600">
+                            Enter your email address and we’ll send you a reset link.
+                        </p>
+
+                        <div className="mt-4">
+                            <label className="text-xs font-semibold text-slate-700">
+                                Email address
+                            </label>
+                            <input
+                                type="email"
+                                value={forgotEmail}
+                                onChange={(e) => setForgotEmail(e.target.value)}
+                                placeholder="admin@school.edu"
+                                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                            />
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setForgotOpen(false);
+                                    setForgotEmail("");
+                                }}
+                                className="cursor-pointer rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleForgotPasswordSubmit}
+                                disabled={forgotLoading}
+                                className="cursor-pointer rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                            >
+                                {forgotLoading ? "Sending…" : "Send reset link"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <section className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
                 <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
@@ -700,12 +761,12 @@ export default function GetStartedPage() {
 
                                     <button
                                         type="button"
-                                        onClick={handleForgotPassword}
-                                        disabled={resetLoading}
-                                        className="cursor-pointer text-xs font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900 transition disabled:opacity-60"
+                                        onClick={() => setForgotOpen(true)}
+                                        className="cursor-pointer text-xs font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900 transition"
                                     >
-                                        {resetLoading ? "Sending…" : "Forgot password?"}
+                                        Forgot password?
                                     </button>
+
                                 </div>
 
                             </form>
