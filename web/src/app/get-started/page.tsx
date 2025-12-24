@@ -232,7 +232,7 @@ export default function GetStartedPage() {
 
         // Block common personal providers
         const blocked = new Set([
-            "gmail.com",
+            "gmx.com",
             "googlemail.com",
             "yahoo.com",
             "yahoo.co.uk",
