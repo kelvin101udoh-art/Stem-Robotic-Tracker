@@ -357,7 +357,8 @@ export default function GetStartedPage() {
                         full_name: register.fullName.trim(),
                     },
                     // ✅ ensures the email link returns to your app
-                    emailRedirectTo: `${origin}/get-started?confirmed=1`,
+                    emailRedirectTo: "https://stem-robotics-platform.vercel.app/get-started?confirmed=1"
+,
                 },
             });
 
