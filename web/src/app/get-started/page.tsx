@@ -436,7 +436,7 @@ export default function GetStartedPage() {
                 if (createdErr) throw createdErr;
 
                 const role = (createdProfile.role as UserRole) || "student";
-                setMsg("Login successful. Redirecting…");
+                openModal("success", "Update", "Login successful. Redirecting…");
                 router.push(routeForRole(role));
                 return;
             }
@@ -449,7 +449,7 @@ export default function GetStartedPage() {
             }
 
             const role = (profile.role as UserRole) || "student";
-            setMsg("Login successful. Redirecting…");
+            openModal("success", "Update", "Login successful. Redirecting…");
             router.push(routeForRole(role));
         } catch (err: any) {
             const raw = (err?.message || "").toLowerCase();
@@ -510,7 +510,7 @@ export default function GetStartedPage() {
 
         // show the club code
         setCreatedClubCode(clubRow.club_code);
-        setMsg("Setup completed. Your club code is ready.");
+        openModal("success", "Update", "Setup completed. Your club code is ready.");
     }
 
 
