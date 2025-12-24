@@ -257,7 +257,8 @@ export default function GetStartedPage() {
             domain.endsWith(".com") ||
             domain.endsWith(".net") ||
             domain.endsWith(".org") ||
-            domain.endsWith(".sog.homes") ||
+            domain.endsWith(".homes") ||
+            domain.endsWith(".org.uk") ||
             domain.endsWith(".edu.ng") ||
             domain.endsWith(".edu.uk") ||
             domain.includes("school") ||
