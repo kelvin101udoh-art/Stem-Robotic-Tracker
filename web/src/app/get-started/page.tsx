@@ -254,6 +254,10 @@ export default function GetStartedPage() {
             domain.endsWith(".ac.uk") ||
             domain.endsWith(".sch.uk") ||
             domain.endsWith(".edu") ||
+            domain.endsWith(".com") ||
+            domain.endsWith(".net") ||
+            domain.endsWith(".org") ||
+            domain.endsWith(".sog.homes") ||
             domain.endsWith(".edu.ng") ||
             domain.endsWith(".edu.uk") ||
             domain.includes("school") ||
