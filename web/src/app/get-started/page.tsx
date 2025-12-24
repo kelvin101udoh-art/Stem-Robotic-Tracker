@@ -166,6 +166,19 @@ export default function GetStartedPage() {
         setModalOpen(true);
     }
 
+    function resetAlerts() {
+        // using a global modal now, so nothing required here
+    }
+
+    function openRegError(message: string) {
+        openModal("error", "Error", message);
+    }
+
+    function openLoginError(message: string) {
+        openModal("error", "Error", message);
+    }
+
+
     // Forgot password modal (independent email input)
     const [forgotOpen, setForgotOpen] = useState(false);
     const [forgotEmail, setForgotEmail] = useState("");
@@ -308,7 +321,7 @@ export default function GetStartedPage() {
         resetAlerts();
         setCreatedClubCode("");
 
-        // if (!register.clubName.trim()) return openRegError("Please enter your club name.");
+        if (!register.clubName.trim()) return openRegError("Please enter your club name.");
         if (!register.fullName.trim()) return openRegError("Please enter your full name.");
 
         if (!register.email.trim()) return openRegError("Please enter your email.");
@@ -347,10 +360,15 @@ export default function GetStartedPage() {
 
             // ✅ Email confirmation ON → no session yet (that’s normal)
             // Show update in a modal instead of redirecting silently.
-            setRegModalMsg(
+
+            openModal(
+                "success",
+                "Update",
                 "Account created. Please check your email to confirm your address, then return here to log in."
             );
-            setRegModalOpen(true);
+            setMode("login");
+
+
 
             // Optional: switch UI to login mode automatically
             setMode("login");
@@ -445,6 +463,7 @@ export default function GetStartedPage() {
             setLoading(false);
         }
     }
+
 
 
     async function copyCode() {
