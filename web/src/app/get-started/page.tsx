@@ -377,7 +377,9 @@ export default function GetStartedPage() {
 
             // Optional: switch UI to login mode automatically
             setMode("login");
-        } catch (err: any) {
+        }
+
+        /* catch (err: any) {
             const raw = (err?.message || "").toLowerCase();
 
             // ✅ specifically handle the email sending problem
@@ -388,7 +390,19 @@ export default function GetStartedPage() {
             } else {
                 openRegError(err?.message || "Registration failed. Please try again.");
             }
-        } finally {
+
+
+        } 
+        */
+        catch (err: any) {
+            console.log("SIGNUP ERROR:", err);
+            console.log("SIGNUP ERROR MESSAGE:", err?.message);
+            console.log("SIGNUP ERROR STATUS:", err?.status);
+            openModal("error", "Error", err?.message || "Registration failed.");
+        }
+
+
+        finally {
             setLoading(false);
         }
     }
