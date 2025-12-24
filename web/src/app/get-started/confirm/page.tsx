@@ -17,11 +17,12 @@ export default function ConfirmEmailPage() {
         </p>
 
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <h1 className="text-xl font-semibold">Email confirmed</h1>
+          ...
           <p className="text-sm text-slate-700">
-            <strong>Next step:</strong> Please check your email and confirm your
-            address. Once confirmed, return here to sign in and access your
-            dashboard.
+            Your email has been confirmed successfully. You can now sign in to access your dashboard.
           </p>
+
         </div>
 
         <div className="mt-6 flex flex-col gap-3">
