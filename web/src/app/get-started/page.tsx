@@ -308,7 +308,7 @@ export default function GetStartedPage() {
         resetAlerts();
         setCreatedClubCode("");
 
-        if (!register.clubName.trim()) return openRegError("Please enter your club name.");
+        // if (!register.clubName.trim()) return openRegError("Please enter your club name.");
         if (!register.fullName.trim()) return openRegError("Please enter your full name.");
 
         if (!register.email.trim()) return openRegError("Please enter your email.");
