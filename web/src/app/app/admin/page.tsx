@@ -7,11 +7,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type KPI = { label: string; value: string; hint?: string };
-type Action = { title: string; desc: string; href: string; meta?: string };
-type Module = { title: string; desc: string; pills: string[]; href: string; cta: string };
-
-type UserRole = "club_admin" | "teacher" | "student" | "parent";
 type ModalTone = "error" | "success" | "info";
+type UserRole = "club_admin" | "teacher" | "student" | "parent";
 
 function routeForRole(role: UserRole) {
   switch (role) {
@@ -59,34 +56,26 @@ function AppModal({
           btn: "bg-emerald-600 hover:bg-emerald-700",
         }
       : {
-          box: "border-slate-200 bg-slate-50",
+          box: "border-slate-200 bg-white",
           title: "text-slate-900",
           text: "text-slate-700",
           btn: "bg-slate-900 hover:bg-slate-800",
         };
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="app-modal-title"
-    >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" role="dialog" aria-modal="true">
       <button
         type="button"
         aria-label="Close dialog"
         onClick={onClose}
-        className="absolute inset-0 cursor-pointer bg-slate-900/40"
+        className="absolute inset-0 cursor-pointer bg-black/50"
       />
-      <div className={`relative w-full max-w-md rounded-3xl border p-6 shadow-xl ring-1 ring-slate-200/60 ${toneStyles.box}`}>
+      <div className={`relative w-full max-w-md rounded-2xl border p-6 shadow-xl ring-1 ring-slate-200/60 ${toneStyles.box}`}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p id="app-modal-title" className={`text-sm font-semibold ${toneStyles.title}`}>
-              {title}
-            </p>
+            <p className={`text-sm font-semibold ${toneStyles.title}`}>{title}</p>
             <p className={`mt-2 text-sm ${toneStyles.text}`}>{message}</p>
           </div>
-
           <button
             type="button"
             onClick={onClose}
@@ -95,7 +84,6 @@ function AppModal({
             Close
           </button>
         </div>
-
         <div className="mt-5 flex justify-end">
           <button
             type="button"
@@ -110,26 +98,226 @@ function AppModal({
   );
 }
 
-/**
- * ✅ RULES IMPLEMENTED
- * 1) Page opens only if an active Supabase session exists AND profiles.role === "club_admin" AND is_active = true.
- * 2) Idle timeout: if no activity for IDLE_TIMEOUT_MS → auto sign out + redirect to /get-started.
- * 3) Logout button present.
- * 4) Sidebar nav to all admin modules (routes under /app/admin/*).
- */
+function Icon({
+  name,
+  className = "h-5 w-5",
+}: {
+  name:
+    | "home"
+    | "people"
+    | "invites"
+    | "sessions"
+    | "attendance"
+    | "insights"
+    | "reports"
+    | "settings"
+    | "search"
+    | "bell"
+    | "logout"
+    | "plus"
+    | "chev";
+  className?: string;
+}) {
+  // Minimal inline SVGs (no extra deps)
+  switch (name) {
+    case "home":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-9.5Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case "people":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path d="M16 11a4 4 0 1 0-8 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          <path d="M4 20c1.6-3.4 5-5 8-5s6.4 1.6 8 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
+    case "invites":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+          <path d="m5 8 7 5 7-5" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+        </svg>
+      );
+    case "sessions":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M7 3v3M17 3v3M4.5 9h15"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          />
+          <path
+            d="M6 6h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+        </svg>
+      );
+    case "attendance":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+          <path d="M8 11h8M8 15h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          <path d="M9 4V2M15 4V2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
+    case "insights":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path d="M4 19V5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          <path d="M8 19v-7M12 19V9M16 19v-10M20 19v-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
+    case "reports":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M7 3h7l3 3v15a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+          <path d="M14 3v4h4" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+          <path d="M8 12h8M8 16h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
+    case "settings":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+          <path
+            d="M19.4 15a7.9 7.9 0 0 0 .1-2l2-1.2-2-3.5-2.3.6a7.7 7.7 0 0 0-1.6-1L15 4h-6l-.6 2.9a7.7 7.7 0 0 0-1.6 1L4.5 7.3l-2 3.5 2 1.2a7.9 7.9 0 0 0 .1 2l-2 1.2 2 3.5 2.3-.6a7.7 7.7 0 0 0 1.6 1L9 20h6l.6-2.9a7.7 7.7 0 0 0 1.6-1l2.3.6 2-3.5-2-1.2Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case "search":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+          <path d="M16.5 16.5 21 21" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
+    case "bell":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinejoin="round"
+          />
+          <path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
+    case "logout":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" stroke="currentColor" strokeWidth="1.7" />
+          <path d="M3 12h11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          <path d="m7 8-4 4 4 4" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+        </svg>
+      );
+    case "plus":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
+    case "chev":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <path d="m9 18 6-6-6-6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+  }
+}
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+      {children}
+    </span>
+  );
+}
+
+function StatCard({ item }: { item: KPI }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <p className="text-2xl font-semibold text-slate-900">{item.value}</p>
+        {item.hint ? <p className="text-xs text-slate-500">{item.hint}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function FeedRow({
+  title,
+  desc,
+  href,
+  meta,
+}: {
+  title: string;
+  desc: string;
+  href: string;
+  meta?: string;
+}) {
+  return (
+    <Link href={href} className="group flex items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 hover:bg-slate-50 transition cursor-pointer">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-slate-900">{title}</p>
+        <p className="mt-1 text-sm text-slate-600">{desc}</p>
+        {meta ? <p className="mt-2 text-xs text-slate-500">{meta}</p> : null}
+      </div>
+      <span className="shrink-0 mt-1 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 group-hover:bg-slate-100 transition">
+        <Icon name="chev" className="h-4 w-4" />
+      </span>
+    </Link>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
 
-  // ====== Config ======
-  const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes (change if you want)
-
-  // ====== UI State ======
+  // ===== Auth rules =====
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [clubName, setClubName] = useState<string>("Your Club");
-  const [termLabel, setTermLabel] = useState<string>("Current term");
+  const [clubName, setClubName] = useState("Your Club");
+  const [termLabel, setTermLabel] = useState("Current term");
 
+  // ===== Idle timeout =====
+  const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 mins
+  const idleTimerRef = useRef<number | null>(null);
+
+  // ===== Modal =====
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTone, setModalTone] = useState<ModalTone>("info");
   const [modalTitle, setModalTitle] = useState("Update");
@@ -142,7 +330,25 @@ export default function AdminPage() {
     setModalOpen(true);
   }
 
-  // ====== Auth Guard ======
+  async function forceLogout(reason?: "idle" | "manual") {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore
+    } finally {
+      if (reason === "idle") {
+        openModal("info", "Session ended", "You were signed out due to inactivity. Please sign in again.");
+      }
+      router.replace("/get-started");
+    }
+  }
+
+  function resetIdleTimer() {
+    if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = window.setTimeout(() => forceLogout("idle"), IDLE_TIMEOUT_MS);
+  }
+
+  // Guard: must be admin + active session
   useEffect(() => {
     let cancelled = false;
 
@@ -160,10 +366,9 @@ export default function AdminPage() {
 
         const userId = session.user.id;
 
-        // Load profile
         const { data: profile, error: profileErr } = await supabase
           .from("profiles")
-          .select("role, is_active, club_id, full_name")
+          .select("role, is_active, club_id")
           .eq("id", userId)
           .single();
 
@@ -176,31 +381,20 @@ export default function AdminPage() {
         }
 
         if (profile.role !== "club_admin") {
-          // If a non-admin hits admin route, send them to their correct dashboard
           router.replace(routeForRole(profile.role as UserRole));
           return;
         }
 
-        // Optional: fetch club name + current term label (safe try)
         if (profile.club_id) {
-          const { data: club } = await supabase
-            .from("clubs")
-            .select("name")
-            .eq("id", profile.club_id)
-            .single();
-
+          const { data: club } = await supabase.from("clubs").select("name").eq("id", profile.club_id).single();
           if (!cancelled && club?.name) setClubName(club.name);
-
-          // If you later create a "terms" table, load the active term here.
-          // For now: keep as placeholder.
         }
 
-        if (!cancelled) setCheckingAuth(false);
-      } catch (e: any) {
         if (!cancelled) {
-          // fail-safe: route away
-          router.replace("/get-started");
+          setTermLabel("Term 1"); // placeholder until terms table is wired
         }
+      } catch {
+        router.replace("/get-started");
       } finally {
         if (!cancelled) setCheckingAuth(false);
       }
@@ -212,40 +406,15 @@ export default function AdminPage() {
     };
   }, [router, supabase]);
 
-  // ====== Idle Timeout Auto-Logout ======
-  const idleTimerRef = useRef<number | null>(null);
-
-  async function forceLogout(reason?: "idle" | "manual") {
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // ignore
-    } finally {
-      if (reason === "idle") {
-        // show once (optional)
-        openModal("info", "Session ended", "You were signed out due to inactivity. Please sign in again.");
-      }
-      router.replace("/get-started");
-    }
-  }
-
-  function resetIdleTimer() {
-    if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = window.setTimeout(() => {
-      forceLogout("idle");
-    }, IDLE_TIMEOUT_MS);
-  }
-
+  // Start idle timer after auth check
   useEffect(() => {
     if (checkingAuth) return;
 
-    // Start timer
     resetIdleTimer();
-
     const events: Array<keyof WindowEventMap> = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
     const onActivity = () => resetIdleTimer();
-
     events.forEach((ev) => window.addEventListener(ev, onActivity, { passive: true }));
+
     return () => {
       events.forEach((ev) => window.removeEventListener(ev, onActivity));
       if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
@@ -253,71 +422,22 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkingAuth]);
 
-  // ====== Nav Map (your requested routes) ======
+  // ===== Navigation (Facebook-like left rail) =====
   const nav = useMemo(
     () => [
-      { section: "Overview", items: [{ label: "Admin overview", href: "/app/admin/overview" }] },
-
-      {
-        section: "Structure",
-        items: [
-          { label: "Clubs", href: "/app/admin/clubs" },
-          { label: "Terms", href: "/app/admin/terms" },
-        ],
-      },
-
-      {
-        section: "People",
-        items: [
-          { label: "Students", href: "/app/admin/people/students" },
-          { label: "Parents", href: "/app/admin/people/parents" },
-          { label: "Teachers", href: "/app/admin/people/teachers" },
-        ],
-      },
-
-      {
-        section: "Enrollment",
-        items: [{ label: "Enrollment inbox", href: "/app/admin/enrollment/inbox" }],
-      },
-
-      {
-        section: "Access",
-        items: [{ label: "Invites", href: "/app/admin/invites" }],
-      },
-
-      {
-        section: "Delivery",
-        items: [
-          { label: "Sessions", href: "/app/admin/sessions" },
-          { label: "Attendance", href: "/app/admin/attendance" },
-        ],
-      },
-
-      {
-        section: "Learning",
-        items: [
-          { label: "Progress", href: "/app/admin/progress" },
-          { label: "Evidence", href: "/app/admin/evidence" },
-        ],
-      },
-
-      {
-        section: "Insights",
-        items: [
-          { label: "Insights", href: "/app/admin/insights" },
-          { label: "Reports", href: "/app/admin/reports" },
-        ],
-      },
-
-      {
-        section: "Settings",
-        items: [{ label: "Admin settings", href: "/app/admin/settings" }],
-      },
+      { label: "Overview", href: "/app/admin/overview", icon: "home" as const },
+      { label: "People", href: "/app/admin/people/students", icon: "people" as const },
+      { label: "Invites", href: "/app/admin/invites", icon: "invites" as const },
+      { label: "Sessions", href: "/app/admin/sessions", icon: "sessions" as const },
+      { label: "Attendance", href: "/app/admin/attendance", icon: "attendance" as const },
+      { label: "Insights", href: "/app/admin/insights", icon: "insights" as const },
+      { label: "Reports", href: "/app/admin/reports", icon: "reports" as const },
+      { label: "Settings", href: "/app/admin/settings", icon: "settings" as const },
     ],
     []
   );
 
-  // ====== Dashboard content (your provided structure) ======
+  // ===== Dashboard content =====
   const kpis: KPI[] = [
     { label: "Active teachers", value: "—", hint: "staffed this term" },
     { label: "Students enrolled", value: "—", hint: "active cohort" },
@@ -325,105 +445,95 @@ export default function AdminPage() {
     { label: "Sessions logged", value: "—", hint: "this term" },
   ];
 
-  const setupActions: Action[] = [
-    {
-      title: "Create / switch term",
-      desc: "Define Term 1–3 dates, goals, and cohort structure.",
-      href: "/app/admin/terms",
-      meta: "Terms 1, 2, 3",
-    },
-    {
-      title: "Invite teachers",
-      desc: "Send secure role-based invite links for coaches.",
-      href: "/app/admin/invites?role=teacher",
-      meta: "Role-based access",
-    },
-    {
-      title: "Enroll students & link parents",
-      desc: "Approve enrollment forms and connect parent accounts.",
-      href: "/app/admin/enrollment/inbox",
-      meta: "Enrollment inbox",
-    },
-    {
-      title: "Create your first session",
-      desc: "Plan Robotics/Coding sessions with objectives and templates.",
-      href: "/app/admin/sessions/new",
-      meta: "Robotics • Coding",
-    },
-    {
-      title: "Take attendance today",
-      desc: "Quick-mark attendance and flag learners at risk.",
-      href: "/app/admin/attendance",
-      meta: "Fast check-in",
-    },
-    {
-      title: "Export impact report",
-      desc: "Generate funder/parent-ready term summaries.",
-      href: "/app/admin/reports",
-      meta: "PDF / CSV",
-    },
-  ];
+  const quickActions = useMemo(
+    () => [
+      { title: "Invite users", desc: "Role-based links with expiry.", href: "/app/admin/invites", icon: "invites" as const },
+      { title: "Create session", desc: "Plan objectives + evidence capture.", href: "/app/admin/sessions/new", icon: "sessions" as const },
+      { title: "Take attendance", desc: "Fast check-in for today.", href: "/app/admin/attendance", icon: "attendance" as const },
+      { title: "Enrollment inbox", desc: "Approve new joins.", href: "/app/admin/enrollment/inbox", icon: "people" as const },
+    ],
+    []
+  );
 
-  const modules: Module[] = [
-    {
-      title: "Clubs & terms",
-      desc: "Set up your club centre, cohorts, and term structure for consistent delivery.",
-      pills: ["Club profile", "Terms 1–3", "Cohorts"],
-      href: "/app/admin/terms",
-      cta: "Manage terms →",
-    },
-    {
-      title: "Invites & access",
-      desc: "Secure links for students, parents, and teachers with expiry and audit trail.",
-      pills: ["Invite links", "Expiry control", "Audit log"],
-      href: "/app/admin/invites",
-      cta: "Manage invites →",
-    },
-    {
-      title: "Enrollment inbox",
-      desc: "Review enrollment forms, approve access, and keep records clean.",
-      pills: ["Pending approvals", "Role assignment", "History"],
-      href: "/app/admin/enrollment/inbox",
-      cta: "Open inbox →",
-    },
-    {
-      title: "Sessions",
-      desc: "Plan and run sessions with objectives and evidence capture.",
-      pills: ["Planner", "Templates", "Evidence"],
-      href: "/app/admin/sessions",
-      cta: "View sessions →",
-    },
-    {
-      title: "Attendance",
-      desc: "Mark attendance fast, track trends, and identify learners at risk early.",
-      pills: ["Today view", "Trends", "At-risk flags"],
-      href: "/app/admin/attendance",
-      cta: "Open attendance →",
-    },
-    {
-      title: "Insights & reports",
-      desc: "Turn activity into insights for parents, schools, and funders.",
-      pills: ["Engagement", "Learning growth", "Exports"],
-      href: "/app/admin/insights",
-      cta: "View insights →",
-    },
-  ];
+  const tasksFeed = useMemo(
+    () => [
+      {
+        title: "Create / switch term",
+        desc: "Define Term dates, goals, and cohort structure.",
+        href: "/app/admin/terms",
+        meta: "Terms 1–3",
+      },
+      {
+        title: "Invite teachers",
+        desc: "Send secure links for coaches and mentors.",
+        href: "/app/admin/invites?role=teacher",
+        meta: "Role-based access",
+      },
+      {
+        title: "Enroll students & link parents",
+        desc: "Approve enrollments and connect parent accounts.",
+        href: "/app/admin/enrollment/inbox",
+        meta: "Enrollment inbox",
+      },
+      {
+        title: "Export impact report",
+        desc: "Generate parent/funder-ready summary exports.",
+        href: "/app/admin/reports",
+        meta: "PDF / CSV",
+      },
+    ],
+    []
+  );
 
-  // ====== Loading guard UI ======
+  const spotlightModules = useMemo(
+    () => [
+      {
+        title: "Consistency",
+        desc: "Standardise delivery with templates + term structure.",
+        href: "/app/admin/terms",
+        pills: ["Terms 1–3", "Cohorts", "Templates"],
+      },
+      {
+        title: "Evidence",
+        desc: "Capture notes/photos and turn sessions into proof of learning.",
+        href: "/app/admin/evidence",
+        pills: ["Notes", "Photos", "Portfolio"],
+      },
+      {
+        title: "Governance",
+        desc: "Secure access, audit trail, and role-based separation by club.",
+        href: "/app/admin/invites",
+        pills: ["Expiry", "Audit log", "Club isolation"],
+      },
+    ],
+    []
+  );
+
+  // ===== Loading state =====
   if (checkingAuth) {
     return (
       <main className="min-h-screen bg-slate-50 text-slate-900">
-        <header className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-6">
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">Loading admin dashboard…</h1>
-              <p className="mt-1 text-sm text-slate-600">Checking your session and permissions.</p>
+        <div className="border-b border-slate-200 bg-white">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-900 text-white shadow-sm">
+                <span className="text-sm font-bold">ST</span>
+              </div>
+              <div className="leading-tight">
+                <div className="text-sm font-semibold">STEMTrack</div>
+                <div className="text-xs text-slate-500">Admin</div>
+              </div>
             </div>
+            <div className="h-9 w-44 rounded-xl bg-slate-100 animate-pulse" />
           </div>
-        </header>
+        </div>
 
-        <section className="mx-auto max-w-6xl px-4 py-10">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">Preparing your workspace…</div>
+        <section className="mx-auto max-w-7xl px-4 py-8">
+          <div className="grid gap-6 lg:grid-cols-[280px_1fr_320px]">
+            <div className="h-[480px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" />
+            <div className="h-[480px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" />
+            <div className="h-[480px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" />
+          </div>
         </section>
       </main>
     );
@@ -433,216 +543,304 @@ export default function AdminPage() {
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <AppModal open={modalOpen} tone={modalTone} title={modalTitle} message={modalMsg} onClose={() => setModalOpen(false)} />
 
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Admin • {clubName} • {termLabel}
-            </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight">Club Command Centre</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Manage access, run sessions, and turn activity into evidence and impact reports.
-            </p>
+      {/* Top app bar (Facebook-like) */}
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
+          {/* Brand */}
+          <Link href="/app/admin/overview" className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-900 text-white shadow-sm">
+              <span className="text-sm font-bold">ST</span>
+            </div>
+            <div className="hidden leading-tight sm:block">
+              <div className="text-sm font-semibold">STEMTrack</div>
+              <div className="text-xs text-slate-500">Club Admin</div>
+            </div>
+          </Link>
+
+          {/* Search */}
+          <div className="ml-2 hidden flex-1 sm:block">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                <Icon name="search" className="h-4 w-4" />
+              </span>
+              <input
+                placeholder="Search people, sessions, invites…"
+                onChange={() => resetIdleTimer()}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-10 py-2.5 text-sm outline-none focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+              />
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/app/admin/invites"
-              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition cursor-pointer"
-            >
-              Invite users
-            </Link>
+          {/* Right controls */}
+          <div className="ml-auto flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs font-semibold text-slate-900">{clubName}</p>
+              <span className="text-xs text-slate-400">•</span>
+              <p className="text-xs font-medium text-slate-600">{termLabel}</p>
+            </div>
 
             <Link
               href="/app/admin/sessions/new"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition"
+              title="Create session"
             >
-              Create session
+              <Icon name="plus" className="h-4 w-4" />
+              <span className="hidden sm:inline">New</span>
             </Link>
 
             <button
               type="button"
-              onClick={() => forceLogout("manual")}
-              className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition"
-              title="Sign out"
+              className="grid h-10 w-10 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+              title="Notifications"
+              onClick={() => openModal("info", "Notifications", "Notifications panel is coming next.")}
             >
-              Logout
+              <Icon name="bell" className="h-5 w-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => forceLogout("manual")}
+              className="grid h-10 w-10 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+              title="Logout"
+            >
+              <Icon name="logout" className="h-5 w-5" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Layout: Sidebar + Content */}
-      <section className="mx-auto max-w-6xl px-4 py-8">
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          {/* Sidebar */}
-          <aside className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold tracking-widest text-slate-500">ADMIN NAVIGATION</p>
+      {/* 3-column app layout */}
+      <section className="mx-auto max-w-7xl px-4 py-6">
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr_340px]">
+          {/* Left rail */}
+          <aside className="hidden lg:block">
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="px-2 text-xs font-semibold tracking-widest text-slate-500">NAVIGATION</p>
 
-            <div className="mt-4 space-y-5">
-              {nav.map((group) => (
-                <div key={group.section}>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{group.section}</p>
-                  <div className="mt-2 space-y-1">
-                    {group.items.map((item) => {
-                      const active = pathname === item.href;
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={`block rounded-xl px-3 py-2 text-sm transition cursor-pointer ${
-                            active ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-50"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+              <nav className="mt-3 space-y-1">
+                {nav.map((item) => {
+                  const active = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition cursor-pointer ${
+                        active ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className={`${active ? "text-white" : "text-slate-700"}`}>
+                        <Icon name={item.icon} className="h-5 w-5" />
+                      </span>
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
 
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Security</p>
-              <p className="mt-1 text-sm text-slate-700">
-                This admin area auto-logs out after <span className="font-semibold">{Math.round(IDLE_TIMEOUT_MS / 60000)} minutes</span>{" "}
-                of inactivity.
-              </p>
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Security</p>
+                <p className="mt-1 text-sm text-slate-700">
+                  Auto sign-out after{" "}
+                  <span className="font-semibold">{Math.round(IDLE_TIMEOUT_MS / 60000)} minutes</span> inactivity.
+                </p>
+              </div>
             </div>
           </aside>
 
-          {/* Main content */}
-          <div>
-            {/* KPI row */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {kpis.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
-                  <div className="mt-2 flex items-baseline justify-between gap-3">
-                    <p className="text-2xl font-semibold text-slate-900">{item.value}</p>
-                    {item.hint ? <p className="text-xs text-slate-500">{item.hint}</p> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Main grid: Next actions + Cohort health */}
-            <div className="mt-6 grid gap-6 lg:grid-cols-3">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-base font-semibold">Next actions</h2>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Follow the recommended flow: Terms → People → Sessions → Attendance → Insights.
-                    </p>
-                  </div>
-                  <Link
-                    href="/app/admin/overview"
-                    className="text-sm font-medium text-slate-900 underline underline-offset-4 hover:text-slate-700 cursor-pointer"
-                  >
-                    View full admin map →
-                  </Link>
+          {/* Center: main feed */}
+          <div className="space-y-6">
+            {/* Welcome / composer-like card */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Admin dashboard</p>
+                  <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
+                    Club Command Centre
+                  </h1>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Fast setup, clean delivery, and evidence-ready reporting—without admin overhead.
+                  </p>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {setupActions.map((a) => (
+                <div className="flex flex-wrap items-center gap-2">
+                  {quickActions.map((a) => (
                     <Link
                       key={a.title}
                       href={a.href}
-                      className="group rounded-2xl border border-slate-200 bg-white p-4 hover:bg-slate-50 transition cursor-pointer"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{a.title}</p>
-                          <p className="mt-1 text-sm text-slate-600">{a.desc}</p>
-                          {a.meta ? (
-                            <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                              {a.meta}
-                            </p>
-                          ) : null}
-                        </div>
-                        <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 group-hover:bg-slate-100 transition">
-                          →
-                        </span>
-                      </div>
+                      <Icon name={a.icon} className="h-4 w-4" />
+                      <span className="whitespace-nowrap">{a.title}</span>
                     </Link>
                   ))}
                 </div>
               </div>
+            </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-base font-semibold">Cohort health</h2>
-                <p className="mt-2 text-sm text-slate-600">
-                  High-level signals to spot gaps early (without digging into every session).
-                </p>
+            {/* KPI grid */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {kpis.map((k) => (
+                <StatCard key={k.label} item={k} />
+              ))}
+            </div>
 
-                <div className="mt-4 space-y-3">
-                  <SignalRow label="Attendance trend" value="—" hint="last 4 sessions" />
-                  <SignalRow label="Evidence captured" value="—" hint="photos/notes" />
-                  <SignalRow label="Sessions staffed" value="—" hint="planned vs delivered" />
-                  <SignalRow label="Learners at risk" value="—" hint="missed 2+ sessions" />
-                </div>
-
-                <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Insight → Decision</p>
-                  <p className="mt-1 text-sm text-slate-700">
-                    Use insights to adjust staffing, difficulty, timing, or parent engagement—then export a term report.
+            {/* Next actions feed (Facebook-like cards list) */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">Recommended next steps</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Terms → People → Sessions → Attendance → Insights.
                   </p>
                 </div>
+                <Link
+                  href="/app/admin/overview"
+                  className="text-sm font-semibold text-slate-900 underline underline-offset-4 hover:text-slate-700"
+                >
+                  Admin map
+                </Link>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {tasksFeed.map((t) => (
+                  <FeedRow key={t.title} title={t.title} desc={t.desc} href={t.href} meta={t.meta} />
+                ))}
               </div>
             </div>
 
-            {/* Modules grid */}
-            <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {modules.map((m) => (
-                <div key={m.title} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 className="text-base font-semibold capitalize">{m.title}</h3>
-                  <p className="mt-2 text-sm text-slate-600">{m.desc}</p>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
+            {/* Spotlight modules */}
+            <div className="grid gap-4 md:grid-cols-3">
+              {spotlightModules.map((m) => (
+                <div key={m.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-semibold text-slate-900">{m.title}</p>
+                  <p className="mt-1 text-sm text-slate-600">{m.desc}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {m.pills.map((p) => (
-                      <span
-                        key={p}
-                        className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
-                      >
-                        {p}
-                      </span>
+                      <Pill key={p}>{p}</Pill>
                     ))}
                   </div>
-
                   <Link
                     href={m.href}
-                    className="mt-5 inline-flex text-sm font-medium text-slate-900 underline underline-offset-4 hover:text-slate-700 cursor-pointer"
+                    className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 underline underline-offset-4 hover:text-slate-700"
                   >
-                    {m.cta}
+                    Open <Icon name="chev" className="h-4 w-4" />
                   </Link>
                 </div>
               ))}
             </div>
+          </div>
 
-            <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          {/* Right rail: “panel stack” like Facebook */}
+          <aside className="space-y-6">
+            {/* Club status panel */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold tracking-widest text-slate-500">CLUB STATUS</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{clubName}</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Keep delivery consistent across terms and cohorts.
+                  </p>
+                </div>
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-900 text-white">
+                  <Icon name="home" className="h-5 w-5" />
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Link href="/app/admin/terms" className="rounded-2xl border border-slate-200 bg-white p-3 hover:bg-slate-50 transition">
+                  <p className="text-xs font-semibold text-slate-900">Terms</p>
+                  <p className="mt-1 text-xs text-slate-600">Set dates & cohorts</p>
+                </Link>
+                <Link href="/app/admin/clubs" className="rounded-2xl border border-slate-200 bg-white p-3 hover:bg-slate-50 transition">
+                  <p className="text-xs font-semibold text-slate-900">Club</p>
+                  <p className="mt-1 text-xs text-slate-600">Profile & centre</p>
+                </Link>
+              </div>
+            </div>
+
+            {/* Cohort health */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold tracking-widest text-slate-500">COHORT HEALTH</p>
+              <p className="mt-2 text-sm text-slate-600">
+                High-level signals (no deep logs required).
+              </p>
+
+              <div className="mt-4 space-y-2">
+                <MiniSignal label="Attendance trend" value="—" hint="last 4 sessions" />
+                <MiniSignal label="Evidence captured" value="—" hint="photos/notes" />
+                <MiniSignal label="Sessions staffed" value="—" hint="planned vs delivered" />
+                <MiniSignal label="Learners at risk" value="—" hint="missed 2+ sessions" />
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tip</p>
+                <p className="mt-1 text-sm text-slate-700">
+                  Use Insights to adjust staffing/difficulty, then export a term report.
+                </p>
+              </div>
+            </div>
+
+            {/* Shortcuts */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold tracking-widest text-slate-500">SHORTCUTS</p>
+              <div className="mt-3 grid gap-2">
+                <Shortcut href="/app/admin/people/students" icon="people" title="Students" desc="Manage learners" />
+                <Shortcut href="/app/admin/people/teachers" icon="people" title="Teachers" desc="Mentors & coaches" />
+                <Shortcut href="/app/admin/invites" icon="invites" title="Invites" desc="Secure role links" />
+                <Shortcut href="/app/admin/reports" icon="reports" title="Reports" desc="Export impact" />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm text-slate-600">
-                Admin visibility is role-based. Teachers manage sessions and notes; students track progress; parents view summaries.
-                Access is controlled through secure invite links and permissions.
+                Admin access is role-based and club-isolated. If you need multi-club support later, this layout scales cleanly.
               </p>
             </div>
-          </div>
+          </aside>
         </div>
       </section>
     </main>
   );
 }
 
-function SignalRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function MiniSignal({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4">
-      <div>
-        <p className="text-sm font-medium text-slate-900">{label}</p>
+    <div className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-slate-900">{label}</p>
         {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
       </div>
       <p className="text-sm font-semibold text-slate-900">{value}</p>
     </div>
+  );
+}
+
+function Shortcut({
+  href,
+  icon,
+  title,
+  desc,
+}: {
+  href: string;
+  icon: Parameters<typeof Icon>[0]["name"];
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Link href={href} className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 hover:bg-slate-50 transition">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-900 text-white">
+          <Icon name={icon as any} className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-900 truncate">{title}</p>
+          <p className="text-xs text-slate-600 truncate">{desc}</p>
+        </div>
+      </div>
+      <span className="shrink-0 text-slate-700 group-hover:text-slate-900">
+        <Icon name="chev" className="h-4 w-4" />
+      </span>
+    </Link>
   );
 }
