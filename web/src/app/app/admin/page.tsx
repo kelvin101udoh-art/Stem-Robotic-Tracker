@@ -879,6 +879,3 @@ export default function AdminPage() {
     </main>
   );
 }
-type ModalTone = "info" | "success" | "warning" | "error";
-
-import React, { useEffect, useMemo, useRef, useState } from "react";
