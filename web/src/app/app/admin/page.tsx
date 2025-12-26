@@ -31,10 +31,10 @@ function formatDate(iso?: string) {
   return Number.isNaN(d.getTime())
     ? "—"
     : d.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
 }
 
 /* ------------------ Page ------------------ */
@@ -112,13 +112,27 @@ export default function AdminHomePage() {
 
   return (
     /* ================== ROOT BACKGROUND ================== */
-    <main className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-      {/* Background layers */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
-        <div className="absolute -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-indigo-500/10 blur-[140px]" />
-        <div className="absolute top-1/3 -right-48 h-[600px] w-[600px] rounded-full bg-cyan-400/10 blur-[140px]" />
+    <main className="relative min-h-screen overflow-hidden text-slate-900">
+      {/* ================== PHOTO BACKGROUND ================== */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: "url('/images/admin/hero.png')",
+          }}
+        />
+
+        {/* Soft white overlay for readability */}
+        <div className="absolute inset-0 bg-white/70" />
+
+        {/* Gradient polish (top + bottom) */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/60 to-white/95" />
+
+        {/* Subtle depth blur */}
+        <div className="absolute inset-0 backdrop-blur-[2px]" />
       </div>
+
 
       {/* ================== HEADER ================== */}
       <header className="relative z-20 sticky top-0 backdrop-blur bg-slate-950/70 border-b border-white/10">
@@ -145,7 +159,7 @@ export default function AdminHomePage() {
       {/* ================== CONTENT ================== */}
       <section className="relative z-10 mx-auto max-w-7xl px-6 py-12">
         {/* HERO */}
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid gap-8 lg:grid-cols-2 bg-white/80 backdrop-blur border border-slate-200 shadow-sm">
           <div className="rounded-3xl bg-slate-900/70 backdrop-blur border border-white/10 p-8 shadow-xl">
             <p className="text-xs font-semibold tracking-widest text-slate-400">
               ADMIN HOME
