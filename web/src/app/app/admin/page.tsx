@@ -32,6 +32,7 @@ function formatDate(iso?: string) {
 }
 
 function HeroArt() {
+  // lightweight inline SVG fallback if /public images not present
   return (
     <svg viewBox="0 0 520 320" className="h-full w-full" aria-hidden="true">
       <defs>
@@ -105,6 +106,7 @@ export default function AdminHomePage() {
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
+  // ✅ Search
   const [query, setQuery] = useState("");
 
   function resetAlerts() {
@@ -121,6 +123,7 @@ export default function AdminHomePage() {
   async function loadCentres() {
     resetAlerts();
     setLoading(true);
+
     try {
       const { data, error } = await supabase
         .from("clubs")
@@ -132,6 +135,7 @@ export default function AdminHomePage() {
       const rows = (data || []) as ClubCentreRow[];
       setCentres(rows);
 
+      // keep a sensible default name
       if (!centreName) setCentreName(makeDefaultCentreName(rows.length));
     } catch (e: any) {
       setError(e?.message || "Could not load club centres.");
@@ -163,9 +167,9 @@ export default function AdminHomePage() {
 
       if (error) throw error;
 
-      setMsg("Centre created successfully.");
+      setMsg("Club centre created.");
       setCentreName("");
-      setQuery("");
+      setQuery(""); // ✅ nice: clear search after create
 
       await loadCentres();
       router.push(`/app/admin/clubs/${(data as ClubCentreRow).id}`);
@@ -192,7 +196,7 @@ export default function AdminHomePage() {
 
   return (
     <main className="min-h-screen text-slate-900">
-      {/* Premium background */}
+      {/* ✅ Premium background that covers full body */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50/50" />
         <div className="absolute inset-0 opacity-[0.18] [background-image:radial-gradient(#0f172a_1px,transparent_1px)] [background-size:18px_18px]" />
@@ -210,23 +214,30 @@ export default function AdminHomePage() {
               </div>
               <div className="leading-tight">
                 <div className="text-sm font-semibold">STEMTrack Admin</div>
-                <div className="text-xs text-slate-600">Centres hub</div>
+                <div className="text-xs text-slate-600">Centres hub • create & select</div>
               </div>
             </Link>
 
-            {/* Mobile logout */}
+            {/* Mobile actions */}
             <div className="flex items-center gap-2 md:hidden">
               <button
                 type="button"
+                onClick={loadCentres}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
                 onClick={() => logout("manual")}
-                className="cursor-pointer rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
               >
                 Logout
               </button>
             </div>
           </div>
 
-          {/* Search + desktop logout */}
+          {/* Search + actions */}
           <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-3">
             <div className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm md:w-[360px]">
               <span className="text-slate-500">⌕</span>
@@ -240,18 +251,26 @@ export default function AdminHomePage() {
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Clear
                 </button>
               ) : null}
             </div>
 
+            {/* Desktop actions */}
             <div className="hidden items-center gap-2 md:flex">
               <button
                 type="button"
+                onClick={loadCentres}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
                 onClick={() => logout("manual")}
-                className="cursor-pointer rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+                className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
               >
                 Logout
               </button>
@@ -261,22 +280,24 @@ export default function AdminHomePage() {
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
+        {/* ✅ Two-card layout (left = everything centres, right = create) */}
         <div className="grid gap-6 lg:grid-cols-[1fr_420px] lg:items-start">
-          {/* LEFT */}
+          {/* LEFT: one big card (hero + list) */}
           <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur sm:p-7">
             {/* Hero row */}
             <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
               <div>
-                <p className="text-xs font-semibold tracking-widest text-slate-500">WELCOME</p>
+                <p className="text-xs font-semibold tracking-widest text-slate-500">GOOD MORNING</p>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-                  Your centres workspace
+                  Manage your Club Centres with clarity
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  Create a centre for each location or programme, then open it to continue setup and manage delivery.
+                  This hub is intentionally minimal: <span className="font-semibold text-slate-900">create centres</span>,
+                  then open one to continue setup. Keeps multi-site operations clean and scalable.
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["Multi-site management", "Consistent dashboards", "Professional reporting views"].map((x) => (
+                  {["Multi-centre support", "Separated operations", "Funder-ready structure"].map((x) => (
                     <span
                       key={x}
                       className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
@@ -294,14 +315,14 @@ export default function AdminHomePage() {
 
                 {error ? (
                   <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                    <p className="text-sm font-semibold text-rose-800">Something went wrong</p>
+                    <p className="text-sm font-semibold text-rose-800">Error</p>
                     <p className="mt-1 text-sm text-rose-700">{error}</p>
                   </div>
                 ) : null}
 
                 {msg ? (
                   <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                    <p className="text-sm font-semibold text-emerald-800">Saved</p>
+                    <p className="text-sm font-semibold text-emerald-800">Update</p>
                     <p className="mt-1 text-sm text-emerald-700">{msg}</p>
                   </div>
                 ) : null}
@@ -331,10 +352,10 @@ export default function AdminHomePage() {
               <div>
                 <p className="text-xs font-semibold tracking-widest text-slate-500">YOUR CENTRES</p>
                 <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
-                  Open a centre
+                  Open a centre dashboard
                 </h2>
                 <p className="mt-2 text-sm text-slate-600">
-                  Tip: Use clear names like “Middlesex University” or “After-school Hub”.
+                  Select a centre to continue setup. (People, terms, sessions etc. live inside the centre.)
                 </p>
               </div>
 
@@ -348,11 +369,11 @@ export default function AdminHomePage() {
               {filteredCentres.length === 0 ? (
                 <div className="sm:col-span-2 xl:col-span-3 rounded-3xl border border-slate-200 bg-slate-50 p-6">
                   <p className="text-sm font-semibold text-slate-900">
-                    {centres.length === 0 ? "No centres yet" : "No results"}
+                    {centres.length === 0 ? "No centres yet" : "No matches found"}
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
                     {centres.length === 0
-                      ? "Create your first centre on the right to get started."
+                      ? "Create your first Club Centre on the right to start operations."
                       : "Try a different search term."}
                   </p>
 
@@ -360,7 +381,7 @@ export default function AdminHomePage() {
                     <button
                       type="button"
                       onClick={() => setQuery("")}
-                      className="cursor-pointer mt-4 inline-flex rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                      className="mt-4 inline-flex rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
                     >
                       Clear search
                     </button>
@@ -371,7 +392,7 @@ export default function AdminHomePage() {
                   <Link
                     key={c.id}
                     href={`/app/admin/clubs/${c.id}`}
-                    className="cursor-pointer group overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    className="group overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <div className="p-4">
                       <CentreThumb index={idx % 2} />
@@ -399,24 +420,19 @@ export default function AdminHomePage() {
               )}
             </div>
 
-            {/* ✅ Replace NOTE with useful user guidance */}
             <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-semibold tracking-widest text-slate-500">QUICK TIPS</p>
-              <ul className="mt-2 space-y-2 text-sm text-slate-600">
-                <li>• Keep centre names specific (location, school, or programme).</li>
-                <li>• If you run multiple cohorts, create a centre per site to keep records organised.</li>
-                <li>• Open a centre anytime to continue setup and manage delivery.</li>
-              </ul>
+              <p className="text-xs font-semibold tracking-widest text-slate-500">NOTE</p>
+              <p className="mt-2 text-sm text-slate-600">
+                Operational modules live inside each centre dashboard. This page stays clean: create + select.
+              </p>
             </div>
           </div>
 
-          {/* RIGHT */}
+          {/* RIGHT: create centre card */}
           <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur sm:p-7">
             <p className="text-xs font-semibold tracking-widest text-slate-500">CREATE</p>
             <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">Add a new Club Centre</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Use a clear name your team will recognise instantly.
-            </p>
+            <p className="mt-2 text-sm text-slate-600">Example: Club Centre 1, Club Centre 2, Club Centre 3…</p>
 
             <form onSubmit={createCentre} className="mt-5 space-y-4">
               <div>
@@ -424,7 +440,7 @@ export default function AdminHomePage() {
                 <input
                   value={centreName}
                   onChange={(e) => setCentreName(e.target.value)}
-                  placeholder="Middlesex University"
+                  placeholder="Club Centre 1"
                   className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
                 />
               </div>
@@ -432,33 +448,23 @@ export default function AdminHomePage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="cursor-pointer inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
               >
                 {loading ? "Creating…" : "Create centre"}
               </button>
 
-              {/* ✅ Replace “secret” security text with user-helpful info */}
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold tracking-widest text-slate-500">SUGGESTED NAMING</p>
-                <div className="mt-3 grid gap-2">
-                  {[
-                    { t: "School / Site name", d: "e.g., “Middlesex University”" },
-                    { t: "Programme label", d: "e.g., “After-school Robotics Club”" },
-                    { t: "Location + year", d: "e.g., “Camden Centre 2026”" },
-                  ].map((x) => (
-                    <div key={x.t} className="rounded-2xl border border-slate-200 bg-white p-3">
-                      <p className="text-sm font-semibold text-slate-900">{x.t}</p>
-                      <p className="mt-0.5 text-sm text-slate-600">{x.d}</p>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-xs font-semibold tracking-widest text-slate-500">SECURE BY DESIGN</p>
+                <p className="mt-2 text-sm text-slate-700">
+                  Admin-only hub. Idle sessions time out automatically. Logout is always available.
+                </p>
               </div>
 
-              {/* Visual block stays */}
+              {/* Replace the old “Centre naming presets” with a visual / trust block */}
               <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-xs font-semibold tracking-widest text-slate-500">VISUAL PREVIEW</p>
                 <p className="mt-2 text-sm text-slate-600">
-                  Centre dashboards follow the same clean layout for easy onboarding.
+                  Your centre dashboards use consistent, clean templates so every site runs the same way.
                 </p>
 
                 <div className="mt-4 grid gap-3">
@@ -474,7 +480,7 @@ export default function AdminHomePage() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-white/85 via-white/20 to-transparent" />
                     <div className="absolute bottom-3 left-3 rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 backdrop-blur">
-                      Centre layout
+                      Centre dashboard template
                     </div>
                   </div>
 
@@ -490,16 +496,11 @@ export default function AdminHomePage() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-white/85 via-white/20 to-transparent" />
                     <div className="absolute bottom-3 left-3 rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 backdrop-blur">
-                      Reports view
+                      Reporting-ready layout
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Optional: tiny, user-friendly helper line */}
-              <p className="text-xs text-slate-500">
-                Need to rename a centre later? Open it and update the centre details.
-              </p>
             </form>
           </div>
         </div>
