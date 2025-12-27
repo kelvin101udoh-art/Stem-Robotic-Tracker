@@ -6,7 +6,7 @@ import { ReactNode } from "react";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="relative min-h-screen overflow-visible bg-slate-950 text-slate-100">
       {/* Background layers */}
       <div className="pointer-events-none absolute inset-0">
         {/* Base gradient */}
