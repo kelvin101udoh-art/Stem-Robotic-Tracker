@@ -223,14 +223,14 @@ export default function AdminHomePage() {
               <button
                 type="button"
                 onClick={loadCentres}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
               >
                 Refresh
               </button>
               <button
                 type="button"
                 onClick={() => logout("manual")}
-                className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                className="cursor-pointer rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
               >
                 Logout
               </button>
@@ -381,7 +381,7 @@ export default function AdminHomePage() {
                     <button
                       type="button"
                       onClick={() => setQuery("")}
-                      className="mt-4 inline-flex rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                      className="cursor-pointer mt-4 inline-flex rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
                     >
                       Clear search
                     </button>
@@ -452,7 +452,7 @@ export default function AdminHomePage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+                className="cursor-pointer inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
               >
                 {loading ? "Creating…" : "Create centre"}
               </button>
