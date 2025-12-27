@@ -292,8 +292,8 @@ export default function AdminHomePage() {
                   Manage your Club Centres with clarity
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  This hub is intentionally minimal: <span className="font-semibold text-slate-900">create centres</span>,
-                  then open one to continue setup. Keeps multi-site operations clean and scalable.
+                  Create a centre for each location or programme,: <span className="font-semibold text-slate-900">create centres</span>,
+                  then open one to continue setup and manage delivery.  Keeps multi-site operations clean and scalable.
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -421,9 +421,13 @@ export default function AdminHomePage() {
             </div>
 
             <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-semibold tracking-widest text-slate-500">NOTE</p>
+              <p className="text-xs font-semibold tracking-widest text-slate-500">QUICK TIPS</p>
               <p className="mt-2 text-sm text-slate-600">
-                Operational modules live inside each centre dashboard. This page stays clean: create + select.
+                <ul className="mt-2 space-y-2 text-sm text-slate-600">
+                <li>• Keep centre names specific (location, school, or programme).</li>
+                <li>• If you run multiple cohorts, create a centre per site to keep records organised.</li>
+                <li>• Open a centre anytime to continue setup and manage delivery.</li>
+              </ul>
               </p>
             </div>
           </div>
@@ -432,7 +436,7 @@ export default function AdminHomePage() {
           <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur sm:p-7">
             <p className="text-xs font-semibold tracking-widest text-slate-500">CREATE</p>
             <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">Add a new Club Centre</h2>
-            <p className="mt-2 text-sm text-slate-600">Example: Club Centre 1, Club Centre 2, Club Centre 3…</p>
+            <p className="mt-2 text-sm text-slate-600">Use a clear name your team will recognise instantly. Example: Club Centre 1, Club Centre 2, Club Centre 3…</p>
 
             <form onSubmit={createCentre} className="mt-5 space-y-4">
               <div>
@@ -456,7 +460,7 @@ export default function AdminHomePage() {
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-semibold tracking-widest text-slate-500">SECURE BY DESIGN</p>
                 <p className="mt-2 text-sm text-slate-700">
-                  Admin-only hub. Idle sessions time out automatically. Logout is always available.
+                  Access is restricted to authorised administrators, with built-in safeguards to ensure account integrity.. Idle sessions time out automatically.
                 </p>
               </div>
 
