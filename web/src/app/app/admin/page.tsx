@@ -263,14 +263,14 @@ export default function AdminHomePage() {
               <button
                 type="button"
                 onClick={loadCentres}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+                className="cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
               >
                 Refresh
               </button>
               <button
                 type="button"
                 onClick={() => logout("manual")}
-                className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+                className="cursor-pointer rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
               >
                 Logout
               </button>
