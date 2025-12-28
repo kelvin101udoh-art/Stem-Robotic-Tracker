@@ -288,7 +288,7 @@ export default function AdminHomePage() {
           {/* LEFT: one big card (hero + list) */}
           <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur sm:p-7">
             {/* Hero row */}
-            <div className="flex flex-col grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
+            <div className="flex flex-col grid gap-6 lg:grid-cols-1">
               <div>
                 <p className="text-xs font-semibold tracking-widest text-slate-500">GOOD MORNING</p>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
@@ -439,7 +439,7 @@ export default function AdminHomePage() {
                 ) : null}
               </div>
 
-              {/* Hero visual */}
+              {/* Hero visual 
               <div className="relative overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm">
                 <div className="absolute inset-0">
                   <Image
@@ -454,15 +454,17 @@ export default function AdminHomePage() {
                 </div>
 
 
-                {/* <div className="relative h-[170px] sm:h-[210px] lg:h-[190px]">
+                <div className="relative h-[170px] sm:h-[210px] lg:h-[190px]">
                    background illustration (doesn't affect layout) 
                  <div className="absolute inset-0 -top-6">
                     <HeroArt /> 
                  </div>
-               </div>  */}
+               </div>  
 
 
-              </div>
+              </div>  */}
+
+
             </div>
 
             {/* Centres header */}
