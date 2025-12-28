@@ -31,6 +31,7 @@ function formatDate(iso?: string) {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+/*
 function HeroArt() {
   // lightweight inline SVG fallback if /public images not present
   return (
@@ -64,6 +65,8 @@ function HeroArt() {
     </svg>
   );
 }
+*/
+
 
 function CentreThumb({ index }: { index: number }) {
   const src = index === 0 ? "/images/admin/centre-1.png" : "/images/admin/centre-2.png";
