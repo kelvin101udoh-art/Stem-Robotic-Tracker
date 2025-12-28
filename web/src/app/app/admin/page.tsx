@@ -31,6 +31,24 @@ function formatDate(iso?: string) {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+
+function timeGreeting(d: Date) {
+  const h = d.getHours();
+  if (h >= 5 && h <= 11) return "GOOD MORNING";
+  if (h >= 12 && h <= 16) return "GOOD AFTERNOON";
+  if (h >= 17 && h <= 20) return "GOOD EVENING";
+  return "GOOD NIGHT";
+}
+
+function titleCaseName(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+
 /*
 function HeroArt() {
   // lightweight inline SVG fallback if /public images not present
@@ -106,8 +124,52 @@ export default function AdminHomePage() {
   const [centres, setCentres] = useState<ClubCentreRow[]>([]);
   const [centreName, setCentreName] = useState("");
 
+  const [fullName, setFullName] = useState<string>("");
+  const [now, setNow] = useState<Date>(() => new Date());
+
+
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadAdminName() {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) throw error;
+
+        const user = data.user;
+        const meta: any = user?.user_metadata || {};
+
+        // Try common metadata fields first
+        const candidate =
+          meta.full_name ||
+            meta.name ||
+            meta.display_name ||
+            meta.first_name && meta.last_name
+            ? `${meta.first_name || ""} ${meta.last_name || ""}`.trim()
+            : "";
+
+        // Fallback: email local-part
+        const fallback = (user?.email || "").split("@")[0] || "";
+
+        const finalName = titleCaseName((candidate || fallback).replace(/[._-]+/g, " "));
+        if (mounted) setFullName(finalName);
+      } catch {
+        if (mounted) setFullName("");
+      }
+    }
+
+    loadAdminName();
+  }, [supabase]);
+
 
   // ✅ Search
   const [query, setQuery] = useState("");
@@ -290,7 +352,13 @@ export default function AdminHomePage() {
             {/* Hero row */}
             <div className="flex flex-col grid gap-6 lg:grid-cols-1">
               <div>
-                <p className="text-xs font-semibold tracking-widest text-slate-500">GOOD MORNING</p>
+                <p className="text-xs font-semibold tracking-widest text-slate-500">
+                  {timeGreeting(now)}
+                  {fullName ? (
+                    <span className="ml-2 text-slate-700">{fullName}</span>
+                  ) : null}
+                </p>
+
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
                   Manage your Club Centres with clarity
                 </h1>
