@@ -309,9 +309,9 @@ export default function AdminHomePage() {
 
 
                 {/* Analytics summary (premium KPI cards) */}
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid gap-4 lg:grid-cols-3">
                   {/* Total centres */}
-                  <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="relative col-span-2 overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-900 to-slate-600" />
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -340,84 +340,86 @@ export default function AdminHomePage() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Visible centres */}
-                  <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 to-emerald-400" />
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-semibold tracking-widest text-slate-500">VISIBLE</p>
-                        <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-                          {filteredCentres.length}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          Matching current search
-                        </p>
-                      </div>
-
-                      <div className="grid h-12 w-12 place-items-center rounded-2xl border border-slate-200 bg-emerald-50 text-emerald-700">
-                        🔎
-                      </div>
-                    </div>
-
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>Match rate</span>
-                        <span>
-                          {centres.length ? Math.round((filteredCentres.length / centres.length) * 100) : 0}%
-                        </span>
-                      </div>
-                      <div className="mt-2 h-2 w-full rounded-full bg-slate-100">
-                        <div
-                          className="h-2 rounded-full bg-emerald-600"
-                          style={{
-                            width: centres.length
-                              ? `${Math.min(100, Math.max(6, Math.round((filteredCentres.length / centres.length) * 100)))}%`
-                              : "6%",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Status */}
-                  <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-600 to-sky-400" />
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-semibold tracking-widest text-slate-500">STATUS</p>
-
-                        <div className="mt-2 flex items-center gap-2">
-                          <span
-                            className={[
-                              "inline-flex h-2.5 w-2.5 rounded-full",
-                              loading ? "bg-amber-500" : "bg-emerald-500",
-                            ].join(" ")}
-                          />
-                          <p className="text-xl font-semibold text-slate-900">
-                            {loading ? "Syncing…" : "Ready"}
+                  <div className="flex flex-col gap-4">
+                    {/* Visible centres */}
+                    <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 to-emerald-400" />
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-semibold tracking-widest text-slate-500">VISIBLE</p>
+                          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                            {filteredCentres.length}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            Matching current search
                           </p>
                         </div>
 
-                        <p className="mt-1 text-sm text-slate-600">
-                          {loading ? "Updating centre list" : "All systems operational"}
-                        </p>
+                        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-slate-200 bg-emerald-50 text-emerald-700">
+                          🔎
+                        </div>
                       </div>
 
-                      <div className="grid h-12 w-12 place-items-center rounded-2xl border border-slate-200 bg-sky-50 text-sky-700">
-                        ⚡
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between text-xs text-slate-500">
+                          <span>Match rate</span>
+                          <span>
+                            {centres.length ? Math.round((filteredCentres.length / centres.length) * 100) : 0}%
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 w-full rounded-full bg-slate-100">
+                          <div
+                            className="h-2 rounded-full bg-emerald-600"
+                            style={{
+                              width: centres.length
+                                ? `${Math.min(100, Math.max(6, Math.round((filteredCentres.length / centres.length) * 100)))}%`
+                                : "6%",
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-                      <div className="flex items-center justify-between text-xs text-slate-600">
-                        <span>Last refresh</span>
-                        <span className="font-semibold text-slate-900">
-                          {loading ? "Now" : "Just now"}
-                        </span>
+                    {/* Status */}
+                    <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-600 to-sky-400" />
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-semibold tracking-widest text-slate-500">STATUS</p>
+
+                          <div className="mt-2 flex items-center gap-2">
+                            <span
+                              className={[
+                                "inline-flex h-2.5 w-2.5 rounded-full",
+                                loading ? "bg-amber-500" : "bg-emerald-500",
+                              ].join(" ")}
+                            />
+                            <p className="text-xl font-semibold text-slate-900">
+                              {loading ? "Syncing…" : "Ready"}
+                            </p>
+                          </div>
+
+                          <p className="mt-1 text-sm text-slate-600">
+                            {loading ? "Updating centre list" : "All systems operational"}
+                          </p>
+                        </div>
+
+                        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-slate-200 bg-sky-50 text-sky-700">
+                          ⚡
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <div className="flex items-center justify-between text-xs text-slate-600">
+                          <span>Last refresh</span>
+                          <span className="font-semibold text-slate-900">
+                            {loading ? "Now" : "Just now"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
+
                 </div>
 
                 {/*<div className="mt-5 grid gap-3 sm:grid-cols-3">
