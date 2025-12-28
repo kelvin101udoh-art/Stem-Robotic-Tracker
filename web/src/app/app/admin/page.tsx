@@ -285,7 +285,7 @@ export default function AdminHomePage() {
           {/* LEFT: one big card (hero + list) */}
           <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur sm:p-7">
             {/* Hero row */}
-            <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+            <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
               <div>
                 <p className="text-xs font-semibold tracking-widest text-slate-500">GOOD MORNING</p>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
@@ -296,19 +296,20 @@ export default function AdminHomePage() {
                   then open one to continue setup and manage delivery.  Keeps multi-site operations clean and scalable.
                 </p>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {["Multi-centre support", "Separated operations", "Funder-ready structure"].map((x) => (
                     <span
                       key={x}
-                      className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                      className="inline-flex items-center rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm"
                     >
                       {x}
                     </span>
                   ))}
                 </div>
-                
+
+
                 {/* Analytics summary (premium KPI cards) */}
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
                   {/* Total centres */}
                   <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-900 to-slate-600" />
@@ -453,7 +454,7 @@ export default function AdminHomePage() {
                     }}
                   />
                 </div>
-                <div className="relative h-[220px] sm:h-[260px]">
+                <div className="relative h-[170px] sm:h-[210px] lg:h-[190px]">
                   <HeroArt />
                 </div>
               </div>
