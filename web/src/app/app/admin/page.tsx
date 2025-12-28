@@ -300,9 +300,9 @@ export default function AdminHomePage() {
           <div className="absolute left-1/3 -top-24 h-[280px] w-[280px] rounded-full bg-yellow-200/30 blur-3xl" />
           <div className="absolute right-0 -top-20 h-[320px] w-[320px] rounded-full bg-sky-300/30 blur-3xl" />
         </div>
-   <div className="relative mx-auto flex max-w-7xl ...">
+   
 
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
+        <div className="relative mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center justify-between gap-3">
             <Link href="/app/admin" className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-900 text-white shadow-sm">
@@ -374,7 +374,7 @@ export default function AdminHomePage() {
           </div>
         </div>
 
-      </div>
+      
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
