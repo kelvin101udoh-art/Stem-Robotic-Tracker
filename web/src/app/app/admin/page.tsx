@@ -146,28 +146,43 @@ export default function AdminHomePage() {
         if (error) throw error;
 
         const user = data.user;
-        const meta: any = user?.user_metadata || {};
+        if (!user) {
+          if (mounted) setFullName("");
+          return;
+        }
 
-        // Try common metadata fields first
-        const candidate =
-          meta.full_name ||
-            meta.name ||
-            meta.display_name ||
-            meta.first_name && meta.last_name
-            ? `${meta.first_name || ""} ${meta.last_name || ""}`.trim()
-            : "";
+        // 1) ✅ FIRST: try profiles table (registration form usually writes here)
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle();
 
-        // Fallback: email local-part
-        const fallback = (user?.email || "").split("@")[0] || "";
+        const profileName = (profile?.full_name || "").trim();
+        if (profileName) {
+          if (mounted) setFullName(profileName);
+          return;
+        }
 
-        const finalName = titleCaseName((candidate || fallback).replace(/[._-]+/g, " "));
-        if (mounted) setFullName(finalName);
+        // 2) Next: try user metadata
+        const meta: any = user.user_metadata || {};
+        const metaName = (meta.full_name || meta.name || meta.display_name || "").trim();
+        if (metaName) {
+          if (mounted) setFullName(metaName);
+          return;
+        }
+
+        // 3) LAST fallback: show nothing (don’t show email id)
+        if (mounted) setFullName("");
       } catch {
         if (mounted) setFullName("");
       }
     }
 
     loadAdminName();
+    return () => {
+      mounted = false;
+    };
   }, [supabase]);
 
 
@@ -354,9 +369,7 @@ export default function AdminHomePage() {
               <div>
                 <p className="text-xs font-semibold tracking-widest text-slate-500">
                   {timeGreeting(now)}
-                  {fullName ? (
-                    <span className="ml-2 text-slate-700">{fullName}</span>
-                  ) : null}
+                  {fullName ? <span className="ml-2 text-slate-700">{fullName}</span> : null}
                 </p>
 
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
