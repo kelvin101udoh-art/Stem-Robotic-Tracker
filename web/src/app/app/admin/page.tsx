@@ -459,12 +459,16 @@ export default function AdminHomePage() {
                     }}
                   />
                 </div>
-                <div className="relative h-[170px] sm:h-[210px] lg:h-[190px]">
-                  {/* background illustration (doesn't affect layout) */}
-                  <div className="absolute inset-0 -top-6">
-                    {/* <HeroArt /> */}
-                  </div>
-                </div>
+                
+               
+               {/* <div className="relative h-[170px] sm:h-[210px] lg:h-[190px]">
+                   background illustration (doesn't affect layout) 
+                 <div className="absolute inset-0 -top-6">
+                    <HeroArt /> 
+                 </div>
+               </div>  */}
+                
+                
               </div>
             </div>
 
