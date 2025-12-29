@@ -7,6 +7,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminGuard } from "@/lib/admin/admin-guard";
 
+import { useRef } from "react";
+
+
 type ClubCentreRow = {
   id: string;
   name: string;
@@ -154,6 +157,33 @@ export default function AdminHomePage() {
   const [refreshStartedAt, setRefreshStartedAt] = useState<Date | null>(null);
 
 
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const blurCloseTimer = useRef<any>(null);
+
+  const topMatches = useMemo(() => filteredCentres.slice(0, 6), [filteredCentres]);
+
+  useEffect(() => {
+    // Ctrl/Cmd + K focuses search like a real app
+    function onKey(e: KeyboardEvent) {
+      const isK = e.key.toLowerCase() === "k";
+      if ((e.ctrlKey || e.metaKey) && isK) {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
+
+
+
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
@@ -220,11 +250,18 @@ export default function AdminHomePage() {
     setError("");
   }
 
+
   const filteredCentres = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return centres;
-    return centres.filter((c) => (c.name || "").toLowerCase().includes(q));
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+    return centres.filter((c) => {
+      const hay = `${c.name || ""}`.toLowerCase();
+      return tokens.every((t) => hay.includes(t));
+    });
   }, [centres, query]);
+
 
 
 
@@ -370,19 +407,63 @@ export default function AdminHomePage() {
           </div>
 
           {/* Search + actions */}
-          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-3">
-            <div className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm md:w-[360px]">
+          <div className="relative w-full md:w-[420px]">
+            <div className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
               <span className="text-slate-500">⌕</span>
+
               <input
+                ref={inputRef}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search centres…"
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSearchOpen(true);
+                }}
+                onFocus={() => {
+                  if (blurCloseTimer.current) clearTimeout(blurCloseTimer.current);
+                  setSearchOpen(true);
+                }}
+                onBlur={() => {
+                  // small delay allows clicking dropdown items
+                  blurCloseTimer.current = setTimeout(() => setSearchOpen(false), 120);
+                }}
+                onKeyDown={(e) => {
+                  if (!searchOpen) return;
+
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActiveIndex((i) => Math.min(i + 1, Math.max(0, topMatches.length - 1)));
+                  }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActiveIndex((i) => Math.max(i - 1, 0));
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setSearchOpen(false);
+                  }
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const pick = topMatches[activeIndex];
+                    if (pick) router.push(`/app/admin/clubs/${pick.id}`);
+                  }
+                }}
+                placeholder="Search centres… (Ctrl/K)"
                 className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
               />
+
+              {/* result count pill */}
+              <span className="hidden sm:inline-flex rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600">
+                {query ? `${filteredCentres.length} found` : `${centres.length} total`}
+              </span>
+
               {query ? (
                 <button
                   type="button"
-                  onClick={() => setQuery("")}
+                  onClick={() => {
+                    setQuery("");
+                    setSearchOpen(false);
+                    inputRef.current?.focus();
+                  }}
                   className="rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Clear
@@ -390,24 +471,50 @@ export default function AdminHomePage() {
               ) : null}
             </div>
 
-            {/* Desktop actions */}
-            <div className="hidden items-center gap-2 md:flex">
-              <button
-                type="button"
-                onClick={loadCentres}
-                className="cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
-              >
-                Refresh
-              </button>
-              <button
-                type="button"
-                onClick={() => logout("manual")}
-                className="cursor-pointer rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
-              >
-                Logout
-              </button>
-            </div>
+            {/* Typeahead dropdown */}
+            {searchOpen && query.trim() && (
+              <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                {topMatches.length === 0 ? (
+                  <div className="px-4 py-3 text-sm text-slate-600">
+                    No matches. Try a different keyword.
+                  </div>
+                ) : (
+                  <div className="py-1">
+                    <div className="px-4 py-2 text-[11px] font-semibold tracking-widest text-slate-500">
+                      RESULTS
+                    </div>
+
+                    {topMatches.map((c, idx) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()} // keep input focus
+                        onClick={() => router.push(`/app/admin/clubs/${c.id}`)}
+                        onMouseEnter={() => setActiveIndex(idx)}
+                        className={[
+                          "flex w-full items-center justify-between px-4 py-2 text-left text-sm",
+                          idx === activeIndex ? "bg-slate-50" : "bg-white",
+                        ].join(" ")}
+                      >
+                        <div>
+                          <div className="font-semibold text-slate-900">{c.name}</div>
+                          <div className="text-xs text-slate-500">Created {formatDate(c.created_at)}</div>
+                        </div>
+                        <span className="text-slate-400">↵</span>
+                      </button>
+                    ))}
+
+                    <div className="px-4 py-2 text-[11px] text-slate-500">
+                      Tip: use ↑ ↓ then Enter • Esc to close • Ctrl/Cmd+K to focus
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
+
+
         </div>
 
 
