@@ -48,6 +48,29 @@ function titleCaseName(name: string) {
     .join(" ");
 }
 
+function formatClock(d?: Date | null) {
+  if (!d) return "—";
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function relativeFrom(d?: Date | null, now?: Date) {
+  if (!d || !now) return "—";
+  const diffMs = now.getTime() - d.getTime();
+  const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+
+  if (diffSec < 10) return "Just now";
+  if (diffSec < 60) return `${diffSec}s ago`;
+
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} min ago`;
+
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} hr ago`;
+
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
+}
+
 
 /*
 function HeroArt() {
@@ -127,6 +150,9 @@ export default function AdminHomePage() {
   const [fullName, setFullName] = useState<string>("");
   const [now, setNow] = useState<Date>(() => new Date());
 
+  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
+  const [refreshStartedAt, setRefreshStartedAt] = useState<Date | null>(null);
+
 
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
@@ -200,8 +226,13 @@ export default function AdminHomePage() {
     return centres.filter((c) => (c.name || "").toLowerCase().includes(q));
   }, [centres, query]);
 
+
+
   async function loadCentres() {
     resetAlerts();
+
+    const started = new Date();
+    setRefreshStartedAt(started);
     setLoading(true);
 
     try {
@@ -217,12 +248,17 @@ export default function AdminHomePage() {
 
       // keep a sensible default name
       if (!centreName) setCentreName(makeDefaultCentreName(rows.length));
+
+      // ✅ record successful refresh time
+      setLastRefreshAt(new Date());
     } catch (e: any) {
       setError(e?.message || "Could not load club centres.");
     } finally {
       setLoading(false);
+      setRefreshStartedAt(null);
     }
   }
+
 
   useEffect(() => {
     if (checking) return;
@@ -300,7 +336,7 @@ export default function AdminHomePage() {
           <div className="absolute left-1/3 -top-24 h-[280px] w-[280px] rounded-full bg-yellow-200/30 blur-3xl" />
           <div className="absolute right-0 -top-20 h-[320px] w-[320px] rounded-full bg-sky-300/30 blur-3xl" />
         </div>
-   
+
 
         <div className="relative mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center justify-between gap-3">
@@ -374,7 +410,7 @@ export default function AdminHomePage() {
           </div>
         </div>
 
-      
+
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
@@ -508,9 +544,25 @@ export default function AdminHomePage() {
                       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
                         <div className="flex items-center justify-between text-xs text-slate-600">
                           <span>Last refresh</span>
-                          <span className="font-semibold text-slate-900">{loading ? "Now" : "Just now"}</span>
+                          <span className="font-semibold text-slate-900">
+                            {relativeFrom(lastRefreshAt, now)}
+                          </span>
                         </div>
+
+                        <div className="mt-1 flex items-center justify-between text-[11px] text-slate-600">
+                          <span>Time</span>
+                          <span className="font-semibold text-slate-900">
+                            {formatClock(lastRefreshAt)}
+                          </span>
+                        </div>
+
+                        {loading && refreshStartedAt ? (
+                          <div className="mt-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                            Refreshing since {formatClock(refreshStartedAt)}
+                          </div>
+                        ) : null}
                       </div>
+
                     </div>
 
                   </div>
