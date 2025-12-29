@@ -111,6 +111,17 @@ function HeroArt() {
 }
 */
 
+const filteredCentres = useMemo(() => {
+  const q = query.trim().toLowerCase();
+  if (!q) return centres;
+
+  const tokens = q.split(/\s+/).filter(Boolean);
+  return centres.filter((c) => {
+    const hay = `${c.name || ""}`.toLowerCase();
+    return tokens.every((t) => hay.includes(t));
+  });
+}, [centres, query]);
+
 
 function CentreThumb({ index }: { index: number }) {
   const src = index === 0 ? "/images/admin/centre-1.png" : "/images/admin/centre-2.png";
@@ -249,18 +260,6 @@ export default function AdminHomePage() {
     setMsg("");
     setError("");
   }
-
-
-  const filteredCentres = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return centres;
-
-    const tokens = q.split(/\s+/).filter(Boolean);
-    return centres.filter((c) => {
-      const hay = `${c.name || ""}`.toLowerCase();
-      return tokens.every((t) => hay.includes(t));
-    });
-  }, [centres, query]);
 
 
 
