@@ -669,44 +669,81 @@ export default function AdminHomePage() {
 
 
                 {/* Analytics summary (premium KPI cards) */}
-                <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50/60 p-4">
-                  <div className="grid gap-4 sm:grid-cols-3">
+
+
+
+
+
+
+                <div className="relative mt-5 overflow-hidden rounded-3xl border border-slate-200 p-5">
+                  {/* Control-room background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+                  <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(#ffffff_1px,transparent_1px)] [background-size:22px_22px]" />
+                  <div className="absolute -left-32 -top-24 h-[420px] w-[420px] rounded-full bg-indigo-500/20 blur-3xl" />
+                  <div className="absolute -right-32 bottom-[-120px] h-[420px] w-[420px] rounded-full bg-emerald-500/20 blur-3xl" />
+
+                  {/* Content */}
+                  <div className="relative grid gap-4 sm:grid-cols-3"></div>
+
+
+
+                  <div className="relative flex min-h-[190px] flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.9)]">
+
                     {/* Total centres */}
                     <div className="relative flex h-full min-h-[180px] flex-col justify-between overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-900 to-slate-600" />
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-xs font-semibold tracking-widest text-slate-500">TOTAL CENTRES</p>
-                          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{centres.length}</p>
-                          <p className="mt-1 text-sm text-slate-600">All centres in your account</p>
+                          <p className="text-xs font-semibold tracking-widest text-slate-400">
+                            TOTAL CENTRES
+                          </p>
+
+                          <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
+                            {centres.length}
+                          </p>
+
+                          <p className="mt-1 text-sm text-slate-300">
+                            All centres in your account
+                          </p>
+
                         </div>
 
-                        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-900">
+                        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 text-white shadow-inner">
                           🏫
                         </div>
+
                       </div>
 
                       <div className="mt-4">
-                        <div className="flex items-center justify-between text-xs text-slate-500">
+                        <div className="flex items-center justify-between text-xs text-slate-400">
                           <span>Capacity</span>
-                          <span className="font-semibold text-slate-700">{centres.length > 0 ? "Active" : "Empty"}</span>
+                          <span className="font-semibold text-white">
+                            {centres.length > 0 ? "Active" : "Empty"}
+                          </span>
                         </div>
-                        <div className="mt-2 h-2 w-full rounded-full bg-slate-100">
+
+                        <div className="mt-2 h-2 rounded-full bg-black/40">
                           <div
-                            className="h-2 rounded-full bg-slate-900"
+                            className="h-2 rounded-full bg-gradient-to-r from-indigo-400 to-sky-400"
                             style={{ width: centres.length ? "78%" : "12%" }}
                           />
                         </div>
                       </div>
+
                     </div>
 
                     {/* Visible centres */}
-                    <div className="relative flex h-full min-h-[180px] flex-col justify-between overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="relative flex min-h-[190px] flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-900 via-emerald-800 to-slate-900 p-6 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.9)]">
                       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 to-emerald-400" />
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-xs font-semibold tracking-widest text-slate-500">VISIBLE</p>
-                          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{filteredCentres.length}</p>
+
+                          <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
+                            {filteredCentres.length}
+                          </p>
+
+
                           <p className="mt-1 text-sm text-slate-600">Matching your search</p>
                         </div>
 
@@ -722,9 +759,11 @@ export default function AdminHomePage() {
                             {centres.length ? Math.round((filteredCentres.length / centres.length) * 100) : 0}%
                           </span>
                         </div>
-                        <div className="mt-2 h-2 w-full rounded-full bg-slate-100">
+
+
+                        <div className="mt-2 h-2 rounded-full bg-black/40">
                           <div
-                            className="h-2 rounded-full bg-emerald-600"
+                            className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-lime-400"
                             style={{
                               width: centres.length
                                 ? `${Math.min(100, Math.max(6, Math.round((filteredCentres.length / centres.length) * 100)))}%`
@@ -732,24 +771,34 @@ export default function AdminHomePage() {
                             }}
                           />
                         </div>
+
+
                       </div>
                     </div>
 
                     {/* Status */}
-                    <div className="relative flex h-full min-h-[180px] flex-col justify-between overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:col-span-2 lg:col-span-1">
+                    <div className="relative flex min-h-[190px] flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-sky-900 via-sky-800 to-slate-900 p-6 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.9)]">
+
+
                       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-600 to-sky-400" />
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-xs font-semibold tracking-widest text-slate-500">STATUS</p>
 
                           <div className="mt-2 flex items-center gap-2">
+
                             <span
                               className={[
-                                "inline-flex h-2.5 w-2.5 rounded-full",
-                                loading ? "bg-amber-500" : "bg-emerald-500",
+                                "inline-flex h-3 w-3 rounded-full",
+                                loading ? "bg-amber-400 animate-pulse" : "bg-emerald-400",
                               ].join(" ")}
                             />
-                            <p className="text-xl font-semibold text-slate-900">{loading ? "Syncing…" : "Ready"}</p>
+
+                            <p className="text-xl font-semibold text-white">
+                              {loading ? "Syncing…" : "Ready"}
+                            </p>
+
+
                           </div>
 
                           <p className="mt-1 text-sm text-slate-600">
@@ -762,7 +811,9 @@ export default function AdminHomePage() {
                         </div>
                       </div>
 
-                      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 px-3 py-2">
+
+
                         <div className="flex items-center justify-between text-xs text-slate-600">
                           <span>Last refresh</span>
                           <span className="font-semibold text-slate-900">
