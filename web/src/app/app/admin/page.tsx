@@ -391,7 +391,7 @@ export default function AdminHomePage() {
 
         const { data, error } = await supabase
           .from("clubs")
-          .insert({ name, club_code })
+          .insert({ name, club_code, owner_id: userId })
           .select("id, name, created_at")
           .single();
 
