@@ -386,14 +386,40 @@ export default function AdminHomePage() {
       let created: ClubCentreRow | null = null;
       let lastErr: any = null;
 
-      for (let attempt = 0; attempt < 4; attempt++) {
+      /*  for (let attempt = 0; attempt < 4; attempt++) {
         const club_code = genClubCode("CLB");
 
         const { data, error } = await supabase
           .from("clubs")
           .insert({ name, club_code, owner_id: userId })
           .select("id, name, created_at")
+          .single(); */
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error("Not authenticated");
+      }
+
+      const userId = user.id;
+
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const club_code = genClubCode("CLB");
+
+        const { data, error } = await supabase
+          .from("clubs")
+          .insert({
+            name,
+            club_code,
+            owner_id: userId, // ✅ now defined
+          })
+          .select("id, name, created_at")
           .single();
+
+
 
         if (!error) {
           created = data as ClubCentreRow;
@@ -406,6 +432,8 @@ export default function AdminHomePage() {
         const m = (error?.message || "").toLowerCase();
         if (!m.includes("duplicate") && !m.includes("unique")) break;
       }
+
+
 
       if (!created) throw lastErr || new Error("Could not create centre.");
 
