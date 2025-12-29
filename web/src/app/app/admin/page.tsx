@@ -935,80 +935,99 @@ export default function AdminHomePage() {
           </div>
 
           {/* RIGHT: create centre card */}
-          <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur sm:p-7">
-            <p className="text-xs font-semibold tracking-widest text-slate-500">CREATE</p>
-            <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">Add a new Club Centre</h2>
-            <p className="mt-2 text-sm text-slate-600">Use a clear name your team will recognise instantly. Example: Club Centre 1, Club Centre 2, Club Centre 3…</p>
 
-            <form onSubmit={createCentre} className="mt-5 space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-700">Centre name</label>
-                <input
-                  value={centreName}
-                  onChange={(e) => setCentreName(e.target.value)}
-                  placeholder="Club Centre 1"
-                  className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
-                />
-              </div>
+          <div className="relative overflow-hidden rounded-[28px] p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)] sm:p-7">
+            {/* Rainbow background (no borders) */}
+            <div className="absolute inset-0 bg-gradient-to-br from-rose-200 via-amber-200 via-emerald-200 via-sky-200 to-violet-200" />
+            {/* Soft glass overlay for readability */}
+            <div className="absolute inset-0 bg-white/65 backdrop-blur-xl" />
+            {/* Optional sparkle texture */}
+            <div className="absolute inset-0 opacity-[0.12] [background-image:radial-gradient(#0f172a_1px,transparent_1px)] [background-size:18px_18px]" />
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="cursor-pointer inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
-              >
-                {loading ? "Creating…" : "Create centre"}
-              </button>
+            {/* Content */}
+            <div className="relative">
+              <p className="text-xs font-semibold tracking-widest text-slate-600">CREATE</p>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+                Add a new Club Centre
+              </h2>
+              <p className="mt-2 text-sm text-slate-700">
+                Use a clear name your team will recognise instantly. Example: Club Centre 1, Club Centre 2, Club Centre 3…
+              </p>
 
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold tracking-widest text-slate-500">SECURE BY DESIGN</p>
-                <p className="mt-2 text-sm text-slate-700">
-                  Access is restricted to authorised administrators, with built-in safeguards to ensure account integrity.. Idle sessions time out automatically.
-                </p>
-              </div>
+              <form onSubmit={createCentre} className="mt-5 space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-800">Centre name</label>
+                  <input
+                    value={centreName}
+                    onChange={(e) => setCentreName(e.target.value)}
+                    placeholder="Club Centre 1"
+                    className="mt-1 w-full rounded-2xl border border-white/60 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-white focus:ring-2 focus:ring-slate-900/10"
+                  />
+                </div>
 
-              {/* Replace the old “Centre naming presets” with a visual / trust block */}
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-xs font-semibold tracking-widest text-slate-500">VISUAL PREVIEW</p>
-                <p className="mt-2 text-sm text-slate-600">
-                  Your centre dashboards use consistent, clean templates so every site runs the same way.
-                </p>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="cursor-pointer inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {loading ? "Creating…" : "Create centre"}
+                </button>
 
-                <div className="mt-4 grid gap-3">
-                  <div className="relative h-32 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                    <Image
-                      src="/images/admin/centre-1.png"
-                      alt=""
-                      fill
-                      className="object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as any).style.display = "none";
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-white/85 via-white/20 to-transparent" />
-                    <div className="absolute bottom-3 left-3 rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 backdrop-blur">
-                      Centre dashboard template
+                {/* Keep inner cards clean (optional: make them glass too) */}
+                <div className="rounded-3xl bg-white/75 p-4 shadow-sm backdrop-blur">
+                  <p className="text-xs font-semibold tracking-widest text-slate-600">SECURE BY DESIGN</p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    Access is restricted to authorised administrators, with built-in safeguards to ensure account integrity. Idle sessions time out automatically.
+                  </p>
+                </div>
+
+                <div className="rounded-3xl bg-white/75 p-4 shadow-sm backdrop-blur">
+                  <p className="text-xs font-semibold tracking-widest text-slate-600">VISUAL PREVIEW</p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    Your centre dashboards use consistent, clean templates so every site runs the same way.
+                  </p>
+
+                  <div className="mt-4 grid gap-3">
+                    <div className="relative h-32 overflow-hidden rounded-2xl bg-white shadow-sm">
+                      <Image
+                        src="/images/admin/centre-1.png"
+                        alt=""
+                        fill
+                        className="object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as any).style.display = "none";
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-white/85 via-white/20 to-transparent" />
+                      <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 backdrop-blur">
+                        Centre dashboard template
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="relative h-32 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                    <Image
-                      src="/images/admin/centre-2.png"
-                      alt=""
-                      fill
-                      className="object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as any).style.display = "none";
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-white/85 via-white/20 to-transparent" />
-                    <div className="absolute bottom-3 left-3 rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 backdrop-blur">
-                      Reporting-ready layout
+                    <div className="relative h-32 overflow-hidden rounded-2xl bg-white shadow-sm">
+                      <Image
+                        src="/images/admin/centre-2.png"
+                        alt=""
+                        fill
+                        className="object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as any).style.display = "none";
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-white/85 via-white/20 to-transparent" />
+                      <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 backdrop-blur">
+                        Reporting-ready layout
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
+
+
+
+
         </div>
       </section>
 
