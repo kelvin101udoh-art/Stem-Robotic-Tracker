@@ -111,6 +111,41 @@ function HeroArt() {
 }
 */
 
+function genClubCode(prefix = "CLB") {
+  // e.g. CLB-8K3QZP2H (8 chars)
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // avoids confusing 0/O/1/I
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) out += chars[bytes[i] % chars.length];
+  return `${prefix}-${out}`;
+}
+
+function prettifySupabaseError(e: any) {
+  const msg = (e?.message || "").toString();
+  const hint = (e?.hint || "").toString();
+  const details = (e?.details || "").toString();
+
+  const combined = [msg, hint, details].filter(Boolean).join(" • ");
+
+  // Make the common DB error friendlier
+
+  if (combined.toLowerCase().includes("club_code") && combined.toLowerCase().includes("not-null")) {
+  return {
+    title: "Database constraint error",
+    message:
+      "Your database requires a centre code (club_code). Creation now generates it automatically. If you still see this, check legacy rows/migrations.",
+    details: combined,
+  };
+}
+
+
+  return {
+    title: "Something went wrong",
+    message: msg || "We couldn’t complete that action. Please try again.",
+    details: combined || undefined,
+  };
+}
 
 
 
@@ -163,6 +198,19 @@ export default function AdminHomePage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const blurCloseTimer = useRef<any>(null);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalDetails, setModalDetails] = useState<string | null>(null);
+
+  function openErrorModal(title: string, message: string, details?: string) {
+    setModalTitle(title);
+    setModalMessage(message);
+    setModalDetails(details || null);
+    setModalOpen(true);
+  }
+
 
 
 
@@ -262,44 +310,56 @@ export default function AdminHomePage() {
 
   const topMatches = useMemo(() => filteredCentres.slice(0, 6), [filteredCentres]);
 
+
   function resetAlerts() {
     setMsg("");
     setError("");
+    // Optional: close previous modal when starting a new action
+    // setModalOpen(false);
   }
 
 
 
+  async function loadCentres(opts?: { silent?: boolean }) {
+  // silent=true means: don’t pop modal (useful for background refresh if you ever want)
+  const silent = !!opts?.silent;
 
-  async function loadCentres() {
-    resetAlerts();
+  resetAlerts();
 
-    const started = new Date();
-    setRefreshStartedAt(started);
-    setLoading(true);
+  const started = new Date();
+  setRefreshStartedAt(started);
+  setLoading(true);
 
-    try {
-      const { data, error } = await supabase
-        .from("clubs")
-        .select("id, name, created_at")
-        .order("created_at", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("clubs")
+      .select("id, name, created_at")
+      .order("created_at", { ascending: true });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      const rows = (data || []) as ClubCentreRow[];
-      setCentres(rows);
+    const rows = (data || []) as ClubCentreRow[];
+    setCentres(rows);
 
-      // keep a sensible default name
-      if (!centreName) setCentreName(makeDefaultCentreName(rows.length));
+    // keep a sensible default name
+    if (!centreName) setCentreName(makeDefaultCentreName(rows.length));
 
-      // ✅ record successful refresh time
-      setLastRefreshAt(new Date());
-    } catch (e: any) {
-      setError(e?.message || "Could not load club centres.");
-    } finally {
-      setLoading(false);
-      setRefreshStartedAt(null);
+    setLastRefreshAt(new Date());
+  } catch (e: any) {
+    const pretty = prettifySupabaseError(e);
+
+    // optional: keep setError for logs/debugging (not displayed anymore)
+    setError(pretty.details || pretty.message);
+
+    if (!silent) {
+      openErrorModal(pretty.title, pretty.message, pretty.details);
     }
+  } finally {
+    setLoading(false);
+    setRefreshStartedAt(null);
   }
+}
+
 
 
   useEffect(() => {
@@ -308,35 +368,64 @@ export default function AdminHomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checking]);
 
+
+
   async function createCentre(e: React.FormEvent) {
     e.preventDefault();
     resetAlerts();
 
     const name = centreName.trim();
-    if (!name) return setError("Please enter a centre name.");
+    if (!name) {
+      openErrorModal("Missing centre name", "Please enter a centre name.");
+      return;
+    }
 
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("clubs")
-        .insert({ name })
-        .select("id, name, created_at")
-        .single();
 
-      if (error) throw error;
+    try {
+      // Retry a few times in case club_code has a UNIQUE constraint
+      let created: ClubCentreRow | null = null;
+      let lastErr: any = null;
+
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const club_code = genClubCode("CLB");
+
+        const { data, error } = await supabase
+          .from("clubs")
+          .insert({ name, club_code })
+          .select("id, name, created_at")
+          .single();
+
+        if (!error) {
+          created = data as ClubCentreRow;
+          break;
+        }
+
+        lastErr = error;
+
+        // If it's not a "duplicate key / unique" kind of error, stop retrying
+        const m = (error?.message || "").toLowerCase();
+        if (!m.includes("duplicate") && !m.includes("unique")) break;
+      }
+
+      if (!created) throw lastErr || new Error("Could not create centre.");
 
       setMsg("Club centre created.");
       setCentreName("");
-      setQuery(""); // ✅ nice: clear search after create
+      setQuery("");
+      setSearchOpen(false);
 
       await loadCentres();
-      router.push(`/app/admin/clubs/${(data as ClubCentreRow).id}`);
+      router.push(`/app/admin/clubs/${created.id}`);
     } catch (e: any) {
-      setError(e?.message || "Could not create centre.");
+      const pretty = prettifySupabaseError(e);
+      setError(pretty.details || pretty.message); // keep for logs if you want
+      openErrorModal(pretty.title, pretty.message, pretty.details);
     } finally {
       setLoading(false);
     }
   }
+
 
   if (checking) {
     return (
@@ -411,7 +500,7 @@ export default function AdminHomePage() {
             </div>
           </div>
 
-          
+
           {/* Search + actions */}
           <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-3">
             {/* Search */}
@@ -708,6 +797,7 @@ export default function AdminHomePage() {
                   //<StatPill label="STATUS" value={loading ? "Loading…" : "Ready"} />
                 </div>*/}
 
+                {/*
                 {error ? (
                   <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4">
                     <p className="text-sm font-semibold text-rose-800">Error</p>
@@ -721,6 +811,8 @@ export default function AdminHomePage() {
                     <p className="mt-1 text-sm text-emerald-700">{msg}</p>
                   </div>
                 ) : null}
+                    */}
+
               </div>
 
               {/* Hero visual 
@@ -913,6 +1005,56 @@ export default function AdminHomePage() {
           </div>
         </div>
       </section>
+
+      {modalOpen ? (
+  <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+    <div
+      className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+      onClick={() => setModalOpen(false)}
+    />
+    <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+      <div className="flex items-start justify-between gap-3 p-5">
+        <div>
+          <p className="text-xs font-semibold tracking-widest text-rose-600">ERROR</p>
+          <h3 className="mt-1 text-lg font-semibold text-slate-900">{modalTitle}</h3>
+        </div>
+        <button
+          type="button"
+          onClick={() => setModalOpen(false)}
+          className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          Close
+        </button>
+      </div>
+
+      <div className="px-5 pb-5">
+        <p className="text-sm text-slate-700">{modalMessage}</p>
+
+        {modalDetails ? (
+          <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+              Technical details
+            </summary>
+            <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-600">
+              {modalDetails}
+            </pre>
+          </details>
+        ) : null}
+
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setModalOpen(false)}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Okay
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+) : null}
+
     </main>
   );
 }
