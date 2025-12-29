@@ -131,13 +131,13 @@ function prettifySupabaseError(e: any) {
   // Make the common DB error friendlier
 
   if (combined.toLowerCase().includes("club_code") && combined.toLowerCase().includes("not-null")) {
-  return {
-    title: "Database constraint error",
-    message:
-      "Your database requires a centre code (club_code). Creation now generates it automatically. If you still see this, check legacy rows/migrations.",
-    details: combined,
-  };
-}
+    return {
+      title: "Database constraint error",
+      message:
+        "Your database requires a centre code (club_code). Creation now generates it automatically. If you still see this, check legacy rows/migrations.",
+      details: combined,
+    };
+  }
 
 
   return {
@@ -321,53 +321,52 @@ export default function AdminHomePage() {
 
 
   async function loadCentres(opts?: { silent?: boolean }) {
-  // silent=true means: don’t pop modal (useful for background refresh if you ever want)
-  const silent = !!opts?.silent;
+    // silent=true means: don’t pop modal (useful for background refresh if you ever want)
+    const silent = !!opts?.silent;
 
-  resetAlerts();
+    resetAlerts();
 
-  const started = new Date();
-  setRefreshStartedAt(started);
-  setLoading(true);
+    const started = new Date();
+    setRefreshStartedAt(started);
+    setLoading(true);
 
-  try {
-    const { data, error } = await supabase
-      .from("clubs")
-      .select("id, name, created_at")
-      .order("created_at", { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from("clubs")
+        .select("id, name, created_at")
+        .order("created_at", { ascending: true });
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const rows = (data || []) as ClubCentreRow[];
-    setCentres(rows);
+      const rows = (data || []) as ClubCentreRow[];
+      setCentres(rows);
 
-    // keep a sensible default name
-    if (!centreName) setCentreName(makeDefaultCentreName(rows.length));
+      // keep a sensible default name
+      if (!centreName) setCentreName(makeDefaultCentreName(rows.length));
 
-    setLastRefreshAt(new Date());
-  } catch (e: any) {
-    const pretty = prettifySupabaseError(e);
+      setLastRefreshAt(new Date());
+    } catch (e: any) {
+      const pretty = prettifySupabaseError(e);
 
-    // optional: keep setError for logs/debugging (not displayed anymore)
-    setError(pretty.details || pretty.message);
+      // optional: keep setError for logs/debugging (not displayed anymore)
+      setError(pretty.details || pretty.message);
 
-    if (!silent) {
-      openErrorModal(pretty.title, pretty.message, pretty.details);
+      if (!silent) {
+        openErrorModal(pretty.title, pretty.message, pretty.details);
+      }
+    } finally {
+      setLoading(false);
+      setRefreshStartedAt(null);
     }
-  } finally {
-    setLoading(false);
-    setRefreshStartedAt(null);
   }
-}
 
 
 
   useEffect(() => {
     if (checking) return;
-    loadCentres();
+    loadCentres({ silent: true }); // ✅ no modal on initial load
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checking]);
-
 
 
   async function createCentre(e: React.FormEvent) {
@@ -485,7 +484,7 @@ export default function AdminHomePage() {
             <div className="flex items-center gap-2 md:hidden">
               <button
                 type="button"
-                onClick={loadCentres}
+                onClick={() => loadCentres()}
                 className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
               >
                 Refresh
@@ -612,7 +611,7 @@ export default function AdminHomePage() {
             <div className="hidden items-center gap-2 md:flex">
               <button
                 type="button"
-                onClick={loadCentres}
+                onClick={() => loadCentres()}
                 className="cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
               >
                 Refresh
@@ -1007,53 +1006,53 @@ export default function AdminHomePage() {
       </section>
 
       {modalOpen ? (
-  <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-    <div
-      className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-      onClick={() => setModalOpen(false)}
-    />
-    <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-      <div className="flex items-start justify-between gap-3 p-5">
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-rose-600">ERROR</p>
-          <h3 className="mt-1 text-lg font-semibold text-slate-900">{modalTitle}</h3>
-        </div>
-        <button
-          type="button"
-          onClick={() => setModalOpen(false)}
-          className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="px-5 pb-5">
-        <p className="text-sm text-slate-700">{modalMessage}</p>
-
-        {modalDetails ? (
-          <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <summary className="cursor-pointer text-xs font-semibold text-slate-700">
-              Technical details
-            </summary>
-            <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-600">
-              {modalDetails}
-            </pre>
-          </details>
-        ) : null}
-
-        <div className="mt-5 flex justify-end">
-          <button
-            type="button"
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             onClick={() => setModalOpen(false)}
-            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            Okay
-          </button>
+          />
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 p-5">
+              <div>
+                <p className="text-xs font-semibold tracking-widest text-rose-600">ERROR</p>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900">{modalTitle}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="px-5 pb-5">
+              <p className="text-sm text-slate-700">{modalMessage}</p>
+
+              {modalDetails ? (
+                <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                    Technical details
+                  </summary>
+                  <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-600">
+                    {modalDetails}
+                  </pre>
+                </details>
+              ) : null}
+
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                >
+                  Okay
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
-) : null}
+      ) : null}
 
     </main>
   );
