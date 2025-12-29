@@ -111,16 +111,7 @@ function HeroArt() {
 }
 */
 
-const filteredCentres = useMemo(() => {
-  const q = query.trim().toLowerCase();
-  if (!q) return centres;
 
-  const tokens = q.split(/\s+/).filter(Boolean);
-  return centres.filter((c) => {
-    const hay = `${c.name || ""}`.toLowerCase();
-    return tokens.every((t) => hay.includes(t));
-  });
-}, [centres, query]);
 
 
 function CentreThumb({ index }: { index: number }) {
@@ -173,7 +164,7 @@ export default function AdminHomePage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const blurCloseTimer = useRef<any>(null);
 
-  const topMatches = useMemo(() => filteredCentres.slice(0, 6), [filteredCentres]);
+
 
   useEffect(() => {
     // Ctrl/Cmd + K focuses search like a real app
@@ -189,9 +180,7 @@ export default function AdminHomePage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
+
 
 
 
@@ -255,6 +244,23 @@ export default function AdminHomePage() {
 
   // ✅ Search
   const [query, setQuery] = useState("");
+
+  const filteredCentres = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return centres;
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+    return centres.filter((c) => {
+      const hay = `${c.name || ""}`.toLowerCase();
+      return tokens.every((t) => hay.includes(t));
+    });
+  }, [centres, query]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
+
+  const topMatches = useMemo(() => filteredCentres.slice(0, 6), [filteredCentres]);
 
   function resetAlerts() {
     setMsg("");
