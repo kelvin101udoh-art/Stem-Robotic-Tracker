@@ -27,11 +27,11 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[22px] border border-white/70 bg-white/85 shadow-[0_14px_40px_-30px_rgba(2,6,23,0.45)] backdrop-blur">
-      <div className="flex items-center justify-between gap-3 px-6 py-5">
-        <div className="flex items-center gap-3 min-w-0">
+    <div className="rounded-[22px] border border-slate-200/70 bg-white shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)]">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
           {icon ? (
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-50 text-xl">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
               {icon}
             </div>
           ) : null}
@@ -39,7 +39,7 @@ function Card({
         </div>
         {right ? <div className="shrink-0 text-sm text-slate-500">{right}</div> : null}
       </div>
-      <div className="px-6 pb-6">{children}</div>
+      <div className="px-5 pb-5 pt-4 sm:px-6 sm:pb-6">{children}</div>
     </div>
   );
 }
@@ -63,16 +63,16 @@ function KpiStrip({
   };
 
   return (
-    <div className="overflow-hidden rounded-[22px] border border-white/70 bg-white/80 shadow-[0_14px_40px_-30px_rgba(2,6,23,0.45)] backdrop-blur">
+    <div className="overflow-hidden rounded-[22px] border border-slate-200/70 bg-white shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)]">
       <div className="grid divide-y divide-slate-200/70 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
         {items.map((k) => (
-          <div key={k.label} className="flex items-center gap-4 px-6 py-5">
-            <div className={`grid h-11 w-11 place-items-center rounded-2xl ${toneCls(k.tone)} text-xl`}>
+          <div key={k.label} className="flex min-w-0 items-center gap-4 px-5 py-5 sm:px-6">
+            <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${toneCls(k.tone)} text-xl`}>
               {k.icon}
             </div>
             <div className="min-w-0">
               <div className="text-2xl font-semibold tracking-tight text-slate-900">{k.value}</div>
-              <div className="text-sm font-semibold text-slate-500">{k.label}</div>
+              <div className="truncate text-sm font-semibold text-slate-500">{k.label}</div>
             </div>
           </div>
         ))}
@@ -104,7 +104,7 @@ function Donut({ value = 92, label = "Attendance" }: { value?: number; label?: s
             strokeDasharray={`${dash} ${c - dash}`}
             transform="rotate(-90 70 70)"
           />
-          <circle cx="70" cy="70" r={r - 18} fill="rgba(255,255,255,0.92)" />
+          <circle cx="70" cy="70" r={r - 18} fill="white" />
         </svg>
         <div className="absolute text-center">
           <div className="text-4xl font-semibold tracking-tight text-slate-900">{pct}%</div>
@@ -171,16 +171,16 @@ function ActionTile({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-slate-900">{title}</p>
+            <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
             {badge ? (
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+              <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
                 {badge}
               </span>
             ) : null}
           </div>
           <p className="mt-1 text-xs text-slate-600">{desc}</p>
         </div>
-        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-50 text-lg">{icon}</div>
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-lg">{icon}</div>
       </div>
 
       <div className="mt-3 flex items-center justify-between">
@@ -281,23 +281,23 @@ export default function ClubCentreDashboardPage() {
 
   return (
     <main className="relative min-h-screen w-full overflow-x-clip text-slate-900">
-      {/* Clean school-style background */}
+      {/* Clean school-style background (hero-like) */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-b from-sky-50 via-slate-50 to-slate-100" />
-        <div className="absolute inset-0 opacity-[0.12] [background-image:radial-gradient(#0f172a_1px,transparent_1px)] [background-size:22px_22px]" />
-        <div className="absolute -left-40 top-[-140px] h-[520px] w-[520px] rounded-full bg-sky-200/30 blur-3xl" />
-        <div className="absolute -right-44 top-[120px] h-[560px] w-[560px] rounded-full bg-indigo-200/25 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.10] [background-image:radial-gradient(#0f172a_1px,transparent_1px)] [background-size:22px_22px]" />
+        <div className="absolute -left-40 top-[-140px] h-[520px] w-[520px] rounded-full bg-sky-200/28 blur-3xl" />
+        <div className="absolute -right-44 top-[120px] h-[560px] w-[560px] rounded-full bg-indigo-200/22 blur-3xl" />
       </div>
 
       {/* Fixed header */}
-      <header className="fixed inset-x-0 top-0 z-50 w-full max-w-[100vw] overflow-x-clip overflow-hidden border-b border-white/40 bg-white/70 backdrop-blur-xl">
-        <div className="relative mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
+      <header className="fixed inset-x-0 top-0 z-50 w-full max-w-[100vw] overflow-x-clip border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold tracking-widest text-slate-500">ADMIN • {formatTitle(club?.name)}</p>
             <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Club Command Centre</h1>
             <p className="mt-1 text-sm text-slate-600">
               Sessions, terms, attendance, challenges, robotics activity, and AI insights — all scoped to this centre.
-              <span className="ml-2 hidden sm:inline-flex rounded-full border border-slate-200 bg-white/90 px-2 py-0.5 text-xs font-semibold text-slate-700">
+              <span className="ml-2 hidden sm:inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">
                 ID: {clubId}
               </span>
             </p>
@@ -306,7 +306,7 @@ export default function ClubCentreDashboardPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/app/admin"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white/95 px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
             >
               ← Back
             </Link>
@@ -321,7 +321,7 @@ export default function ClubCentreDashboardPage() {
             <button
               type="button"
               onClick={() => logout("manual")}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white/95 px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
             >
               Logout
             </button>
@@ -329,69 +329,43 @@ export default function ClubCentreDashboardPage() {
         </div>
       </header>
 
-      {/* spacer for fixed header */}
+      {/* spacer for fixed header (ONLY ONCE) */}
       <div aria-hidden className="h-[118px] md:h-[92px]" />
 
       <section className="mx-auto max-w-7xl px-4 pb-14">
-        {/* Top KPI strip like your reference image */}
+        {/* Top KPI strip */}
         <KpiStrip items={topKpis} />
 
-        {/* MAIN GRID: Left (operations) + Right (AI & setup) */}
+        {/* MAIN GRID: Left + Right */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr] lg:items-start">
-          {/* LEFT: Operations / School dashboard */}
+          {/* LEFT */}
           <div className="space-y-6">
-            {/* Quick actions */}
             <Card title="Admin Control Hub" icon="🧭" right={<span className="text-xs font-semibold text-slate-500">School-grade controls</span>}>
               <div className="grid gap-3 sm:grid-cols-2">
-                <ActionTile
-                  title="Create Session"
-                  desc="Schedule weekly delivery + map to term weeks"
-                  icon="🗓️"
-                  badge="Core"
-                  href={`/app/admin/clubs/${clubId}/sessions`}
-                />
-                <ActionTile
-                  title="Take Attendance"
-                  desc="Fast register + behaviour notes + flags"
-                  icon="✅"
-                  badge="Core"
-                  href={`/app/admin/clubs/${clubId}/attendance`}
-                />
-                <ActionTile
-                  title="Terms & Lessons"
-                  desc="Build term structure, lesson list, and mapping"
-                  icon="📚"
-                  href={`/app/admin/clubs/${clubId}/terms`}
-                />
-                <ActionTile
-                  title="Challenges"
-                  desc="Track challenge performance + outcomes"
-                  icon="🏆"
-                  href={`/app/admin/clubs/${clubId}/challenges`}
-                />
-                <ActionTile
-                  title="Robotics Activities"
-                  desc="Log builds, kits, photos, and learning outcomes"
-                  icon="🤖"
-                  href={`/app/admin/clubs/${clubId}/activities`}
-                />
-                <ActionTile
-                  title="Reports"
-                  desc="Parent-ready + funder-ready summaries"
-                  icon="📈"
-                  href={`/app/admin/clubs/${clubId}/reports`}
-                />
+                <ActionTile title="Create Session" desc="Schedule weekly delivery + map to term weeks" icon="🗓️" badge="Core" href={`/app/admin/clubs/${clubId}/sessions`} />
+                <ActionTile title="Take Attendance" desc="Fast register + behaviour notes + flags" icon="✅" badge="Core" href={`/app/admin/clubs/${clubId}/attendance`} />
+                <ActionTile title="Terms & Lessons" desc="Build term structure, lesson list, and mapping" icon="📚" href={`/app/admin/clubs/${clubId}/terms`} />
+                <ActionTile title="Challenges" desc="Track challenge performance + outcomes" icon="🏆" href={`/app/admin/clubs/${clubId}/challenges`} />
+                <ActionTile title="Robotics Activities" desc="Log builds, kits, photos, and learning outcomes" icon="🤖" href={`/app/admin/clubs/${clubId}/activities`} />
+                <ActionTile title="Reports" desc="Parent-ready + funder-ready summaries" icon="📈" href={`/app/admin/clubs/${clubId}/reports`} />
               </div>
             </Card>
 
-            {/* Upcoming + Attendance overview row */}
             <div className="grid gap-6 lg:grid-cols-2">
-              <Card title="Upcoming Sessions" icon="📋" right={<Link className="text-sm font-semibold text-slate-700 hover:text-slate-900" href={`/app/admin/clubs/${clubId}/sessions`}>View all</Link>}>
+              <Card
+                title="Upcoming Sessions"
+                icon="📋"
+                right={
+                  <Link className="text-sm font-semibold text-slate-700 hover:text-slate-900" href={`/app/admin/clubs/${clubId}/sessions`}>
+                    View all
+                  </Link>
+                }
+              >
                 <div className="divide-y divide-slate-200/70 overflow-hidden rounded-2xl border border-slate-200/70 bg-white">
                   {upcoming.map((x) => (
                     <div key={x.title} className="flex items-center justify-between gap-4 px-4 py-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-50 text-xl">{x.icon}</div>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">{x.icon}</div>
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold text-slate-900">{x.title}</div>
                           <div className="text-xs text-slate-500">Centre schedule</div>
@@ -423,8 +397,15 @@ export default function ClubCentreDashboardPage() {
               </Card>
             </div>
 
-            {/* People management */}
-            <Card title="People Management" icon="👥" right={<Link className="text-sm font-semibold text-slate-700 hover:text-slate-900" href={`/app/admin/clubs/${clubId}/people`}>Manage</Link>}>
+            <Card
+              title="People Management"
+              icon="👥"
+              right={
+                <Link className="text-sm font-semibold text-slate-700 hover:text-slate-900" href={`/app/admin/clubs/${clubId}/people`}>
+                  Manage
+                </Link>
+              }
+            >
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
                   <p className="text-xs font-semibold tracking-widest text-slate-500">TEACHERS</p>
@@ -444,94 +425,56 @@ export default function ClubCentreDashboardPage() {
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <ActionTile
-                  title="Create Student Access"
-                  desc="Generate access link / pin for student dashboard"
-                  icon="🧒🏽"
-                  href={`/app/admin/clubs/${clubId}/students`}
-                />
-                <ActionTile
-                  title="Create Parent Access"
-                  desc="Link parent accounts to learners"
-                  icon="👨‍👩‍👧‍👦"
-                  href={`/app/admin/clubs/${clubId}/parents`}
-                />
+                <ActionTile title="Create Student Access" desc="Generate access link / pin for student dashboard" icon="🧒🏽" href={`/app/admin/clubs/${clubId}/students`} />
+                <ActionTile title="Create Parent Access" desc="Link parent accounts to learners" icon="👨‍👩‍👧‍👦" href={`/app/admin/clubs/${clubId}/parents`} />
               </div>
             </Card>
           </div>
 
-          {/* RIGHT: AI Insights + Alerts + Quality controls */}
+          {/* RIGHT */}
           <div className="space-y-6">
-            {/* AI Insights */}
             <Card title="AI Analytics & Insights" icon="🧠" right={<span className="text-xs font-semibold text-slate-500">Preview layer</span>}>
               <div className="grid gap-3">
-                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">Parent Insight</p>
-                      <p className="mt-1 text-xs text-slate-600">
-                        Highlights for parents: attendance pattern, engagement trend, photo uploads, strengths.
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <InsightPill tone="good" label="Engagement rising" />
-                        <InsightPill tone="info" label="Portfolio update needed" />
+                {[
+                  {
+                    title: "Parent Insight",
+                    desc: "Highlights for parents: attendance pattern, engagement trend, photo uploads, strengths.",
+                    icon: "👨‍👩‍👧‍👦",
+                    pills: [<InsightPill key="p1" tone="good" label="Engagement rising" />, <InsightPill key="p2" tone="info" label="Portfolio update needed" />],
+                  },
+                  {
+                    title: "Student Insight",
+                    desc: "Fun, visual progress: builds completed, badges, challenge milestones.",
+                    icon: "🧒🏽",
+                    pills: [<InsightPill key="s1" tone="good" label="2 badges earned" />, <InsightPill key="s2" tone="info" label="New build uploaded" />],
+                  },
+                  {
+                    title: "Session Quality",
+                    desc: "Flags delivery issues: low participation, missing notes, repeated absences.",
+                    icon: "🗒️",
+                    pills: [<InsightPill key="q1" tone="warn" label="2 missing registers" />, <InsightPill key="q2" tone="good" label="Strong session notes" />],
+                  },
+                  {
+                    title: "Challenge Performance",
+                    desc: "Tracks challenge outcomes, common errors, and improvement suggestions.",
+                    icon: "🏆",
+                    pills: [<InsightPill key="c1" tone="info" label="Top skill: teamwork" />, <InsightPill key="c2" tone="warn" label="Needs: problem-solving" />],
+                  },
+                ].map((x) => (
+                  <div key={x.title} className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">{x.title}</p>
+                        <p className="mt-1 text-xs text-slate-600">{x.desc}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">{x.pills}</div>
                       </div>
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-lg">{x.icon}</div>
                     </div>
-                    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-50 text-lg">👨‍👩‍👧‍👦</div>
                   </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">Student Insight</p>
-                      <p className="mt-1 text-xs text-slate-600">
-                        Fun, visual progress: builds completed, badges, challenge milestones.
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <InsightPill tone="good" label="2 badges earned" />
-                        <InsightPill tone="info" label="New build uploaded" />
-                      </div>
-                    </div>
-                    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-50 text-lg">🧒🏽</div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">Session Quality</p>
-                      <p className="mt-1 text-xs text-slate-600">
-                        Flags delivery issues: low participation, missing notes, repeated absences.
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <InsightPill tone="warn" label="2 missing registers" />
-                        <InsightPill tone="good" label="Strong session notes" />
-                      </div>
-                    </div>
-                    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-50 text-lg">🗒️</div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">Challenge Performance</p>
-                      <p className="mt-1 text-xs text-slate-600">
-                        Tracks challenge outcomes, common errors, and improvement suggestions.
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <InsightPill tone="info" label="Top skill: teamwork" />
-                        <InsightPill tone="warn" label="Needs: problem-solving" />
-                      </div>
-                    </div>
-                    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-50 text-lg">🏆</div>
-                  </div>
-                </div>
+                ))}
               </div>
             </Card>
 
-            {/* Alerts & To-do */}
             <Card title="Alerts & Admin To-Do" icon="🚦" right={<span className="text-xs font-semibold text-slate-500">Live later</span>}>
               <div className="space-y-3">
                 {alerts.map((a, idx) => (
@@ -546,7 +489,6 @@ export default function ClubCentreDashboardPage() {
               </div>
             </Card>
 
-            {/* Centre setup quality */}
             <Card title="Centre Setup Quality" icon="🧩">
               <div className="space-y-3">
                 {[
@@ -559,7 +501,7 @@ export default function ClubCentreDashboardPage() {
                   <div key={x.t} className="flex items-start gap-3 rounded-2xl border border-slate-200/70 bg-white p-3">
                     <div
                       className={[
-                        "mt-0.5 grid h-5 w-5 place-items-center rounded-md border",
+                        "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border",
                         x.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-500",
                       ].join(" ")}
                     >
@@ -573,11 +515,9 @@ export default function ClubCentreDashboardPage() {
           </div>
         </div>
 
-        {/* Footer hint */}
-        <div className="mt-6 rounded-[22px] border border-white/70 bg-white/70 p-4 text-sm text-slate-600 shadow-[0_14px_40px_-30px_rgba(2,6,23,0.35)] backdrop-blur">
+        <div className="mt-6 rounded-[22px] border border-slate-200/70 bg-white p-4 text-sm text-slate-600 shadow-[0_16px_50px_-40px_rgba(2,6,23,0.22)]">
           <span className="font-semibold text-slate-900">Next step:</span> wire every block to Supabase and filter by centre ID:{" "}
-          <span className="font-semibold">{clubId}</span>.
-          <span className="ml-2 text-slate-500">(UI is ready — data layer comes next.)</span>
+          <span className="font-semibold">{clubId}</span>. <span className="text-slate-500">(UI is ready — data layer comes next.)</span>
         </div>
       </section>
     </main>
