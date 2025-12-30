@@ -452,7 +452,7 @@ export default function AdminHomePage() {
   }
 
   return (
-    <main className="min-h-screen text-slate-900 overflow-x-hidden">
+    <main className="min-h-screen text-slate-900">
       {/* ✅ Premium background that covers full body */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50/50" />
@@ -463,14 +463,14 @@ export default function AdminHomePage() {
 
       {/* Top bar */}
       <header className="
-  sticky top-0 z-30
-  border-b border-white/30
-  bg-gradient-to-r
-  from-rose-100/70
-  via-amber-100/70
-  via-emerald-100/70
-  to-sky-100/70
-  backdrop-blur-xl
+  sticky top-0 z-50 overflow-hidden
+    border-b border-white/30
+    bg-gradient-to-r
+    from-rose-100/70
+    via-amber-100/70
+    via-emerald-100/70
+    to-sky-100/70
+    backdrop-blur-xl
 ">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-40 -top-20 h-[300px] w-[300px] rounded-full bg-pink-300/30 blur-3xl" />
@@ -512,10 +512,10 @@ export default function AdminHomePage() {
 
 
           {/* Search + actions */}
-          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-3">
+          <div className="flex w-full min-w-0 flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-3">
             {/* Search */}
-            <div className="relative w-full md:w-[420px]">
-              <div className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
+            <div className="relative w-full min-w-0 md:w-[420px]">
+              <div className="flex w-full min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
                 <span className="text-slate-500">⌕</span>
 
                 <input
@@ -554,7 +554,7 @@ export default function AdminHomePage() {
                     }
                   }}
                   placeholder="Search centres… (Ctrl/K)"
-                  className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                  className="w-full min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
                 />
 
                 <span className="hidden sm:inline-flex rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600">
@@ -651,7 +651,7 @@ export default function AdminHomePage() {
           {/* LEFT: one big card (hero + list) */}
           <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur sm:p-7">
             {/* Hero row */}
-            <div className="flex flex-col grid gap-6 lg:grid-cols-1">
+            <div className="grid gap-6">
               <div>
                 <p className="text-xs font-semibold tracking-widest text-slate-500">
                   {timeGreeting(now)}
