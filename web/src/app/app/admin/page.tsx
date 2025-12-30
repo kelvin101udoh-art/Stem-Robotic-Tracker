@@ -464,7 +464,9 @@ export default function AdminHomePage() {
 
       {/* Top bar */}
       <header className="
-  fixed inset-x-0 top-0 z-50 overflow-hidden
+  fixed inset-x-0 top-0 z-50
+  w-full max-w-[100vw]
+  overflow-x-clip overflow-hidden
   border-b border-white/30
   bg-gradient-to-r
   from-rose-100/70
@@ -480,7 +482,7 @@ export default function AdminHomePage() {
         </div>
 
 
-        <div className="relative mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
+        <div className="relative mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center justify-between gap-3">
             <Link href="/app/admin" className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-900 text-white shadow-sm">
@@ -513,7 +515,7 @@ export default function AdminHomePage() {
 
 
           {/* Search + actions */}
-          <div className="flex w-full min-w-0 flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-3">
+          <div className="flex w-full min-w-0 flex-col gap-2 md:flex-1 md:flex-row md:items-center md:justify-end md:gap-3">
             {/* Search */}
             <div className="relative w-full min-w-0 md:w-[420px]">
               <div className="flex w-full min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
