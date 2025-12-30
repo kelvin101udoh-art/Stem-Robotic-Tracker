@@ -10,6 +10,7 @@ import { useAdminGuard } from "@/lib/admin/admin-guard";
 import { useRef } from "react";
 
 
+
 type ClubCentreRow = {
   id: string;
   name: string;
@@ -452,9 +453,9 @@ export default function AdminHomePage() {
   }
 
   return (
-    <main className="min-h-screen w-full max-w-[100vw] text-slate-900 overflow-x-hidden">
+    <main className="relative min-h-screen w-full overflow-x-clip text-slate-900">
       {/* ✅ Premium background that covers full body */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none [clip-path:inset(0)]">
+      <div className="fixed inset-0 -z-10 overflow-clip pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50/50" />
         <div className="absolute inset-0 opacity-[0.18] [background-image:radial-gradient(#0f172a_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="absolute -left-40 top-[-120px] h-[520px] w-[520px] rounded-full bg-sky-200/35 blur-3xl" />
@@ -463,15 +464,14 @@ export default function AdminHomePage() {
 
       {/* Top bar */}
       <header className="
-  sticky top-0 z-50 overflow-hidden
-    border-b border-white/30
-    bg-gradient-to-r
-    from-rose-100/70
-    via-amber-100/70
-    via-emerald-100/70
-    to-sky-100/70
-    backdrop-blur-xl
-    [clip-path:inset(0)]
+  fixed inset-x-0 top-0 z-50 overflow-hidden
+  border-b border-white/30
+  bg-gradient-to-r
+  from-rose-100/70
+  via-amber-100/70
+  via-emerald-100/70
+  to-sky-100/70
+  backdrop-blur-xl
 ">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-40 -top-20 h-[300px] w-[300px] rounded-full bg-pink-300/30 blur-3xl" />
@@ -645,6 +645,8 @@ export default function AdminHomePage() {
 
 
       </header>
+
+      <div aria-hidden className="h-[112px] md:h-[88px]" />
 
       <section className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
         {/* ✅ Two-card layout (left = everything centres, right = create) */}
