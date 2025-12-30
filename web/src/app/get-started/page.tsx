@@ -234,7 +234,7 @@ export default function GetStartedPage() {
         const blocked = new Set([
             "gmx.com",
             "googlemail.com",
-            "yahoo.com",
+            "verizon.com",
             "yahoo.co.uk",
             "outlook.com",
             "hotmail.com",
