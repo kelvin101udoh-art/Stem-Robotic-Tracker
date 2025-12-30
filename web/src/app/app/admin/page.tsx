@@ -452,9 +452,9 @@ export default function AdminHomePage() {
   }
 
   return (
-    <main className="min-h-screen text-slate-900">
+    <main className="min-h-screen text-slate-900 overflow-x-hidden">
       {/* ✅ Premium background that covers full body */}
-      <div className="fixed inset-0 -z-10">
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50/50" />
         <div className="absolute inset-0 opacity-[0.18] [background-image:radial-gradient(#0f172a_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="absolute -left-40 top-[-120px] h-[520px] w-[520px] rounded-full bg-sky-200/35 blur-3xl" />
