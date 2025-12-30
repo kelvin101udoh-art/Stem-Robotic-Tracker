@@ -13,6 +13,232 @@ function formatTitle(name?: string) {
   return n ? n : "Club centre";
 }
 
+function TrendBadge({ delta }: { delta: number }) {
+  const up = delta >= 0;
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+        up
+          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+          : "border-rose-200 bg-rose-50 text-rose-800",
+      ].join(" ")}
+    >
+      <span className="text-[12px]">{up ? "▲" : "▼"}</span>
+      {Math.abs(delta)}%
+    </span>
+  );
+}
+
+function MiniSpark({ values }: { values: number[] }) {
+  const max = Math.max(1, ...values);
+  return (
+    <div className="flex items-end gap-1">
+      {values.slice(-12).map((v, i) => (
+        <span
+          key={i}
+          className="block w-[6px] rounded-full bg-slate-200"
+          style={{ height: `${Math.max(10, Math.round((v / max) * 34))}px` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MetricCard({
+  icon,
+  label,
+  value,
+  sub,
+  delta,
+  spark,
+  tone = "slate",
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  sub?: string;
+  delta?: number;
+  spark?: number[];
+  tone?: "blue" | "emerald" | "amber" | "slate";
+}) {
+  const iconTone =
+    tone === "emerald"
+      ? "bg-emerald-50 text-emerald-700"
+      : tone === "amber"
+      ? "bg-amber-50 text-amber-800"
+      : tone === "blue"
+      ? "bg-sky-50 text-sky-700"
+      : "bg-slate-50 text-slate-700";
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <div className={`grid h-11 w-11 place-items-center rounded-2xl ${iconTone} text-xl`}>
+              {icon}
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-slate-700">{label}</div>
+              {sub ? <div className="text-xs text-slate-500">{sub}</div> : null}
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-end justify-between gap-3">
+            <div className="text-3xl font-semibold tracking-tight text-slate-900">{value}</div>
+            {typeof delta === "number" ? <TrendBadge delta={delta} /> : null}
+          </div>
+        </div>
+
+        {spark?.length ? (
+          <div className="hidden sm:block pt-2">
+            <div className="text-[11px] font-semibold text-slate-500 mb-2 text-right">Last 12</div>
+            <MiniSpark values={spark} />
+          </div>
+        ) : null}
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-50 to-transparent" />
+    </div>
+  );
+}
+
+function HealthPill({
+  tone,
+  label,
+  value,
+}: {
+  tone: "good" | "warn" | "info";
+  label: string;
+  value: string;
+}) {
+  const cls =
+    tone === "good"
+      ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+      : tone === "warn"
+      ? "bg-amber-50 text-amber-900 border-amber-200"
+      : "bg-sky-50 text-sky-900 border-sky-200";
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${cls}`}>
+      <div className="text-[11px] font-semibold tracking-widest opacity-80">{label}</div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function AnalyticsSummary({
+  clubId,
+  centreName,
+}: {
+  clubId: string;
+  centreName: string;
+}) {
+  // (UI demo values for now — you will wire to Supabase later)
+  const metrics = [
+    {
+      icon: "👥",
+      label: "Students enrolled",
+      value: "120",
+      sub: "Active learners",
+      delta: 8,
+      spark: [30, 34, 36, 40, 44, 48, 55, 60, 66, 70, 92, 120],
+      tone: "blue" as const,
+    },
+    {
+      icon: "🗓️",
+      label: "Sessions delivered",
+      value: "15",
+      sub: "This term",
+      delta: 12,
+      spark: [1, 1, 2, 3, 4, 6, 7, 9, 10, 12, 14, 15],
+      tone: "slate" as const,
+    },
+    {
+      icon: "✅",
+      label: "Attendance rate",
+      value: "92%",
+      sub: "Avg. last 6 sessions",
+      delta: 3,
+      spark: [84, 86, 85, 88, 90, 92, 91, 92, 93, 92, 92, 92],
+      tone: "emerald" as const,
+    },
+    {
+      icon: "📍",
+      label: "Upcoming events",
+      value: "4",
+      sub: "Next 14 days",
+      delta: -5,
+      spark: [6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4],
+      tone: "amber" as const,
+    },
+  ];
+
+  return (
+    <div className="mt-6">
+      <div className="rounded-[26px] border border-white/70 bg-white/80 shadow-[0_18px_55px_-35px_rgba(2,6,23,0.35)] backdrop-blur">
+        <div className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-xs font-semibold tracking-widest text-slate-500">ANALYTICS SUMMARY</div>
+            <div className="mt-1 text-lg font-semibold text-slate-900">Centre performance overview</div>
+            <div className="mt-1 text-sm text-slate-600">
+              {centreName} • Signals, trends, and risks — scoped to <span className="font-semibold">{clubId}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              Data freshness: <span className="ml-2 text-emerald-700">Live</span>
+            </span>
+            <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              Coverage: <span className="ml-2 text-sky-700">Strong</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="grid gap-4 px-6 pb-6 lg:grid-cols-[1.7fr_1fr]">
+          {/* Left: Metrics */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {metrics.map((m) => (
+              <MetricCard key={m.label} {...m} />
+            ))}
+          </div>
+
+          {/* Right: Health + Insights */}
+          <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Executive insights</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  What to act on next (AI layer preview)
+                </div>
+              </div>
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-50 text-lg">🧠</div>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <HealthPill tone="warn" label="RISK" value="2 learners missing parent link" />
+              <HealthPill tone="info" label="ACTION" value="Term week mapping needs completion" />
+              <HealthPill tone="good" label="GOOD" value="Attendance consistency strong" />
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-xs font-semibold tracking-widest text-slate-500">RECOMMENDED NEXT</div>
+              <ul className="mt-2 space-y-2 text-sm text-slate-700">
+                <li>• Finalise Term → Session week mapping</li>
+                <li>• Generate student access links for new learners</li>
+                <li>• Add challenge rubric for consistent scoring</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 /** ---------- UI building blocks ---------- */
 
 function Card({
@@ -334,7 +560,7 @@ export default function ClubCentreDashboardPage() {
 
       <section className="mx-auto max-w-7xl px-4 pb-14 pt-4 md:pt-6">
         {/* Top KPI strip */}
-        <KpiStrip items={topKpis} />
+        <AnalyticsSummary clubId={clubId} centreName={formatTitle(club?.name)} />
 
 
         {/* MAIN GRID: Left + Right */}
