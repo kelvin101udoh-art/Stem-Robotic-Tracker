@@ -316,7 +316,9 @@ export default function ClubCentreDashboardPage() {
           </div>
         </div>
       </header>
+      <div>
 
+      </div>
       {/* spacer */}
       <div aria-hidden className="h-[118px] md:h-[92px]" />
 
