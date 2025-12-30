@@ -198,8 +198,8 @@ function InsightPill({ tone, label }: { tone: "good" | "warn" | "info"; label: s
     tone === "good"
       ? "bg-emerald-50 text-emerald-800 border-emerald-200"
       : tone === "warn"
-      ? "bg-amber-50 text-amber-900 border-amber-200"
-      : "bg-sky-50 text-sky-800 border-sky-200";
+        ? "bg-amber-50 text-amber-900 border-amber-200"
+        : "bg-sky-50 text-sky-800 border-sky-200";
 
   return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${cls}`}>{label}</span>;
 }
@@ -332,9 +332,10 @@ export default function ClubCentreDashboardPage() {
       {/* spacer for fixed header (ONLY ONCE) */}
       <div aria-hidden className="h-[118px] md:h-[92px]" />
 
-      <section className="mx-auto max-w-7xl px-4 pb-14">
+      <section className="mx-auto max-w-7xl px-4 pb-14 pt-4 md:pt-6">
         {/* Top KPI strip */}
         <KpiStrip items={topKpis} />
+
 
         {/* MAIN GRID: Left + Right */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr] lg:items-start">
