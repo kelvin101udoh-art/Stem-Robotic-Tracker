@@ -320,10 +320,9 @@ export default function AdminHomePage() {
 
 
 
-  async function loadCentres(opts?: { silent?: boolean }) {
-    // silent=true means: don’t pop modal (useful for background refresh if you ever want)
-    const silent = !!opts?.silent;
 
+  async function loadCentres(opts?: { silent?: boolean }) {
+    const silent = !!opts?.silent;
     resetAlerts();
 
     const started = new Date();
@@ -331,9 +330,19 @@ export default function AdminHomePage() {
     setLoading(true);
 
     try {
+      const {
+        data: { user },
+        error: userErr,
+      } = await supabase.auth.getUser();
+
+      if (userErr) throw userErr;
+      if (!user) throw new Error("Not authenticated");
+
       const { data, error } = await supabase
         .from("clubs")
         .select("id, name, created_at")
+        .eq("owner_id", user.id)          // ✅ tenant filter
+        .is("deleted_at", null)           // ✅ hide soft-deleted
         .order("created_at", { ascending: true });
 
       if (error) throw error;
@@ -341,19 +350,12 @@ export default function AdminHomePage() {
       const rows = (data || []) as ClubCentreRow[];
       setCentres(rows);
 
-      // keep a sensible default name
       if (!centreName) setCentreName(makeDefaultCentreName(rows.length));
-
       setLastRefreshAt(new Date());
     } catch (e: any) {
       const pretty = prettifySupabaseError(e);
-
-      // optional: keep setError for logs/debugging (not displayed anymore)
       setError(pretty.details || pretty.message);
-
-      if (!silent) {
-        openErrorModal(pretty.title, pretty.message, pretty.details);
-      }
+      if (!silent) openErrorModal(pretty.title, pretty.message, pretty.details);
     } finally {
       setLoading(false);
       setRefreshStartedAt(null);
@@ -362,11 +364,13 @@ export default function AdminHomePage() {
 
 
 
+
   useEffect(() => {
     if (checking) return;
     loadCentres({ silent: true }); // ✅ no modal on initial load
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checking]);
+
 
 
   async function createCentre(e: React.FormEvent) {
@@ -382,44 +386,27 @@ export default function AdminHomePage() {
     setLoading(true);
 
     try {
-      // Retry a few times in case club_code has a UNIQUE constraint
-      let created: ClubCentreRow | null = null;
-      let lastErr: any = null;
-
-      /*  for (let attempt = 0; attempt < 4; attempt++) {
-        const club_code = genClubCode("CLB");
-
-        const { data, error } = await supabase
-          .from("clubs")
-          .insert({ name, club_code, owner_id: userId })
-          .select("id, name, created_at")
-          .single(); */
-
       const {
         data: { user },
-        error: userError,
+        error: userErr,
       } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        throw new Error("Not authenticated");
-      }
+      if (userErr) throw userErr;
+      if (!user) throw new Error("Not authenticated");
 
-      const userId = user.id;
+      const userId = user.id; // ✅ now defined
+
+      let created: ClubCentreRow | null = null;
+      let lastErr: any = null;
 
       for (let attempt = 0; attempt < 4; attempt++) {
         const club_code = genClubCode("CLB");
 
         const { data, error } = await supabase
           .from("clubs")
-          .insert({
-            name,
-            club_code,
-            owner_id: userId, // ✅ now defined
-          })
+          .insert({ name, club_code, owner_id: userId }) // ✅ required
           .select("id, name, created_at")
           .single();
-
-
 
         if (!error) {
           created = data as ClubCentreRow;
@@ -427,13 +414,9 @@ export default function AdminHomePage() {
         }
 
         lastErr = error;
-
-        // If it's not a "duplicate key / unique" kind of error, stop retrying
         const m = (error?.message || "").toLowerCase();
         if (!m.includes("duplicate") && !m.includes("unique")) break;
       }
-
-
 
       if (!created) throw lastErr || new Error("Could not create centre.");
 
@@ -446,7 +429,7 @@ export default function AdminHomePage() {
       router.push(`/app/admin/clubs/${created.id}`);
     } catch (e: any) {
       const pretty = prettifySupabaseError(e);
-      setError(pretty.details || pretty.message); // keep for logs if you want
+      setError(pretty.details || pretty.message);
       openErrorModal(pretty.title, pretty.message, pretty.details);
     } finally {
       setLoading(false);
