@@ -28,6 +28,9 @@ function SoftBg() {
 }
 
 /** ----------------- Shared Header Bar (Mobile + Desktop) ----------------- */
+// ✅ Replace your current TopBar component with this upgraded version.
+// (Keep the name TopBar so you don't have to change anything else.)
+
 function TopBar({
   centreName,
   clubId,
@@ -40,87 +43,116 @@ function TopBar({
   onLogout: () => void;
 }) {
   return (
-    <div className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
-      <div className="flex w-full items-center justify-between gap-3 px-4 py-3 lg:px-6">
-        {/* Left */}
-        <div className="flex min-w-0 items-center gap-3">
-          {/* Mobile menu */}
-          {onOpenSidebar ? (
-            <button
-              type="button"
-              onClick={onOpenSidebar}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 lg:hidden"
-              aria-label="Open sidebar"
-            >
-              ☰
-            </button>
-          ) : null}
+    <header className="sticky top-0 z-50">
+      {/* subtle glow / modern depth */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/80 via-white/40 to-transparent" />
+      <div className="border-b border-slate-200/70 bg-white/70 backdrop-blur-xl">
+        <div className="w-full px-4 py-3 lg:px-6">
+          <div className="flex items-center justify-between gap-3">
+            {/* LEFT */}
+            <div className="flex min-w-0 items-center gap-3">
+              {/* Mobile menu */}
+              {onOpenSidebar ? (
+                <button
+                  type="button"
+                  onClick={onOpenSidebar}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white/80 text-slate-900 shadow-sm hover:bg-white lg:hidden"
+                  aria-label="Open sidebar"
+                >
+                  ☰
+                </button>
+              ) : null}
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate text-base font-semibold text-slate-900 sm:text-lg">
-                Club Command Centre
-              </h1>
-              <span className="hidden sm:inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-                ADMIN
-              </span>
+              {/* Brand mark */}
+              <div className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white text-lg shadow-sm sm:flex">
+                🧭
+              </div>
+
+              {/* Title + breadcrumb */}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                    ADMIN
+                  </span>
+
+                  <div className="hidden text-xs text-slate-400 sm:block">/</div>
+
+                  <p className="truncate text-sm font-semibold text-slate-900 sm:text-base">
+                    Club Command Centre
+                  </p>
+                </div>
+
+                <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-2">
+                  <p className="truncate text-xs text-slate-600 sm:text-sm">
+                    <span className="font-semibold text-slate-800">
+                      {centreName}
+                    </span>
+                  </p>
+
+                  <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:inline-block" />
+
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                    ID: {clubId}
+                  </span>
+
+                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Live
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="truncate text-xs text-slate-600 sm:text-sm">
-              <span className="font-semibold text-slate-800">{centreName}</span>
-              <span className="mx-2 text-slate-300">•</span>
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-                ID: {clubId}
-              </span>
+
+            {/* RIGHT */}
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Desktop actions */}
+              <div className="hidden items-center gap-2 sm:flex">
+                <Link
+                  href="/app/admin"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+                >
+                  ← Back
+                </Link>
+
+                <Link
+                  href="/app/admin/invites"
+                  className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+                >
+                  Invite users
+                </Link>
+              </div>
+
+              <button
+                type="button"
+                onClick={onLogout}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+              >
+                Logout
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Right */}
-        <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href="/app/admin"
-            className="hidden sm:inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-          >
-            ← Back
-          </Link>
-
-          <Link
-            href="/app/admin/invites"
-            className="hidden sm:inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            Invite users
-          </Link>
-
-          <button
-            type="button"
-            onClick={onLogout}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-          >
-            Logout
-          </button>
+          {/* MOBILE ACTIONS ROW (modern pills) */}
+          <div className="mt-3 flex gap-2 sm:hidden">
+            <Link
+              href="/app/admin"
+              className="flex-1 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+            >
+              ← Back
+            </Link>
+            <Link
+              href="/app/admin/invites"
+              className="flex-1 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+            >
+              Invite
+            </Link>
+          </div>
         </div>
       </div>
-
-      {/* Mobile quick actions row */}
-      <div className="px-4 pb-3 lg:hidden">
-        <div className="flex gap-2">
-          <Link
-            href="/app/admin"
-            className="flex-1 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-          >
-            ← Back
-          </Link>
-          <Link
-            href="/app/admin/invites"
-            className="flex-1 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            Invite users
-          </Link>
-        </div>
-      </div>
-    </div>
+    </header>
   );
 }
+
 
 /** ----------------- Small UI Pieces ----------------- */
 function TrendBadge({ delta }: { delta: number }) {
