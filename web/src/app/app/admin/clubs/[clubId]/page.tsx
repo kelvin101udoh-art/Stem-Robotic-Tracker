@@ -121,8 +121,9 @@ function SparkArea({
   const maPts = movingAvg.map((v, i) => ({ x: xFor(i, series.length), y: yFor(v) }));
   const lineMA = ptsToStr(maPts);
 
-  const area = `M ${pad},${h - pad} L ${pointsHist.map((p) => `${p.x},${p.y}`).join(" L ")} L ${pointsHist[pointsHist.length - 1]?.x ?? w - pad
-    },${h - pad} Z`;
+  const area = `M ${pad},${h - pad} L ${pointsHist.map((p) => `${p.x},${p.y}`).join(" L ")} L ${
+    pointsHist[pointsHist.length - 1]?.x ?? w - pad
+  },${h - pad} Z`;
 
   // ---- tones ----
   const stroke =
@@ -150,34 +151,17 @@ function SparkArea({
 
   return (
     <div className="relative">
-      {/* EXECUTIVE LABELS */}
-      <div className="absolute -top-4 right-0 flex items-center gap-2">
-        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-          Forecast: +3 sessions
-        </span>
-        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-          MA(3)
-        </span>
-      </div>
-
-      {/* Target band */}
+      {/* Target band (subtle) */}
       <div className="pointer-events-none absolute inset-x-0 top-[18px] h-[18px] rounded-xl bg-slate-100/70" />
 
       <svg viewBox={`0 0 ${w} ${h}`} className="h-[56px] w-[150px]">
         {/* midline grid */}
-        <line
-          x1={pad}
-          x2={w - pad}
-          y1={h / 2}
-          y2={h / 2}
-          stroke="rgba(148,163,184,0.30)"
-          strokeWidth="1"
-        />
+        <line x1={pad} x2={w - pad} y1={h / 2} y2={h / 2} stroke="rgba(148,163,184,0.30)" strokeWidth="1" />
 
-        {/* area under history */}
+        {/* area under HIST only */}
         <path d={area} fill={fill} />
 
-        {/* historical line */}
+        {/* HIST line */}
         <polyline
           fill="none"
           stroke={stroke}
@@ -187,66 +171,59 @@ function SparkArea({
           points={lineHist}
         />
 
-        {/* moving average overlay */}
+        {/* Moving average overlay (subtle dashed) */}
         <polyline
           fill="none"
-          stroke="rgba(15,23,42,0.45)"
+          stroke={maStroke}
           strokeWidth="2"
           strokeDasharray="4 3"
           strokeLinecap="round"
           strokeLinejoin="round"
           points={lineMA}
+          opacity="0.9"
         />
 
-        {/* forecast tail */}
-        <polyline
-          fill="none"
-          stroke={stroke}
-          strokeWidth="2.25"
-          strokeDasharray="2 3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          points={lineFc}
-        />
+        {/* Forecast tail (dotted) */}
+        {forecastN > 0 ? (
+          <polyline
+            fill="none"
+            stroke={stroke}
+            strokeWidth="2.25"
+            strokeDasharray="2 3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            points={lineFc}
+            opacity="0.9"
+          />
+        ) : null}
 
-        {/* last real point */}
-        {lastHistPt && (
+        {/* last real point marker */}
+        {lastHistPt ? (
           <>
             <circle cx={lastHistPt.x} cy={lastHistPt.y} r="3.8" fill={stroke} />
-            <circle cx={lastHistPt.x} cy={lastHistPt.y} r="7" fill={stroke} opacity="0.1" />
+            <circle cx={lastHistPt.x} cy={lastHistPt.y} r="7" fill={stroke} opacity="0.10" />
 
-            {isAnomaly && (
+            {/* anomaly ring */}
+            {isAnomaly ? (
               <>
-                <circle
-                  cx={lastHistPt.x}
-                  cy={lastHistPt.y}
-                  r="6.2"
-                  fill="transparent"
-                  stroke="rgba(244,63,94,0.95)"
-                  strokeWidth="2.2"
-                />
-                <circle
-                  cx={lastHistPt.x}
-                  cy={lastHistPt.y}
-                  r="10"
-                  fill="rgba(244,63,94,0.12)"
-                />
+                <circle cx={lastHistPt.x} cy={lastHistPt.y} r="6.2" fill="transparent" stroke={anomalyStroke} strokeWidth="2.2" />
+                <circle cx={lastHistPt.x} cy={lastHistPt.y} r="10" fill={anomalyStroke} opacity="0.08" />
               </>
-            )}
+            ) : null}
           </>
-        )}
+        ) : null}
       </svg>
 
-      {isAnomaly && (
+      {/* tiny anomaly caption (executive hint) */}
+      {isAnomaly ? (
         <div className="mt-1 text-[10px] font-semibold text-rose-700">
           Anomaly detected
         </div>
-      )}
+      ) : null}
     </div>
   );
 
-
-
+  
 }
 
 
