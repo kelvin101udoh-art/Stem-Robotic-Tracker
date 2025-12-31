@@ -47,20 +47,90 @@ function TrendBadge({ delta }: { delta: number }) {
   );
 }
 
-function SparkBars({ values }: { values: number[] }) {
-  const max = Math.max(1, ...values);
+function SparkArea({
+  values,
+  tone = "blue",
+}: {
+  values: number[];
+  tone?: "blue" | "emerald" | "amber" | "slate";
+}) {
+  const w = 150;
+  const h = 56;
+  const pad = 6;
+
+  const safe = values.slice(-12);
+  const max = Math.max(1, ...safe);
+  const min = Math.min(...safe);
+  const span = Math.max(1, max - min);
+
+  const pts = safe.map((v, i) => {
+    const x = pad + (i * (w - pad * 2)) / (safe.length - 1);
+    const y = pad + (1 - (v - min) / span) * (h - pad * 2);
+    return { x, y, v };
+  });
+
+  const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
+  const area = `M ${pad},${h - pad} L ${line
+    .split(" ")
+    .join(" L ")} L ${w - pad},${h - pad} Z`;
+
+  const last = pts[pts.length - 1];
+
+  const stroke =
+    tone === "emerald"
+      ? "rgba(16,185,129,0.9)"
+      : tone === "amber"
+        ? "rgba(245,158,11,0.9)"
+        : tone === "slate"
+          ? "rgba(100,116,139,0.85)"
+          : "rgba(59,130,246,0.9)";
+
+  const fill =
+    tone === "emerald"
+      ? "rgba(16,185,129,0.14)"
+      : tone === "amber"
+        ? "rgba(245,158,11,0.14)"
+        : tone === "slate"
+          ? "rgba(100,116,139,0.12)"
+          : "rgba(59,130,246,0.14)";
+
   return (
-    <div className="flex items-end gap-1">
-      {values.slice(-12).map((v, i) => (
-        <span
-          key={i}
-          className="block w-[7px] rounded-full bg-slate-200"
-          style={{ height: `${Math.max(10, Math.round((v / max) * 40))}px` }}
+    <div className="relative">
+      {/* Target band (subtle) */}
+      <div className="pointer-events-none absolute inset-x-0 top-[18px] h-[18px] rounded-xl bg-slate-100/70" />
+
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-[56px] w-[150px]">
+        {/* grid lines */}
+        <line
+          x1={pad}
+          x2={w - pad}
+          y1={h / 2}
+          y2={h / 2}
+          stroke="rgba(148,163,184,0.35)"
+          strokeWidth="1"
         />
-      ))}
+
+        {/* area */}
+        <path d={area} fill={fill} />
+
+        {/* line */}
+        <polyline
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={line}
+        />
+
+        {/* last point */}
+        <circle cx={last.x} cy={last.y} r="3.8" fill={stroke} />
+        <circle cx={last.x} cy={last.y} r="7" fill={stroke} opacity="0.12" />
+      </svg>
     </div>
   );
 }
+
 
 /** ----------------- Metric Tile (Professional KPI card) ----------------- */
 function MetricTile({
@@ -84,10 +154,10 @@ function MetricTile({
     tone === "emerald"
       ? "bg-emerald-50 text-emerald-700"
       : tone === "amber"
-      ? "bg-amber-50 text-amber-800"
-      : tone === "blue"
-      ? "bg-sky-50 text-sky-700"
-      : "bg-slate-50 text-slate-700";
+        ? "bg-amber-50 text-amber-800"
+        : tone === "blue"
+          ? "bg-sky-50 text-sky-700"
+          : "bg-slate-50 text-slate-700";
 
   return (
     <div className="rounded-[26px] border border-slate-200/70 bg-white/90 p-5 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.25)] backdrop-blur">
@@ -114,11 +184,19 @@ function MetricTile({
         </div>
 
         <div className="hidden sm:block text-right">
-          <div className="text-xs font-semibold text-slate-500">Last 12</div>
-          <div className="mt-3">
-            <SparkBars values={values} />
+          <div className="text-[11px] font-semibold text-slate-500">Last 12</div>
+
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+            <SparkArea values={values} tone={tone} />
+            <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+              <span>Low</span>
+              <span>High</span>
+            </div>
           </div>
         </div>
+
+
+
       </div>
     </div>
   );
@@ -212,9 +290,8 @@ function LineChart({ values }: { values: number[] }) {
     return `${x},${y}`;
   });
 
-  const area = `M ${pad},${h - pad} L ${pts.join(" L ")} L ${w - pad},${
-    h - pad
-  } Z`;
+  const area = `M ${pad},${h - pad} L ${pts.join(" L ")} L ${w - pad},${h - pad
+    } Z`;
 
   return (
     <div className="rounded-3xl border border-slate-200/70 bg-white p-4">
@@ -276,8 +353,8 @@ function InsightRow({
     tone === "good"
       ? "border-emerald-200 bg-emerald-50 text-emerald-900"
       : tone === "warn"
-      ? "border-amber-200 bg-amber-50 text-amber-900"
-      : "border-sky-200 bg-sky-50 text-sky-900";
+        ? "border-amber-200 bg-amber-50 text-amber-900"
+        : "border-sky-200 bg-sky-50 text-sky-900";
 
   return (
     <div className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white p-4">
@@ -559,8 +636,8 @@ function InsightPill({ tone, label }: { tone: "good" | "warn" | "info"; label: s
     tone === "good"
       ? "bg-emerald-50 text-emerald-800 border-emerald-200"
       : tone === "warn"
-      ? "bg-amber-50 text-amber-900 border-amber-200"
-      : "bg-sky-50 text-sky-800 border-sky-200";
+        ? "bg-amber-50 text-amber-900 border-amber-200"
+        : "bg-sky-50 text-sky-800 border-sky-200";
 
   return (
     <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${cls}`}>
