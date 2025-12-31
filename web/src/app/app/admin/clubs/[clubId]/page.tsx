@@ -58,41 +58,96 @@ function SparkArea({
   const h = 56;
   const pad = 6;
 
-  const safe = values.slice(-12);
-  const max = Math.max(1, ...safe);
-  const min = Math.min(...safe);
-  const span = Math.max(1, max - min);
+  const hist = values.slice(-12);
+  const forecastN = 3;
 
-  const pts = safe.map((v, i) => {
-    const x = pad + (i * (w - pad * 2)) / (safe.length - 1);
-    const y = pad + (1 - (v - min) / span) * (h - pad * 2);
-    return { x, y, v };
+  // ---- helpers ----
+  const mean = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+  const std = (arr: number[]) => {
+    if (arr.length < 2) return 0;
+    const m = mean(arr);
+    const v = arr.reduce((acc, x) => acc + (x - m) ** 2, 0) / (arr.length - 1);
+    return Math.sqrt(v);
+  };
+
+  // ---- forecast (simple slope projection based on last 4 steps) ----
+  const last = hist[hist.length - 1] ?? 0;
+  const tail = hist.slice(-5);
+  const diffs: number[] = [];
+  for (let i = 1; i < tail.length; i++) diffs.push(tail[i] - tail[i - 1]);
+  const slope = diffs.length ? mean(diffs.slice(-4)) : 0;
+
+  const forecast: number[] = Array.from({ length: forecastN }).map((_, i) => {
+    const v = last + slope * (i + 1);
+    // keep sane bounds (avoid huge spikes in demo data)
+    return Math.max(0, Math.round(v * 100) / 100);
   });
 
-  const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
-  const area = `M ${pad},${h - pad} L ${line
-    .split(" ")
-    .join(" L ")} L ${w - pad},${h - pad} Z`;
+  const series = [...hist, ...forecast];
 
-  const last = pts[pts.length - 1];
+  // ---- moving average overlay (window 3) ----
+  const maWindow = 3;
+  const movingAvg = series.map((_, i) => {
+    const start = Math.max(0, i - (maWindow - 1));
+    const window = series.slice(start, i + 1);
+    return mean(window);
+  });
 
+  // ---- anomaly marker (z-score on last point vs baseline) ----
+  // Baseline = previous 8 historical points (excluding last)
+  const baseline = hist.slice(0, -1).slice(-8);
+  const baselineMean = mean(baseline);
+  const baselineStd = std(baseline);
+  const z = baselineStd > 0 ? (last - baselineMean) / baselineStd : 0;
+  const isAnomaly = Math.abs(z) >= 1.6; // tweak threshold to taste
+
+  // ---- scales ----
+  const max = Math.max(1, ...series);
+  const min = Math.min(...series);
+  const span = Math.max(1, max - min);
+
+  const xFor = (i: number, n: number) => pad + (i * (w - pad * 2)) / Math.max(1, n - 1);
+  const yFor = (v: number) => pad + (1 - (v - min) / span) * (h - pad * 2);
+
+  const points = series.map((v, i) => ({ x: xFor(i, series.length), y: yFor(v), v }));
+  const pointsHist = points.slice(0, hist.length);
+  const pointsFc = points.slice(hist.length - 1); // include last real point + forecast points
+
+  const ptsToStr = (pts: { x: number; y: number }[]) => pts.map((p) => `${p.x},${p.y}`).join(" ");
+
+  const lineHist = ptsToStr(pointsHist);
+  const lineFc = ptsToStr(pointsFc);
+
+  const maPts = movingAvg.map((v, i) => ({ x: xFor(i, series.length), y: yFor(v) }));
+  const lineMA = ptsToStr(maPts);
+
+  const area = `M ${pad},${h - pad} L ${pointsHist.map((p) => `${p.x},${p.y}`).join(" L ")} L ${
+    pointsHist[pointsHist.length - 1]?.x ?? w - pad
+  },${h - pad} Z`;
+
+  // ---- tones ----
   const stroke =
     tone === "emerald"
-      ? "rgba(16,185,129,0.9)"
+      ? "rgba(16,185,129,0.92)"
       : tone === "amber"
-        ? "rgba(245,158,11,0.9)"
+        ? "rgba(245,158,11,0.92)"
         : tone === "slate"
-          ? "rgba(100,116,139,0.85)"
-          : "rgba(59,130,246,0.9)";
+          ? "rgba(100,116,139,0.88)"
+          : "rgba(59,130,246,0.92)";
 
   const fill =
     tone === "emerald"
-      ? "rgba(16,185,129,0.14)"
+      ? "rgba(16,185,129,0.12)"
       : tone === "amber"
-        ? "rgba(245,158,11,0.14)"
+        ? "rgba(245,158,11,0.12)"
         : tone === "slate"
-          ? "rgba(100,116,139,0.12)"
-          : "rgba(59,130,246,0.14)";
+          ? "rgba(100,116,139,0.10)"
+          : "rgba(59,130,246,0.12)";
+
+  const maStroke = "rgba(15,23,42,0.45)"; // neutral executive overlay
+  const anomalyStroke = "rgba(244,63,94,0.95)"; // rose/red
+
+  const lastHistPt = pointsHist[pointsHist.length - 1];
 
   return (
     <div className="relative">
@@ -100,36 +155,75 @@ function SparkArea({
       <div className="pointer-events-none absolute inset-x-0 top-[18px] h-[18px] rounded-xl bg-slate-100/70" />
 
       <svg viewBox={`0 0 ${w} ${h}`} className="h-[56px] w-[150px]">
-        {/* grid lines */}
-        <line
-          x1={pad}
-          x2={w - pad}
-          y1={h / 2}
-          y2={h / 2}
-          stroke="rgba(148,163,184,0.35)"
-          strokeWidth="1"
-        />
+        {/* midline grid */}
+        <line x1={pad} x2={w - pad} y1={h / 2} y2={h / 2} stroke="rgba(148,163,184,0.30)" strokeWidth="1" />
 
-        {/* area */}
+        {/* area under HIST only */}
         <path d={area} fill={fill} />
 
-        {/* line */}
+        {/* HIST line */}
         <polyline
           fill="none"
           stroke={stroke}
           strokeWidth="2.75"
           strokeLinecap="round"
           strokeLinejoin="round"
-          points={line}
+          points={lineHist}
         />
 
-        {/* last point */}
-        <circle cx={last.x} cy={last.y} r="3.8" fill={stroke} />
-        <circle cx={last.x} cy={last.y} r="7" fill={stroke} opacity="0.12" />
+        {/* Moving average overlay (subtle dashed) */}
+        <polyline
+          fill="none"
+          stroke={maStroke}
+          strokeWidth="2"
+          strokeDasharray="4 3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={lineMA}
+          opacity="0.9"
+        />
+
+        {/* Forecast tail (dotted) */}
+        {forecastN > 0 ? (
+          <polyline
+            fill="none"
+            stroke={stroke}
+            strokeWidth="2.25"
+            strokeDasharray="2 3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            points={lineFc}
+            opacity="0.9"
+          />
+        ) : null}
+
+        {/* last real point marker */}
+        {lastHistPt ? (
+          <>
+            <circle cx={lastHistPt.x} cy={lastHistPt.y} r="3.8" fill={stroke} />
+            <circle cx={lastHistPt.x} cy={lastHistPt.y} r="7" fill={stroke} opacity="0.10" />
+
+            {/* anomaly ring */}
+            {isAnomaly ? (
+              <>
+                <circle cx={lastHistPt.x} cy={lastHistPt.y} r="6.2" fill="transparent" stroke={anomalyStroke} strokeWidth="2.2" />
+                <circle cx={lastHistPt.x} cy={lastHistPt.y} r="10" fill={anomalyStroke} opacity="0.08" />
+              </>
+            ) : null}
+          </>
+        ) : null}
       </svg>
+
+      {/* tiny anomaly caption (executive hint) */}
+      {isAnomaly ? (
+        <div className="mt-1 text-[10px] font-semibold text-rose-700">
+          Anomaly detected
+        </div>
+      ) : null}
     </div>
   );
 }
+
 
 function summarizeSeries(values: number[]) {
   const v = values.slice(-12);
