@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { useAdminGuard } from "@/lib/admin/admin-guard";
 
 type Club = { id: string; name: string };
@@ -62,7 +63,8 @@ function SparkArea({
   const forecastN = 3;
 
   // ---- helpers ----
-  const mean = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+  const mean = (arr: number[]) =>
+    arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
   const std = (arr: number[]) => {
     if (arr.length < 2) return 0;
     const m = mean(arr);
@@ -79,7 +81,6 @@ function SparkArea({
 
   const forecast: number[] = Array.from({ length: forecastN }).map((_, i) => {
     const v = last + slope * (i + 1);
-    // keep sane bounds (avoid huge spikes in demo data)
     return Math.max(0, Math.round(v * 100) / 100);
   });
 
@@ -94,26 +95,28 @@ function SparkArea({
   });
 
   // ---- anomaly marker (z-score on last point vs baseline) ----
-  // Baseline = previous 8 historical points (excluding last)
   const baseline = hist.slice(0, -1).slice(-8);
   const baselineMean = mean(baseline);
   const baselineStd = std(baseline);
   const z = baselineStd > 0 ? (last - baselineMean) / baselineStd : 0;
-  const isAnomaly = Math.abs(z) >= 1.6; // tweak threshold to taste
+  const isAnomaly = Math.abs(z) >= 1.6;
 
   // ---- scales ----
   const max = Math.max(1, ...series);
   const min = Math.min(...series);
   const span = Math.max(1, max - min);
 
-  const xFor = (i: number, n: number) => pad + (i * (w - pad * 2)) / Math.max(1, n - 1);
-  const yFor = (v: number) => pad + (1 - (v - min) / span) * (h - pad * 2);
+  const xFor = (i: number, n: number) =>
+    pad + (i * (w - pad * 2)) / Math.max(1, n - 1);
+  const yFor = (v: number) =>
+    pad + (1 - (v - min) / span) * (h - pad * 2);
 
   const points = series.map((v, i) => ({ x: xFor(i, series.length), y: yFor(v), v }));
   const pointsHist = points.slice(0, hist.length);
   const pointsFc = points.slice(hist.length - 1); // include last real point + forecast points
 
-  const ptsToStr = (pts: { x: number; y: number }[]) => pts.map((p) => `${p.x},${p.y}`).join(" ");
+  const ptsToStr = (pts: { x: number; y: number }[]) =>
+    pts.map((p) => `${p.x},${p.y}`).join(" ");
 
   const lineHist = ptsToStr(pointsHist);
   const lineFc = ptsToStr(pointsFc);
@@ -121,9 +124,9 @@ function SparkArea({
   const maPts = movingAvg.map((v, i) => ({ x: xFor(i, series.length), y: yFor(v) }));
   const lineMA = ptsToStr(maPts);
 
-  const area = `M ${pad},${h - pad} L ${pointsHist.map((p) => `${p.x},${p.y}`).join(" L ")} L ${
-    pointsHist[pointsHist.length - 1]?.x ?? w - pad
-  },${h - pad} Z`;
+  const area = `M ${pad},${h - pad} L ${pointsHist
+    .map((p) => `${p.x},${p.y}`)
+    .join(" L ")} L ${pointsHist[pointsHist.length - 1]?.x ?? w - pad},${h - pad} Z`;
 
   // ---- tones ----
   const stroke =
@@ -144,19 +147,35 @@ function SparkArea({
           ? "rgba(100,116,139,0.10)"
           : "rgba(59,130,246,0.12)";
 
-  const maStroke = "rgba(15,23,42,0.45)"; // neutral executive overlay
-  const anomalyStroke = "rgba(244,63,94,0.95)"; // rose/red
+  const maStroke = "rgba(15,23,42,0.45)";
+  const anomalyStroke = "rgba(244,63,94,0.95)";
 
   const lastHistPt = pointsHist[pointsHist.length - 1];
 
   return (
     <div className="relative">
-      {/* Target band (subtle) */}
+      {/* EXECUTIVE LABELS */}
+      <div className="absolute -top-4 right-0 flex items-center gap-2">
+        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+          Forecast: +3 sessions
+        </span>
+        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+          MA(3)
+        </span>
+      </div>
+
+      {/* Target band */}
       <div className="pointer-events-none absolute inset-x-0 top-[18px] h-[18px] rounded-xl bg-slate-100/70" />
 
       <svg viewBox={`0 0 ${w} ${h}`} className="h-[56px] w-[150px]">
-        {/* midline grid */}
-        <line x1={pad} x2={w - pad} y1={h / 2} y2={h / 2} stroke="rgba(148,163,184,0.30)" strokeWidth="1" />
+        <line
+          x1={pad}
+          x2={w - pad}
+          y1={h / 2}
+          y2={h / 2}
+          stroke="rgba(148,163,184,0.30)"
+          strokeWidth="1"
+        />
 
         {/* area under HIST only */}
         <path d={area} fill={fill} />
@@ -171,7 +190,7 @@ function SparkArea({
           points={lineHist}
         />
 
-        {/* Moving average overlay (subtle dashed) */}
+        {/* MA overlay */}
         <polyline
           fill="none"
           stroke={maStroke}
@@ -206,26 +225,33 @@ function SparkArea({
             {/* anomaly ring */}
             {isAnomaly ? (
               <>
-                <circle cx={lastHistPt.x} cy={lastHistPt.y} r="6.2" fill="transparent" stroke={anomalyStroke} strokeWidth="2.2" />
-                <circle cx={lastHistPt.x} cy={lastHistPt.y} r="10" fill={anomalyStroke} opacity="0.08" />
+                <circle
+                  cx={lastHistPt.x}
+                  cy={lastHistPt.y}
+                  r="6.2"
+                  fill="transparent"
+                  stroke={anomalyStroke}
+                  strokeWidth="2.2"
+                />
+                <circle
+                  cx={lastHistPt.x}
+                  cy={lastHistPt.y}
+                  r="10"
+                  fill={anomalyStroke}
+                  opacity="0.08"
+                />
               </>
             ) : null}
           </>
         ) : null}
       </svg>
 
-      {/* tiny anomaly caption (executive hint) */}
       {isAnomaly ? (
-        <div className="mt-1 text-[10px] font-semibold text-rose-700">
-          Anomaly detected
-        </div>
+        <div className="mt-1 text-[10px] font-semibold text-rose-700">Anomaly detected</div>
       ) : null}
     </div>
   );
-
-  
 }
-
 
 function summarizeSeries(values: number[]) {
   const v = values.slice(-12);
@@ -235,20 +261,15 @@ function summarizeSeries(values: number[]) {
   const min = Math.min(...v);
   const max = Math.max(...v);
 
-  // percent change (safe)
-  const pct =
-    first === 0 ? 0 : Math.round(((last - first) / Math.abs(first)) * 100);
+  const pct = first === 0 ? 0 : Math.round(((last - first) / Math.abs(first)) * 100);
 
-  // simple direction using first vs last
-  const direction =
-    last > first ? "Rising" : last < first ? "Falling" : "Stable";
+  const direction = last > first ? "Rising" : last < first ? "Falling" : "Stable";
 
-  // rough stability using average absolute step
   let stepSum = 0;
   for (let i = 1; i < v.length; i++) stepSum += Math.abs(v[i] - v[i - 1]);
   const avgStep = v.length > 1 ? stepSum / (v.length - 1) : 0;
   const range = Math.max(1, max - min);
-  const volatilityScore = avgStep / range; // 0..1-ish
+  const volatilityScore = avgStep / range;
 
   const stability =
     volatilityScore < 0.22 ? "Stable" : volatilityScore < 0.45 ? "Mixed" : "Volatile";
@@ -256,8 +277,7 @@ function summarizeSeries(values: number[]) {
   return { first, last, min, max, pct, direction, stability };
 }
 
-
-/** ----------------- Metric Tile (Professional KPI card) ----------------- */
+/** ----------------- Metric Tile ----------------- */
 function MetricTile({
   icon,
   title,
@@ -295,9 +315,7 @@ function MetricTile({
 
   return (
     <div className="rounded-[26px] border border-slate-200/70 bg-white/90 p-5 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.25)] backdrop-blur">
-      {/* TOP ROW ONLY: left summary + right spark */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        {/* Left: icon + labels + value */}
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTone} text-xl`}>
@@ -315,7 +333,6 @@ function MetricTile({
           </div>
         </div>
 
-        {/* Right: spark box (never overlaps) */}
         <div className="sm:shrink-0 sm:text-right">
           <div className="text-[11px] font-semibold text-slate-500">Last 12 sessions</div>
 
@@ -339,16 +356,13 @@ function MetricTile({
         </div>
       </div>
 
-      {/* BOTTOM: pills + message (stacked) */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
           Trend: {s.direction}
         </span>
-
         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
           Pattern: {s.stability}
         </span>
-
         <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
           {s.pct >= 0 ? `Up ${s.pct}%` : `Down ${Math.abs(s.pct)}%`} in 12 sessions
         </span>
@@ -358,7 +372,6 @@ function MetricTile({
     </div>
   );
 }
-
 
 /** ----------------- Charts ----------------- */
 function Gauge({ value }: { value: number }) {
@@ -371,14 +384,7 @@ function Gauge({ value }: { value: number }) {
     <div className="grid place-items-center">
       <div className="relative grid h-[180px] w-[180px] place-items-center">
         <svg viewBox="0 0 180 180" className="h-[180px] w-[180px]">
-          <circle
-            cx="90"
-            cy="90"
-            r={r}
-            fill="none"
-            stroke="rgba(148,163,184,0.35)"
-            strokeWidth="16"
-          />
+          <circle cx="90" cy="90" r={r} fill="none" stroke="rgba(148,163,184,0.35)" strokeWidth="16" />
           <circle
             cx="90"
             cy="90"
@@ -394,9 +400,7 @@ function Gauge({ value }: { value: number }) {
         </svg>
 
         <div className="absolute text-center">
-          <div className="text-5xl font-semibold tracking-tight text-slate-900">
-            {pct}%
-          </div>
+          <div className="text-5xl font-semibold tracking-tight text-slate-900">{pct}%</div>
           <div className="mt-1 text-xs font-semibold text-slate-500">Attendance</div>
           <div className="mt-2 inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
             <span className="h-2.5 w-2.5 rounded-full bg-blue-500/80" />
@@ -415,14 +419,11 @@ function BarTrend({ values }: { values: number[] }) {
   return (
     <div className="flex h-[180px] items-end gap-4">
       {values.map((v, i) => {
-        const h = Math.round((v / max) * 100);
+        const ht = Math.round((v / max) * 100);
         return (
           <div key={i} className="flex flex-col items-center gap-2">
             <div className="relative h-[150px] w-10 overflow-hidden rounded-2xl bg-slate-100">
-              <div
-                className="absolute bottom-0 left-0 right-0 rounded-2xl bg-blue-500/70"
-                style={{ height: `${h}%` }}
-              />
+              <div className="absolute bottom-0 left-0 right-0 rounded-2xl bg-blue-500/70" style={{ height: `${ht}%` }} />
               <div className="absolute inset-0 bg-gradient-to-b from-white/45 via-transparent to-transparent" />
             </div>
             <div className="h-2 w-6 rounded-full bg-slate-100" />
@@ -448,8 +449,7 @@ function LineChart({ values }: { values: number[] }) {
     return `${x},${y}`;
   });
 
-  const area = `M ${pad},${h - pad} L ${pts.join(" L ")} L ${w - pad},${h - pad
-    } Z`;
+  const area = `M ${pad},${h - pad} L ${pts.join(" L ")} L ${w - pad},${h - pad} Z`;
 
   return (
     <div className="rounded-3xl border border-slate-200/70 bg-white p-4">
@@ -459,7 +459,6 @@ function LineChart({ values }: { values: number[] }) {
       </div>
 
       <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 h-[180px] w-full">
-        {/* grid */}
         {Array.from({ length: 4 }).map((_, i) => (
           <line
             key={i}
@@ -472,9 +471,7 @@ function LineChart({ values }: { values: number[] }) {
           />
         ))}
 
-        {/* area */}
         <path d={area} fill="rgba(59,130,246,0.12)" />
-        {/* line */}
         <polyline
           fill="none"
           stroke="rgba(59,130,246,0.85)"
@@ -483,12 +480,9 @@ function LineChart({ values }: { values: number[] }) {
           strokeLinejoin="round"
           points={pts.join(" ")}
         />
-        {/* points */}
         {pts.map((p, i) => {
           const [x, y] = p.split(",").map(Number);
-          return (
-            <circle key={i} cx={x} cy={y} r="5" fill="rgba(59,130,246,0.85)" />
-          );
+          return <circle key={i} cx={x} cy={y} r="5" fill="rgba(59,130,246,0.85)" />;
         })}
       </svg>
     </div>
@@ -528,13 +522,7 @@ function InsightRow({
 }
 
 /** ----------------- Pro Analytics Screen ----------------- */
-function ProAnalyticsScreen({
-  clubId,
-  centreName,
-}: {
-  clubId: string;
-  centreName: string;
-}) {
+function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName: string }) {
   const tiles = [
     {
       icon: "👥",
@@ -579,15 +567,10 @@ function ProAnalyticsScreen({
       <div className="rounded-[28px] border border-white/70 bg-white/80 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.30)] backdrop-blur">
         <div className="flex flex-col gap-3 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="text-xs font-semibold tracking-widest text-slate-500">
-              ANALYTICS OVERVIEW
-            </div>
-            <div className="mt-1 text-xl font-semibold text-slate-900">
-              Signals, trends, and risks
-            </div>
+            <div className="text-xs font-semibold tracking-widest text-slate-500">ANALYTICS OVERVIEW</div>
+            <div className="mt-1 text-xl font-semibold text-slate-900">Signals, trends, and risks</div>
             <div className="mt-1 truncate text-sm text-slate-600">
-              {centreName} • scoped to{" "}
-              <span className="font-semibold">{clubId}</span>
+              {centreName} • scoped to <span className="font-semibold">{clubId}</span>
             </div>
           </div>
 
@@ -612,27 +595,17 @@ function ProAnalyticsScreen({
         <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.25)] backdrop-blur">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold tracking-widest text-slate-500">
-                ANALYSIS DIAGRAMS
-              </div>
-              <div className="mt-1 text-lg font-semibold text-slate-900">
-                Centre performance visuals
-              </div>
-              <div className="mt-1 text-sm text-slate-600">
-                Attendance, engagement, and delivery consistency in one place.
-              </div>
+              <div className="text-xs font-semibold tracking-widest text-slate-500">ANALYSIS DIAGRAMS</div>
+              <div className="mt-1 text-lg font-semibold text-slate-900">Centre performance visuals</div>
+              <div className="mt-1 text-sm text-slate-600">Attendance, engagement, and delivery consistency in one place.</div>
             </div>
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-50 text-lg">
-              📈
-            </div>
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-50 text-lg">📈</div>
           </div>
 
           <div className="mt-5 grid gap-6 lg:grid-cols-2">
             <div className="rounded-3xl border border-slate-200/70 bg-white p-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">
-                  Attendance gauge
-                </div>
+                <div className="text-sm font-semibold text-slate-900">Attendance gauge</div>
                 <div className="text-xs text-slate-500">this term</div>
               </div>
               <div className="mt-4">
@@ -642,9 +615,7 @@ function ProAnalyticsScreen({
 
             <div className="rounded-3xl border border-slate-200/70 bg-white p-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">
-                  Weekly delivery trend
-                </div>
+                <div className="text-sm font-semibold text-slate-900">Weekly delivery trend</div>
                 <div className="text-xs text-slate-500">last 6</div>
               </div>
               <div className="mt-5">
@@ -661,19 +632,11 @@ function ProAnalyticsScreen({
         <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.25)] backdrop-blur">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold tracking-widest text-slate-500">
-                AI INSIGHTS
-              </div>
-              <div className="mt-1 text-lg font-semibold text-slate-900">
-                What’s happening + next actions
-              </div>
-              <div className="mt-1 text-sm text-slate-600">
-                Admin-ready recommendations (wire later).
-              </div>
+              <div className="text-xs font-semibold tracking-widest text-slate-500">AI INSIGHTS</div>
+              <div className="mt-1 text-lg font-semibold text-slate-900">What’s happening + next actions</div>
+              <div className="mt-1 text-sm text-slate-600">Admin-ready recommendations (wire later).</div>
             </div>
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-50 text-lg">
-              🧠
-            </div>
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-50 text-lg">🧠</div>
           </div>
 
           <div className="mt-5 space-y-3">
@@ -698,9 +661,7 @@ function ProAnalyticsScreen({
           </div>
 
           <div className="mt-5 rounded-3xl border border-slate-200/70 bg-slate-50 p-5">
-            <div className="text-xs font-semibold tracking-widest text-slate-500">
-              RECOMMENDED NEXT
-            </div>
+            <div className="text-xs font-semibold tracking-widest text-slate-500">RECOMMENDED NEXT</div>
             <ul className="mt-3 space-y-2 text-sm text-slate-700">
               <li>• Generate student access links for new learners</li>
               <li>• Complete Term → Session mapping for Term 1</li>
@@ -714,7 +675,7 @@ function ProAnalyticsScreen({
   );
 }
 
-/** ----------------- Generic Card + Tiles ----------------- */
+/** ----------------- Generic Card ----------------- */
 function Card({
   title,
   icon,
@@ -723,17 +684,15 @@ function Card({
 }: {
   title: string;
   icon?: string;
-  right?: React.ReactNode;
-  children: React.ReactNode;
+  right?: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="rounded-[22px] border border-slate-200/70 bg-white shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)]">
       <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           {icon ? (
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
-              {icon}
-            </div>
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">{icon}</div>
           ) : null}
           <h3 className="truncate text-base font-semibold text-slate-900">{title}</h3>
         </div>
@@ -744,52 +703,13 @@ function Card({
   );
 }
 
-function ActionTile({
-  title,
-  desc,
-  icon,
-  href,
-  badge,
+function InsightPill({
+  tone,
+  label,
 }: {
-  title: string;
-  desc: string;
-  icon: string;
-  href: string;
-  badge?: string;
+  tone: "good" | "warn" | "info";
+  label: string;
 }) {
-  return (
-    <Link
-      href={href}
-      className="group rounded-[22px] border border-slate-200/70 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
-            {badge ? (
-              <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-                {badge}
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-1 text-xs text-slate-600">{desc}</p>
-        </div>
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-lg">
-          {icon}
-        </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between">
-        <p className="text-xs text-slate-500">Open</p>
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition group-hover:bg-slate-50">
-          →
-        </span>
-      </div>
-    </Link>
-  );
-}
-
-function InsightPill({ tone, label }: { tone: "good" | "warn" | "info"; label: string }) {
   const cls =
     tone === "good"
       ? "bg-emerald-50 text-emerald-800 border-emerald-200"
@@ -804,7 +724,7 @@ function InsightPill({ tone, label }: { tone: "good" | "warn" | "info"; label: s
   );
 }
 
-/** ----------------- Small Donut + Mini Bars ----------------- */
+/** ----------------- Mini visuals ----------------- */
 function Donut({ value = 92, label = "Attendance" }: { value?: number; label?: string }) {
   const pct = Math.max(0, Math.min(100, value));
   const r = 54;
@@ -857,11 +777,11 @@ function MiniBars({ values }: { values: number[] }) {
   return (
     <div className="flex h-[140px] items-end gap-3 pr-2">
       {values.map((v, idx) => {
-        const h = Math.round((v / max) * 100);
+        const ht = Math.round((v / max) * 100);
         return (
           <div key={idx} className="flex w-10 flex-col items-center gap-2">
             <div className="relative h-[120px] w-10 overflow-hidden rounded-2xl bg-slate-100">
-              <div className="absolute bottom-0 left-0 right-0 rounded-2xl bg-blue-500/70" style={{ height: `${h}%` }} />
+              <div className="absolute bottom-0 left-0 right-0 rounded-2xl bg-blue-500/70" style={{ height: `${ht}%` }} />
               <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-transparent" />
             </div>
             <div className="h-2 w-6 rounded-full bg-slate-100" />
@@ -869,6 +789,176 @@ function MiniBars({ values }: { values: number[] }) {
         );
       })}
     </div>
+  );
+}
+
+/** ----------------- Sidebar ----------------- */
+function NavItem({
+  href,
+  icon,
+  label,
+  desc,
+  badge,
+  onNavigate,
+}: {
+  href: string;
+  icon: string;
+  label: string;
+  desc?: string;
+  badge?: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className="group flex items-start gap-3 rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-3 shadow-[0_10px_28px_-24px_rgba(2,6,23,0.35)] transition hover:-translate-y-[1px] hover:bg-white"
+    >
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-lg">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-semibold text-slate-900">{label}</p>
+          {badge ? (
+            <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+              {badge}
+            </span>
+          ) : null}
+        </div>
+        {desc ? <p className="mt-0.5 text-xs text-slate-600">{desc}</p> : null}
+      </div>
+      <span className="ml-auto mt-2 shrink-0 text-slate-400 transition group-hover:text-slate-700">›</span>
+    </Link>
+  );
+}
+
+function Sidebar({
+  clubId,
+  clubName,
+  onNavigate,
+}: {
+  clubId: string;
+  clubName: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <aside className="flex h-full w-full flex-col gap-4">
+      <div className="rounded-[22px] border border-white/70 bg-white/80 p-4 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.30)] backdrop-blur">
+        <div className="text-xs font-semibold tracking-widest text-slate-500">CENTRE</div>
+        <div className="mt-1 text-lg font-semibold text-slate-900">{clubName}</div>
+        <div className="mt-1 truncate text-xs text-slate-600">
+          ID: <span className="font-semibold">{clubId}</span>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+            Data: <span className="ml-2 text-emerald-700">Live</span>
+          </span>
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+            Quality: <span className="ml-2 text-sky-700">Strong</span>
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-[22px] border border-white/70 bg-white/75 p-4 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.26)] backdrop-blur">
+        <div className="text-xs font-semibold tracking-widest text-slate-500">ADMIN CONTROLS</div>
+
+        <div className="mt-3 space-y-2">
+          <NavItem
+            href={`/app/admin/clubs/${clubId}/sessions`}
+            icon="🗓️"
+            label="Sessions"
+            desc="Create & manage delivery"
+            badge="Core"
+            onNavigate={onNavigate}
+          />
+          <NavItem
+            href={`/app/admin/clubs/${clubId}/attendance`}
+            icon="✅"
+            label="Attendance"
+            desc="Registers, notes, flags"
+            badge="Core"
+            onNavigate={onNavigate}
+          />
+          <NavItem
+            href={`/app/admin/clubs/${clubId}/terms`}
+            icon="📚"
+            label="Terms & Lessons"
+            desc="Structure + mapping"
+            onNavigate={onNavigate}
+          />
+          <NavItem
+            href={`/app/admin/clubs/${clubId}/challenges`}
+            icon="🏆"
+            label="Challenges"
+            desc="Outcomes & scoring"
+            onNavigate={onNavigate}
+          />
+          <NavItem
+            href={`/app/admin/clubs/${clubId}/activities`}
+            icon="🤖"
+            label="Robotics Activities"
+            desc="Builds, kits, uploads"
+            onNavigate={onNavigate}
+          />
+          <NavItem
+            href={`/app/admin/clubs/${clubId}/reports`}
+            icon="📈"
+            label="Reports"
+            desc="Parent + funder ready"
+            onNavigate={onNavigate}
+          />
+        </div>
+
+        <div className="mt-4 border-t border-slate-200/60 pt-4">
+          <div className="text-xs font-semibold tracking-widest text-slate-500">PEOPLE</div>
+          <div className="mt-3 space-y-2">
+            <NavItem
+              href={`/app/admin/clubs/${clubId}/people`}
+              icon="👥"
+              label="People Management"
+              desc="Teachers, students, parents"
+              onNavigate={onNavigate}
+            />
+            <NavItem
+              href={`/app/admin/clubs/${clubId}/students`}
+              icon="🧒🏽"
+              label="Student Access"
+              desc="Generate link / PIN"
+              onNavigate={onNavigate}
+            />
+            <NavItem
+              href={`/app/admin/clubs/${clubId}/parents`}
+              icon="👨‍👩‍👧‍👦"
+              label="Parent Linking"
+              desc="Connect parent accounts"
+              onNavigate={onNavigate}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-[22px] border border-white/70 bg-white/75 p-4 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.22)] backdrop-blur">
+        <div className="text-xs font-semibold tracking-widest text-slate-500">QUICK ACTIONS</div>
+        <div className="mt-3 grid gap-2">
+          <Link
+            href="/app/admin"
+            onClick={onNavigate}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          >
+            ← Back to Admin
+          </Link>
+          <Link
+            href="/app/admin/invites"
+            onClick={onNavigate}
+            className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Invite users
+          </Link>
+        </div>
+      </div>
+    </aside>
   );
 }
 
@@ -883,6 +973,8 @@ export default function ClubCentreDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [club, setClub] = useState<Club | null>(null);
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   useEffect(() => {
     if (checking) return;
 
@@ -891,12 +983,7 @@ export default function ClubCentreDashboardPage() {
     async function loadClub() {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("clubs")
-          .select("id, name")
-          .eq("id", clubId)
-          .single();
-
+        const { data, error } = await supabase.from("clubs").select("id, name").eq("id", clubId).single();
         if (error) throw error;
         if (!cancelled) setClub(data as Club);
       } catch {
@@ -941,273 +1028,334 @@ export default function ClubCentreDashboardPage() {
     );
   }
 
+  const centreName = formatTitle(club?.name);
+
   return (
     <main className="relative min-h-screen w-full overflow-x-clip text-slate-900">
       <SoftBg />
 
-      {/* Fixed header */}
-      <header className="fixed inset-x-0 top-0 z-50 w-full max-w-[100vw] overflow-x-clip border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-widest text-slate-500">
-              ADMIN • {formatTitle(club?.name)}
-            </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
-              Club Command Centre
-            </h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Sessions, terms, attendance, challenges, robotics activity, and AI insights — all scoped to this centre.
-              <span className="ml-2 hidden sm:inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">
-                ID: {clubId}
-              </span>
-            </p>
+      {/* MOBILE TOP BAR */}
+      <div className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          >
+            ☰
+          </button>
+
+          <div className="min-w-0 text-center">
+            <div className="truncate text-sm font-semibold text-slate-900">Club Command Centre</div>
+            <div className="truncate text-xs text-slate-600">{centreName}</div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/app/admin"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            >
-              ← Back
-            </Link>
+          <button
+            type="button"
+            onClick={() => logout("manual")}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
 
-            <Link
-              href="/app/admin/invites"
-              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              Invite users
-            </Link>
+      {/* MOBILE SIDEBAR DRAWER */}
+      {sidebarOpen ? (
+        <div className="fixed inset-0 z-[60] lg:hidden">
+          <div
+            className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[360px] overflow-y-auto border-r border-slate-200 bg-slate-50/60 p-4 backdrop-blur-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-semibold text-slate-900">Admin Menu</div>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              >
+                ✕
+              </button>
+            </div>
 
+            <Sidebar
+              clubId={clubId}
+              clubName={centreName}
+              onNavigate={() => setSidebarOpen(false)}
+            />
+
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarOpen(false);
+                  logout("manual");
+                }}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* DESKTOP LAYOUT */}
+      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6">
+        {/* LEFT SIDEBAR (desktop) */}
+        <div className="sticky top-6 hidden h-[calc(100vh-24px)] w-[340px] shrink-0 overflow-y-auto lg:block">
+          <Sidebar clubId={clubId} clubName={centreName} />
+          <div className="mt-4">
             <button
               type="button"
               onClick={() => logout("manual")}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
             >
               Logout
             </button>
           </div>
         </div>
-      </header>
 
-      {/* spacer for fixed header */}
-      <div aria-hidden className="h-[118px] md:h-[92px]" />
+        {/* MAIN CONTENT */}
+        <div className="min-w-0 flex-1 pb-10">
+          {/* Desktop top header (inside content) */}
+          <div className="hidden lg:block">
+            <div className="rounded-[22px] border border-white/70 bg-white/80 p-5 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.28)] backdrop-blur">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold tracking-widest text-slate-500">ADMIN • {centreName}</p>
+                  <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Club Command Centre</h1>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Sessions, terms, attendance, challenges, robotics activity, and AI insights — all scoped to this centre.
+                    <span className="ml-2 inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">
+                      ID: {clubId}
+                    </span>
+                  </p>
+                </div>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 pt-4 md:pt-6">
-        {/* Pro analytics overview (like screenshot) */}
-        <ProAnalyticsScreen clubId={clubId} centreName={formatTitle(club?.name)} />
-
-        {/* MAIN GRID: Left + Right */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr] lg:items-start">
-          {/* LEFT */}
-          <div className="space-y-6">
-            <Card
-              title="Admin Control Hub"
-              icon="🧭"
-              right={<span className="text-xs font-semibold text-slate-500">School-grade controls</span>}
-            >
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ActionTile title="Create Session" desc="Schedule weekly delivery + map to term weeks" icon="🗓️" badge="Core" href={`/app/admin/clubs/${clubId}/sessions`} />
-                <ActionTile title="Take Attendance" desc="Fast register + behaviour notes + flags" icon="✅" badge="Core" href={`/app/admin/clubs/${clubId}/attendance`} />
-                <ActionTile title="Terms & Lessons" desc="Build term structure, lesson list, and mapping" icon="📚" href={`/app/admin/clubs/${clubId}/terms`} />
-                <ActionTile title="Challenges" desc="Track challenge performance + outcomes" icon="🏆" href={`/app/admin/clubs/${clubId}/challenges`} />
-                <ActionTile title="Robotics Activities" desc="Log builds, kits, photos, and learning outcomes" icon="🤖" href={`/app/admin/clubs/${clubId}/activities`} />
-                <ActionTile title="Reports" desc="Parent-ready + funder-ready summaries" icon="📈" href={`/app/admin/clubs/${clubId}/reports`} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href="/app/admin"
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                  >
+                    ← Back
+                  </Link>
+                  <Link
+                    href="/app/admin/invites"
+                    className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    Invite users
+                  </Link>
+                </div>
               </div>
-            </Card>
+            </div>
+          </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
+          {/* EXEC DASHBOARD (analytics stays central) */}
+          <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
+
+          {/* MAIN GRID: Left + Right */}
+          <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr] lg:items-start">
+            {/* LEFT */}
+            <div className="space-y-6">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Card
+                  title="Upcoming Sessions"
+                  icon="📋"
+                  right={
+                    <Link className="text-sm font-semibold text-slate-700 hover:text-slate-900" href={`/app/admin/clubs/${clubId}/sessions`}>
+                      View all
+                    </Link>
+                  }
+                >
+                  <div className="divide-y divide-slate-200/70 overflow-hidden rounded-2xl border border-slate-200/70 bg-white">
+                    {upcoming.map((x) => (
+                      <div key={x.title} className="flex items-center justify-between gap-4 px-4 py-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">{x.icon}</div>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-slate-900">{x.title}</div>
+                            <div className="text-xs text-slate-500">Centre schedule</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-slate-700">{x.when}</div>
+                            <div className="text-xs text-slate-500">{x.time}</div>
+                          </div>
+                          <span className="text-slate-400">›</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                <Card
+                  title="Attendance Overview"
+                  icon="📊"
+                  right={
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+                      Recent sessions
+                    </span>
+                  }
+                >
+                  <div className="grid gap-6 lg:grid-cols-[220px_1fr] lg:items-center">
+                    <Donut value={92} label="Attendance" />
+                    <div className="rounded-2xl border border-slate-200/70 bg-white px-4 py-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div className="text-sm font-semibold text-slate-900">Weekly trend</div>
+                        <div className="text-xs text-slate-500">last 6</div>
+                      </div>
+                      <MiniBars values={[120, 160, 140, 180, 210, 260]} />
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
               <Card
-                title="Upcoming Sessions"
-                icon="📋"
+                title="People Management"
+                icon="👥"
                 right={
-                  <Link className="text-sm font-semibold text-slate-700 hover:text-slate-900" href={`/app/admin/clubs/${clubId}/sessions`}>
-                    View all
+                  <Link className="text-sm font-semibold text-slate-700 hover:text-slate-900" href={`/app/admin/clubs/${clubId}/people`}>
+                    Manage
                   </Link>
                 }
               >
-                <div className="divide-y divide-slate-200/70 overflow-hidden rounded-2xl border border-slate-200/70 bg-white">
-                  {upcoming.map((x) => (
-                    <div key={x.title} className="flex items-center justify-between gap-4 px-4 py-4">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">{x.icon}</div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                    <p className="text-xs font-semibold tracking-widest text-slate-500">TEACHERS</p>
+                    <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">—</p>
+                    <p className="mt-1 text-xs text-slate-500">Active staff this term</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                    <p className="text-xs font-semibold tracking-widest text-slate-500">STUDENTS</p>
+                    <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">120</p>
+                    <p className="mt-1 text-xs text-slate-500">Enrolled learners</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                    <p className="text-xs font-semibold tracking-widest text-slate-500">PARENTS</p>
+                    <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">—</p>
+                    <p className="mt-1 text-xs text-slate-500">Linked accounts</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <InsightPill tone="good" label="Engagement rising" />
+                  <InsightPill tone="info" label="Portfolio update needed" />
+                  <InsightPill tone="warn" label="2 missing links" />
+                </div>
+              </Card>
+
+              <div className="rounded-[22px] border border-slate-200/70 bg-white p-4 text-sm text-slate-600 shadow-[0_16px_50px_-40px_rgba(2,6,23,0.22)]">
+                <span className="font-semibold text-slate-900">Next step:</span> wire every block to Supabase and filter by centre ID:{" "}
+                <span className="font-semibold">{clubId}</span>.{" "}
+                <span className="text-slate-500">(UI is ready — data layer comes next.)</span>
+              </div>
+            </div>
+
+            {/* RIGHT */}
+            <div className="space-y-6">
+              <Card title="AI Analytics & Insights" icon="🧠" right={<span className="text-xs font-semibold text-slate-500">Preview layer</span>}>
+                <div className="grid gap-3">
+                  {[
+                    {
+                      title: "Parent Insight",
+                      desc: "Highlights for parents: attendance pattern, engagement trend, photo uploads, strengths.",
+                      icon: "👨‍👩‍👧‍👦",
+                      pills: [
+                        <InsightPill key="p1" tone="good" label="Engagement rising" />,
+                        <InsightPill key="p2" tone="info" label="Portfolio update needed" />,
+                      ],
+                    },
+                    {
+                      title: "Student Insight",
+                      desc: "Fun, visual progress: builds completed, badges, challenge milestones.",
+                      icon: "🧒🏽",
+                      pills: [
+                        <InsightPill key="s1" tone="good" label="2 badges earned" />,
+                        <InsightPill key="s2" tone="info" label="New build uploaded" />,
+                      ],
+                    },
+                    {
+                      title: "Session Quality",
+                      desc: "Flags delivery issues: low participation, missing notes, repeated absences.",
+                      icon: "🗒️",
+                      pills: [
+                        <InsightPill key="q1" tone="warn" label="2 missing registers" />,
+                        <InsightPill key="q2" tone="good" label="Strong session notes" />,
+                      ],
+                    },
+                    {
+                      title: "Challenge Performance",
+                      desc: "Tracks challenge outcomes, common errors, and improvement suggestions.",
+                      icon: "🏆",
+                      pills: [
+                        <InsightPill key="c1" tone="info" label="Top skill: teamwork" />,
+                        <InsightPill key="c2" tone="warn" label="Needs: problem-solving" />,
+                      ],
+                    },
+                  ].map((x) => (
+                    <div key={x.title} className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-slate-900">{x.title}</div>
-                          <div className="text-xs text-slate-500">Centre schedule</div>
+                          <p className="text-sm font-semibold text-slate-900">{x.title}</p>
+                          <p className="mt-1 text-xs text-slate-600">{x.desc}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">{x.pills}</div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <div className="text-sm font-semibold text-slate-700">{x.when}</div>
-                          <div className="text-xs text-slate-500">{x.time}</div>
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-lg">
+                          {x.icon}
                         </div>
-                        <span className="text-slate-400">›</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </Card>
 
-              <Card
-                title="Attendance Overview"
-                icon="📊"
-                right={
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-                    Recent sessions
-                  </span>
-                }
-              >
-                <div className="grid gap-6 lg:grid-cols-[220px_1fr] lg:items-center">
-                  <Donut value={92} label="Attendance" />
-                  <div className="rounded-2xl border border-slate-200/70 bg-white px-4 py-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="text-sm font-semibold text-slate-900">Weekly trend</div>
-                      <div className="text-xs text-slate-500">last 6</div>
+              <Card title="Alerts & Admin To-Do" icon="🚦" right={<span className="text-xs font-semibold text-slate-500">Live later</span>}>
+                <div className="space-y-3">
+                  {alerts.map((a, idx) => (
+                    <div key={idx} className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900">{a.title}</p>
+                          <p className="mt-1 text-xs text-slate-600">Click into the relevant section to resolve.</p>
+                        </div>
+                        <InsightRow title="" desc="" tone={a.tone} tag={a.tag} />
+                      </div>
                     </div>
-                    <MiniBars values={[120, 160, 140, 180, 210, 260]} />
-                  </div>
+                  ))}
+                </div>
+              </Card>
+
+              <Card title="Centre Setup Quality" icon="🧩">
+                <div className="space-y-3">
+                  {[
+                    { t: "Term weeks mapped to sessions", ok: true },
+                    { t: "At least 1 teacher assigned", ok: true },
+                    { t: "Attendance templates ready", ok: true },
+                    { t: "Parent linking enabled", ok: false },
+                    { t: "Challenge rubric created", ok: false },
+                  ].map((x) => (
+                    <div key={x.t} className="flex items-start gap-3 rounded-2xl border border-slate-200/70 bg-white p-3">
+                      <div
+                        className={[
+                          "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border",
+                          x.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-500",
+                        ].join(" ")}
+                      >
+                        {x.ok ? "✓" : "•"}
+                      </div>
+                      <p className="text-sm text-slate-700">{x.t}</p>
+                    </div>
+                  ))}
                 </div>
               </Card>
             </div>
-
-            <Card
-              title="People Management"
-              icon="👥"
-              right={
-                <Link className="text-sm font-semibold text-slate-700 hover:text-slate-900" href={`/app/admin/clubs/${clubId}/people`}>
-                  Manage
-                </Link>
-              }
-            >
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                  <p className="text-xs font-semibold tracking-widest text-slate-500">TEACHERS</p>
-                  <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">—</p>
-                  <p className="mt-1 text-xs text-slate-500">Active staff this term</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                  <p className="text-xs font-semibold tracking-widest text-slate-500">STUDENTS</p>
-                  <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">120</p>
-                  <p className="mt-1 text-xs text-slate-500">Enrolled learners</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                  <p className="text-xs font-semibold tracking-widest text-slate-500">PARENTS</p>
-                  <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">—</p>
-                  <p className="mt-1 text-xs text-slate-500">Linked accounts</p>
-                </div>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <ActionTile title="Create Student Access" desc="Generate access link / pin for student dashboard" icon="🧒🏽" href={`/app/admin/clubs/${clubId}/students`} />
-                <ActionTile title="Create Parent Access" desc="Link parent accounts to learners" icon="👨‍👩‍👧‍👦" href={`/app/admin/clubs/${clubId}/parents`} />
-              </div>
-            </Card>
-          </div>
-
-          {/* RIGHT */}
-          <div className="space-y-6">
-            <Card title="AI Analytics & Insights" icon="🧠" right={<span className="text-xs font-semibold text-slate-500">Preview layer</span>}>
-              <div className="grid gap-3">
-                {[
-                  {
-                    title: "Parent Insight",
-                    desc: "Highlights for parents: attendance pattern, engagement trend, photo uploads, strengths.",
-                    icon: "👨‍👩‍👧‍👦",
-                    pills: [
-                      <InsightPill key="p1" tone="good" label="Engagement rising" />,
-                      <InsightPill key="p2" tone="info" label="Portfolio update needed" />,
-                    ],
-                  },
-                  {
-                    title: "Student Insight",
-                    desc: "Fun, visual progress: builds completed, badges, challenge milestones.",
-                    icon: "🧒🏽",
-                    pills: [
-                      <InsightPill key="s1" tone="good" label="2 badges earned" />,
-                      <InsightPill key="s2" tone="info" label="New build uploaded" />,
-                    ],
-                  },
-                  {
-                    title: "Session Quality",
-                    desc: "Flags delivery issues: low participation, missing notes, repeated absences.",
-                    icon: "🗒️",
-                    pills: [
-                      <InsightPill key="q1" tone="warn" label="2 missing registers" />,
-                      <InsightPill key="q2" tone="good" label="Strong session notes" />,
-                    ],
-                  },
-                  {
-                    title: "Challenge Performance",
-                    desc: "Tracks challenge outcomes, common errors, and improvement suggestions.",
-                    icon: "🏆",
-                    pills: [
-                      <InsightPill key="c1" tone="info" label="Top skill: teamwork" />,
-                      <InsightPill key="c2" tone="warn" label="Needs: problem-solving" />,
-                    ],
-                  },
-                ].map((x) => (
-                  <div key={x.title} className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">{x.title}</p>
-                        <p className="mt-1 text-xs text-slate-600">{x.desc}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">{x.pills}</div>
-                      </div>
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-lg">{x.icon}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card title="Alerts & Admin To-Do" icon="🚦" right={<span className="text-xs font-semibold text-slate-500">Live later</span>}>
-              <div className="space-y-3">
-                {alerts.map((a, idx) => (
-                  <div key={idx} className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white p-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">{a.title}</p>
-                      <p className="mt-1 text-xs text-slate-600">Click into the relevant section to resolve.</p>
-                    </div>
-                    <InsightRow title="" desc="" tone={a.tone} tag={a.tag} />
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card title="Centre Setup Quality" icon="🧩">
-              <div className="space-y-3">
-                {[
-                  { t: "Term weeks mapped to sessions", ok: true },
-                  { t: "At least 1 teacher assigned", ok: true },
-                  { t: "Attendance templates ready", ok: true },
-                  { t: "Parent linking enabled", ok: false },
-                  { t: "Challenge rubric created", ok: false },
-                ].map((x) => (
-                  <div key={x.t} className="flex items-start gap-3 rounded-2xl border border-slate-200/70 bg-white p-3">
-                    <div
-                      className={[
-                        "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border",
-                        x.ok
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-slate-200 bg-slate-50 text-slate-500",
-                      ].join(" ")}
-                    >
-                      {x.ok ? "✓" : "•"}
-                    </div>
-                    <p className="text-sm text-slate-700">{x.t}</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
           </div>
         </div>
-
-        <div className="mt-6 rounded-[22px] border border-slate-200/70 bg-white p-4 text-sm text-slate-600 shadow-[0_16px_50px_-40px_rgba(2,6,23,0.22)]">
-          <span className="font-semibold text-slate-900">Next step:</span> wire every block to Supabase and filter by centre ID:{" "}
-          <span className="font-semibold">{clubId}</span>.{" "}
-          <span className="text-slate-500">(UI is ready — data layer comes next.)</span>
-        </div>
-      </section>
+      </div>
     </main>
   );
 }
