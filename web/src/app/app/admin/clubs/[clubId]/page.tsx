@@ -45,110 +45,65 @@ function TopBar({
   return (
     <header className="sticky top-0 z-50">
       {/* subtle glow / modern depth */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/80 via-white/40 to-transparent" />
-      <div className="border-b border-slate-200/70 bg-white/70 backdrop-blur-xl">
-        <div className="w-full px-4 py-3 lg:px-6">
-          <div className="flex items-center justify-between gap-3">
-            {/* LEFT */}
-            <div className="flex min-w-0 items-center gap-3">
-              {/* Mobile menu */}
-              {onOpenSidebar ? (
-                <button
-                  type="button"
-                  onClick={onOpenSidebar}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white/80 text-slate-900 shadow-sm hover:bg-white lg:hidden"
-                  aria-label="Open sidebar"
-                >
-                  ☰
-                </button>
-              ) : null}
+      {/* EXECUTIVE HEADER */}
+<div className="hidden lg:block sticky top-0 z-40">
+  <div className="relative overflow-hidden border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
+    {/* subtle gradient wash */}
+    <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-indigo-600/10 via-sky-500/10 to-emerald-500/10" />
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.06),transparent_60%)]" />
 
-              {/* Brand mark */}
-              <div className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white text-lg shadow-sm sm:flex">
-                🧭
-              </div>
-
-              {/* Title + breadcrumb */}
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                    ADMIN
-                  </span>
-
-                  <div className="hidden text-xs text-slate-400 sm:block">/</div>
-
-                  <p className="truncate text-sm font-semibold text-slate-900 sm:text-base">
-                    Club Command Centre
-                  </p>
-                </div>
-
-                <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-2">
-                  <p className="truncate text-xs text-slate-600 sm:text-sm">
-                    <span className="font-semibold text-slate-800">
-                      {centreName}
-                    </span>
-                  </p>
-
-                  <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:inline-block" />
-
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-                    ID: {clubId}
-                  </span>
-
-                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Live
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT */}
-            <div className="flex shrink-0 items-center gap-2">
-              {/* Desktop actions */}
-              <div className="hidden items-center gap-2 sm:flex">
-                <Link
-                  href="/app/admin"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
-                >
-                  ← Back
-                </Link>
-
-                <Link
-                  href="/app/admin/invites"
-                  className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
-                >
-                  Invite users
-                </Link>
-              </div>
-
-              <button
-                type="button"
-                onClick={onLogout}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-
-          {/* MOBILE ACTIONS ROW (modern pills) */}
-          <div className="mt-3 flex gap-2 sm:hidden">
-            <Link
-              href="/app/admin"
-              className="flex-1 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
-            >
-              ← Back
-            </Link>
-            <Link
-              href="/app/admin/invites"
-              className="flex-1 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
-            >
-              Invite
-            </Link>
-          </div>
+    <div className="relative flex w-full items-center justify-between px-6 py-5">
+      {/* LEFT: Identity */}
+      <div className="min-w-0">
+        <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
+          Admin · {centreName}
+        </p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">
+          Club Command Centre
+        </h1>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-300">
+          <span>
+            Sessions, attendance, challenges, robotics activity & AI insights
+          </span>
+          <span className="hidden sm:inline text-slate-500">•</span>
+          <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-slate-200">
+            ID: {clubId}
+          </span>
         </div>
       </div>
+
+      {/* RIGHT: Status + Actions */}
+      <div className="flex items-center gap-3">
+        {/* Status pills */}
+        <div className="hidden md:flex items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            Live data
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">
+            Quality: Strong
+          </span>
+        </div>
+
+        {/* Actions */}
+        <Link
+          href="/app/admin"
+          className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
+        >
+          ← Back
+        </Link>
+
+        <Link
+          href="/app/admin/invites"
+          className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+        >
+          Invite users
+        </Link>
+      </div>
+    </div>
+  </div>
+</div>
+
     </header>
   );
 }
