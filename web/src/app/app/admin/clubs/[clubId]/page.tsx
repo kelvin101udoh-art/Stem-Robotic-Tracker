@@ -131,6 +131,35 @@ function SparkArea({
   );
 }
 
+function summarizeSeries(values: number[]) {
+  const v = values.slice(-12);
+  const first = v[0] ?? 0;
+  const last = v[v.length - 1] ?? 0;
+
+  const min = Math.min(...v);
+  const max = Math.max(...v);
+
+  // percent change (safe)
+  const pct =
+    first === 0 ? 0 : Math.round(((last - first) / Math.abs(first)) * 100);
+
+  // simple direction using first vs last
+  const direction =
+    last > first ? "Rising" : last < first ? "Falling" : "Stable";
+
+  // rough stability using average absolute step
+  let stepSum = 0;
+  for (let i = 1; i < v.length; i++) stepSum += Math.abs(v[i] - v[i - 1]);
+  const avgStep = v.length > 1 ? stepSum / (v.length - 1) : 0;
+  const range = Math.max(1, max - min);
+  const volatilityScore = avgStep / range; // 0..1-ish
+
+  const stability =
+    volatilityScore < 0.22 ? "Stable" : volatilityScore < 0.45 ? "Mixed" : "Volatile";
+
+  return { first, last, min, max, pct, direction, stability };
+}
+
 
 /** ----------------- Metric Tile (Professional KPI card) ----------------- */
 function MetricTile({
@@ -159,6 +188,10 @@ function MetricTile({
           ? "bg-sky-50 text-sky-700"
           : "bg-slate-50 text-slate-700";
 
+
+  const s = summarizeSeries(values);
+
+
   return (
     <div className="rounded-[26px] border border-slate-200/70 bg-white/90 p-5 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.25)] backdrop-blur">
       <div className="flex items-start justify-between gap-4">
@@ -183,17 +216,54 @@ function MetricTile({
           </div>
         </div>
 
+
+
         <div className="hidden sm:block text-right">
-          <div className="text-[11px] font-semibold text-slate-500">Last 12</div>
+          <div className="text-[11px] font-semibold text-slate-500">Last 12 sessions</div>
 
           <div className="mt-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
             <SparkArea values={values} tone={tone} />
+
             <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
-              <span>Low</span>
-              <span>High</span>
+              <span>12 sessions ago</span>
+              <span>Now</span>
+            </div>
+
+            {/* quick context numbers */}
+            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+              <span>
+                Min: <span className="font-semibold text-slate-700">{s.min}</span>
+              </span>
+              <span>
+                Max: <span className="font-semibold text-slate-700">{s.max}</span>
+              </span>
             </div>
           </div>
         </div>
+
+
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+            Trend: {s.direction}
+          </span>
+
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+            Pattern: {s.stability}
+          </span>
+
+          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+            {s.pct >= 0 ? `Up ${s.pct}%` : `Down ${Math.abs(s.pct)}%`} in 12 sessions
+          </span>
+        </div>
+
+        <p className="mt-2 text-xs text-slate-600">
+          {s.direction === "Rising"
+            ? "Good news: performance is improving across recent sessions."
+            : s.direction === "Falling"
+              ? "Attention needed: performance is dropping in recent sessions."
+              : "Steady: performance is consistent across recent sessions."}
+        </p>
 
 
 
