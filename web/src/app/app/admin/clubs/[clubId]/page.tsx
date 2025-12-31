@@ -188,18 +188,23 @@ function MetricTile({
           ? "bg-sky-50 text-sky-700"
           : "bg-slate-50 text-slate-700";
 
-
   const s = summarizeSeries(values);
 
+  const message =
+    s.direction === "Rising"
+      ? "Good news: performance is improving across recent sessions."
+      : s.direction === "Falling"
+        ? "Attention needed: performance is dropping in recent sessions."
+        : "Steady: performance is consistent across recent sessions.";
 
   return (
     <div className="rounded-[26px] border border-slate-200/70 bg-white/90 p-5 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.25)] backdrop-blur">
-      <div className="flex items-start justify-between gap-4">
+      {/* TOP ROW ONLY: left summary + right spark */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        {/* Left: icon + labels + value */}
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <div
-              className={`grid h-11 w-11 place-items-center rounded-2xl ${iconTone} text-xl`}
-            >
+            <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTone} text-xl`}>
               {icon}
             </div>
             <div className="min-w-0">
@@ -208,20 +213,17 @@ function MetricTile({
             </div>
           </div>
 
-          <div className="mt-6 flex items-end gap-3">
-            <div className="text-4xl font-semibold tracking-tight text-slate-900">
-              {value}
-            </div>
+          <div className="mt-5 flex items-end gap-3">
+            <div className="text-4xl font-semibold tracking-tight text-slate-900">{value}</div>
             <TrendBadge delta={delta} />
           </div>
         </div>
 
-
-
-        <div className="hidden sm:block text-right">
+        {/* Right: spark box (never overlaps) */}
+        <div className="sm:shrink-0 sm:text-right">
           <div className="text-[11px] font-semibold text-slate-500">Last 12 sessions</div>
 
-          <div className="mt-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+          <div className="mt-2 w-full max-w-[220px] rounded-2xl border border-slate-200 bg-white px-3 py-2">
             <SparkArea values={values} tone={tone} />
 
             <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
@@ -229,7 +231,6 @@ function MetricTile({
               <span>Now</span>
             </div>
 
-            {/* quick context numbers */}
             <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
               <span>
                 Min: <span className="font-semibold text-slate-700">{s.min}</span>
@@ -240,37 +241,28 @@ function MetricTile({
             </div>
           </div>
         </div>
-
-
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-            Trend: {s.direction}
-          </span>
-
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-            Pattern: {s.stability}
-          </span>
-
-          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-            {s.pct >= 0 ? `Up ${s.pct}%` : `Down ${Math.abs(s.pct)}%`} in 12 sessions
-          </span>
-        </div>
-
-        <p className="mt-2 text-xs text-slate-600">
-          {s.direction === "Rising"
-            ? "Good news: performance is improving across recent sessions."
-            : s.direction === "Falling"
-              ? "Attention needed: performance is dropping in recent sessions."
-              : "Steady: performance is consistent across recent sessions."}
-        </p>
-
-
-
       </div>
+
+      {/* BOTTOM: pills + message (stacked) */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+          Trend: {s.direction}
+        </span>
+
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+          Pattern: {s.stability}
+        </span>
+
+        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+          {s.pct >= 0 ? `Up ${s.pct}%` : `Down ${Math.abs(s.pct)}%`} in 12 sessions
+        </span>
+      </div>
+
+      <p className="mt-2 text-xs text-slate-600">{message}</p>
     </div>
   );
 }
+
 
 /** ----------------- Charts ----------------- */
 function Gauge({ value }: { value: number }) {
