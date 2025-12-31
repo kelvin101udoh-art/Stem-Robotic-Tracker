@@ -111,7 +111,11 @@ function SparkArea({
   const yFor = (v: number) =>
     pad + (1 - (v - min) / span) * (h - pad * 2);
 
-  const points = series.map((v, i) => ({ x: xFor(i, series.length), y: yFor(v), v }));
+  const points = series.map((v, i) => ({
+    x: xFor(i, series.length),
+    y: yFor(v),
+    v,
+  }));
   const pointsHist = points.slice(0, hist.length);
   const pointsFc = points.slice(hist.length - 1); // include last real point + forecast points
 
@@ -121,12 +125,17 @@ function SparkArea({
   const lineHist = ptsToStr(pointsHist);
   const lineFc = ptsToStr(pointsFc);
 
-  const maPts = movingAvg.map((v, i) => ({ x: xFor(i, series.length), y: yFor(v) }));
+  const maPts = movingAvg.map((v, i) => ({
+    x: xFor(i, series.length),
+    y: yFor(v),
+  }));
   const lineMA = ptsToStr(maPts);
 
   const area = `M ${pad},${h - pad} L ${pointsHist
     .map((p) => `${p.x},${p.y}`)
-    .join(" L ")} L ${pointsHist[pointsHist.length - 1]?.x ?? w - pad},${h - pad} Z`;
+    .join(" L ")} L ${pointsHist[pointsHist.length - 1]?.x ?? w - pad},${
+    h - pad
+  } Z`;
 
   // ---- tones ----
   const stroke =
@@ -220,7 +229,13 @@ function SparkArea({
         {lastHistPt ? (
           <>
             <circle cx={lastHistPt.x} cy={lastHistPt.y} r="3.8" fill={stroke} />
-            <circle cx={lastHistPt.x} cy={lastHistPt.y} r="7" fill={stroke} opacity="0.10" />
+            <circle
+              cx={lastHistPt.x}
+              cy={lastHistPt.y}
+              r="7"
+              fill={stroke}
+              opacity="0.10"
+            />
 
             {/* anomaly ring */}
             {isAnomaly ? (
@@ -247,7 +262,9 @@ function SparkArea({
       </svg>
 
       {isAnomaly ? (
-        <div className="mt-1 text-[10px] font-semibold text-rose-700">Anomaly detected</div>
+        <div className="mt-1 text-[10px] font-semibold text-rose-700">
+          Anomaly detected
+        </div>
       ) : null}
     </div>
   );
@@ -261,9 +278,11 @@ function summarizeSeries(values: number[]) {
   const min = Math.min(...v);
   const max = Math.max(...v);
 
-  const pct = first === 0 ? 0 : Math.round(((last - first) / Math.abs(first)) * 100);
+  const pct =
+    first === 0 ? 0 : Math.round(((last - first) / Math.abs(first)) * 100);
 
-  const direction = last > first ? "Rising" : last < first ? "Falling" : "Stable";
+  const direction =
+    last > first ? "Rising" : last < first ? "Falling" : "Stable";
 
   let stepSum = 0;
   for (let i = 1; i < v.length; i++) stepSum += Math.abs(v[i] - v[i - 1]);
@@ -272,7 +291,11 @@ function summarizeSeries(values: number[]) {
   const volatilityScore = avgStep / range;
 
   const stability =
-    volatilityScore < 0.22 ? "Stable" : volatilityScore < 0.45 ? "Mixed" : "Volatile";
+    volatilityScore < 0.22
+      ? "Stable"
+      : volatilityScore < 0.45
+        ? "Mixed"
+        : "Volatile";
 
   return { first, last, min, max, pct, direction, stability };
 }
@@ -318,23 +341,31 @@ function MetricTile({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTone} text-xl`}>
+            <div
+              className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTone} text-xl`}
+            >
               {icon}
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-slate-900">{title}</div>
+              <div className="text-sm font-semibold text-slate-900">
+                {title}
+              </div>
               <div className="text-xs text-slate-500">{subtitle}</div>
             </div>
           </div>
 
           <div className="mt-5 flex items-end gap-3">
-            <div className="text-4xl font-semibold tracking-tight text-slate-900">{value}</div>
+            <div className="text-4xl font-semibold tracking-tight text-slate-900">
+              {value}
+            </div>
             <TrendBadge delta={delta} />
           </div>
         </div>
 
         <div className="sm:shrink-0 sm:text-right">
-          <div className="text-[11px] font-semibold text-slate-500">Last 12 sessions</div>
+          <div className="text-[11px] font-semibold text-slate-500">
+            Last 12 sessions
+          </div>
 
           <div className="mt-2 w-full max-w-[220px] rounded-2xl border border-slate-200 bg-white px-3 py-2">
             <SparkArea values={values} tone={tone} />
@@ -346,10 +377,12 @@ function MetricTile({
 
             <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
               <span>
-                Min: <span className="font-semibold text-slate-700">{s.min}</span>
+                Min:{" "}
+                <span className="font-semibold text-slate-700">{s.min}</span>
               </span>
               <span>
-                Max: <span className="font-semibold text-slate-700">{s.max}</span>
+                Max:{" "}
+                <span className="font-semibold text-slate-700">{s.max}</span>
               </span>
             </div>
           </div>
@@ -364,7 +397,8 @@ function MetricTile({
           Pattern: {s.stability}
         </span>
         <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-          {s.pct >= 0 ? `Up ${s.pct}%` : `Down ${Math.abs(s.pct)}%`} in 12 sessions
+          {s.pct >= 0 ? `Up ${s.pct}%` : `Down ${Math.abs(s.pct)}%`} in 12
+          sessions
         </span>
       </div>
 
@@ -384,7 +418,14 @@ function Gauge({ value }: { value: number }) {
     <div className="grid place-items-center">
       <div className="relative grid h-[180px] w-[180px] place-items-center">
         <svg viewBox="0 0 180 180" className="h-[180px] w-[180px]">
-          <circle cx="90" cy="90" r={r} fill="none" stroke="rgba(148,163,184,0.35)" strokeWidth="16" />
+          <circle
+            cx="90"
+            cy="90"
+            r={r}
+            fill="none"
+            stroke="rgba(148,163,184,0.35)"
+            strokeWidth="16"
+          />
           <circle
             cx="90"
             cy="90"
@@ -396,12 +437,21 @@ function Gauge({ value }: { value: number }) {
             strokeDasharray={`${dash} ${c - dash}`}
             transform="rotate(-90 90 90)"
           />
-          <circle cx="90" cy="90" r={r - 20} fill="rgba(255,255,255,0.95)" />
+          <circle
+            cx="90"
+            cy="90"
+            r={r - 20}
+            fill="rgba(255,255,255,0.95)"
+          />
         </svg>
 
         <div className="absolute text-center">
-          <div className="text-5xl font-semibold tracking-tight text-slate-900">{pct}%</div>
-          <div className="mt-1 text-xs font-semibold text-slate-500">Attendance</div>
+          <div className="text-5xl font-semibold tracking-tight text-slate-900">
+            {pct}%
+          </div>
+          <div className="mt-1 text-xs font-semibold text-slate-500">
+            Attendance
+          </div>
           <div className="mt-2 inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
             <span className="h-2.5 w-2.5 rounded-full bg-blue-500/80" />
             Present
@@ -423,7 +473,10 @@ function BarTrend({ values }: { values: number[] }) {
         return (
           <div key={i} className="flex flex-col items-center gap-2">
             <div className="relative h-[150px] w-10 overflow-hidden rounded-2xl bg-slate-100">
-              <div className="absolute bottom-0 left-0 right-0 rounded-2xl bg-blue-500/70" style={{ height: `${ht}%` }} />
+              <div
+                className="absolute bottom-0 left-0 right-0 rounded-2xl bg-blue-500/70"
+                style={{ height: `${ht}%` }}
+              />
               <div className="absolute inset-0 bg-gradient-to-b from-white/45 via-transparent to-transparent" />
             </div>
             <div className="h-2 w-6 rounded-full bg-slate-100" />
@@ -449,12 +502,16 @@ function LineChart({ values }: { values: number[] }) {
     return `${x},${y}`;
   });
 
-  const area = `M ${pad},${h - pad} L ${pts.join(" L ")} L ${w - pad},${h - pad} Z`;
+  const area = `M ${pad},${h - pad} L ${pts.join(" L ")} L ${w - pad},${
+    h - pad
+  } Z`;
 
   return (
     <div className="rounded-3xl border border-slate-200/70 bg-white p-4">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-900">Engagement trend</div>
+        <div className="text-sm font-semibold text-slate-900">
+          Engagement trend
+        </div>
         <div className="text-xs text-slate-500">last 12 sessions</div>
       </div>
 
@@ -482,7 +539,9 @@ function LineChart({ values }: { values: number[] }) {
         />
         {pts.map((p, i) => {
           const [x, y] = p.split(",").map(Number);
-          return <circle key={i} cx={x} cy={y} r="5" fill="rgba(59,130,246,0.85)" />;
+          return (
+            <circle key={i} cx={x} cy={y} r="5" fill="rgba(59,130,246,0.85)" />
+          );
         })}
       </svg>
     </div>
@@ -514,7 +573,9 @@ function InsightRow({
         <div className="text-sm font-semibold text-slate-900">{title}</div>
         <div className="mt-1 text-xs text-slate-600">{desc}</div>
       </div>
-      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${pill}`}>
+      <span
+        className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${pill}`}
+      >
         {tag}
       </span>
     </div>
@@ -522,7 +583,13 @@ function InsightRow({
 }
 
 /** ----------------- Pro Analytics Screen ----------------- */
-function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName: string }) {
+function ProAnalyticsScreen({
+  clubId,
+  centreName,
+}: {
+  clubId: string;
+  centreName: string;
+}) {
   const tiles = [
     {
       icon: "👥",
@@ -567,10 +634,15 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
       <div className="rounded-[28px] border border-white/70 bg-white/80 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.30)] backdrop-blur">
         <div className="flex flex-col gap-3 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="text-xs font-semibold tracking-widest text-slate-500">ANALYTICS OVERVIEW</div>
-            <div className="mt-1 text-xl font-semibold text-slate-900">Signals, trends, and risks</div>
+            <div className="text-xs font-semibold tracking-widest text-slate-500">
+              ANALYTICS OVERVIEW
+            </div>
+            <div className="mt-1 text-xl font-semibold text-slate-900">
+              Signals, trends, and risks
+            </div>
             <div className="mt-1 truncate text-sm text-slate-600">
-              {centreName} • scoped to <span className="font-semibold">{clubId}</span>
+              {centreName} • scoped to{" "}
+              <span className="font-semibold">{clubId}</span>
             </div>
           </div>
 
@@ -595,17 +667,27 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
         <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.25)] backdrop-blur">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold tracking-widest text-slate-500">ANALYSIS DIAGRAMS</div>
-              <div className="mt-1 text-lg font-semibold text-slate-900">Centre performance visuals</div>
-              <div className="mt-1 text-sm text-slate-600">Attendance, engagement, and delivery consistency in one place.</div>
+              <div className="text-xs font-semibold tracking-widest text-slate-500">
+                ANALYSIS DIAGRAMS
+              </div>
+              <div className="mt-1 text-lg font-semibold text-slate-900">
+                Centre performance visuals
+              </div>
+              <div className="mt-1 text-sm text-slate-600">
+                Attendance, engagement, and delivery consistency in one place.
+              </div>
             </div>
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-50 text-lg">📈</div>
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-50 text-lg">
+              📈
+            </div>
           </div>
 
           <div className="mt-5 grid gap-6 lg:grid-cols-2">
             <div className="rounded-3xl border border-slate-200/70 bg-white p-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">Attendance gauge</div>
+                <div className="text-sm font-semibold text-slate-900">
+                  Attendance gauge
+                </div>
                 <div className="text-xs text-slate-500">this term</div>
               </div>
               <div className="mt-4">
@@ -615,7 +697,9 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
 
             <div className="rounded-3xl border border-slate-200/70 bg-white p-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">Weekly delivery trend</div>
+                <div className="text-sm font-semibold text-slate-900">
+                  Weekly delivery trend
+                </div>
                 <div className="text-xs text-slate-500">last 6</div>
               </div>
               <div className="mt-5">
@@ -632,11 +716,19 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
         <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.25)] backdrop-blur">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold tracking-widest text-slate-500">AI INSIGHTS</div>
-              <div className="mt-1 text-lg font-semibold text-slate-900">What’s happening + next actions</div>
-              <div className="mt-1 text-sm text-slate-600">Admin-ready recommendations (wire later).</div>
+              <div className="text-xs font-semibold tracking-widest text-slate-500">
+                AI INSIGHTS
+              </div>
+              <div className="mt-1 text-lg font-semibold text-slate-900">
+                What’s happening + next actions
+              </div>
+              <div className="mt-1 text-sm text-slate-600">
+                Admin-ready recommendations (wire later).
+              </div>
             </div>
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-50 text-lg">🧠</div>
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-50 text-lg">
+              🧠
+            </div>
           </div>
 
           <div className="mt-5 space-y-3">
@@ -661,7 +753,9 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
           </div>
 
           <div className="mt-5 rounded-3xl border border-slate-200/70 bg-slate-50 p-5">
-            <div className="text-xs font-semibold tracking-widest text-slate-500">RECOMMENDED NEXT</div>
+            <div className="text-xs font-semibold tracking-widest text-slate-500">
+              RECOMMENDED NEXT
+            </div>
             <ul className="mt-3 space-y-2 text-sm text-slate-700">
               <li>• Generate student access links for new learners</li>
               <li>• Complete Term → Session mapping for Term 1</li>
@@ -692,24 +786,24 @@ function Card({
       <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           {icon ? (
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">{icon}</div>
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
+              {icon}
+            </div>
           ) : null}
-          <h3 className="truncate text-base font-semibold text-slate-900">{title}</h3>
+          <h3 className="truncate text-base font-semibold text-slate-900">
+            {title}
+          </h3>
         </div>
-        {right ? <div className="shrink-0 text-sm text-slate-500">{right}</div> : null}
+        {right ? (
+          <div className="shrink-0 text-sm text-slate-500">{right}</div>
+        ) : null}
       </div>
       <div className="px-5 pb-5 pt-4 sm:px-6 sm:pb-6">{children}</div>
     </div>
   );
 }
 
-function InsightPill({
-  tone,
-  label,
-}: {
-  tone: "good" | "warn" | "info";
-  label: string;
-}) {
+function InsightPill({ tone, label }: { tone: "good" | "warn" | "info"; label: string }) {
   const cls =
     tone === "good"
       ? "bg-emerald-50 text-emerald-800 border-emerald-200"
@@ -983,7 +1077,11 @@ export default function ClubCentreDashboardPage() {
     async function loadClub() {
       setLoading(true);
       try {
-        const { data, error } = await supabase.from("clubs").select("id, name").eq("id", clubId).single();
+        const { data, error } = await supabase
+          .from("clubs")
+          .select("id, name")
+          .eq("id", clubId)
+          .single();
         if (error) throw error;
         if (!cancelled) setClub(data as Club);
       } catch {
@@ -1020,7 +1118,8 @@ export default function ClubCentreDashboardPage() {
   if (checking || loading) {
     return (
       <main className="min-h-screen bg-slate-50">
-        <div className="mx-auto max-w-7xl px-4 py-10">
+        {/* ✅ FULL-WIDTH LOADING (no mx-auto/max-w) */}
+        <div className="w-full px-4 py-10">
           <div className="h-10 w-72 rounded-2xl bg-slate-200 animate-pulse" />
           <div className="mt-6 h-[520px] rounded-3xl border border-slate-200 bg-white animate-pulse" />
         </div>
@@ -1036,7 +1135,8 @@ export default function ClubCentreDashboardPage() {
 
       {/* MOBILE TOP BAR */}
       <div className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl lg:hidden">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+        {/* ✅ FULL-WIDTH (no mx-auto/max-w) */}
+        <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -1079,11 +1179,7 @@ export default function ClubCentreDashboardPage() {
               </button>
             </div>
 
-            <Sidebar
-              clubId={clubId}
-              clubName={centreName}
-              onNavigate={() => setSidebarOpen(false)}
-            />
+            <Sidebar clubId={clubId} clubName={centreName} onNavigate={() => setSidebarOpen(false)} />
 
             <div className="mt-4">
               <button
@@ -1102,7 +1198,8 @@ export default function ClubCentreDashboardPage() {
       ) : null}
 
       {/* DESKTOP LAYOUT */}
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6">
+      {/* ✅ FULL-WIDTH WRAPPER (removed mx-auto/max-w-7xl) */}
+      <div className="flex w-full gap-6 px-4 py-6">
         {/* LEFT SIDEBAR (desktop) */}
         <div className="sticky top-6 hidden h-[calc(100vh-24px)] w-[340px] shrink-0 overflow-y-auto lg:block">
           <Sidebar clubId={clubId} clubName={centreName} />
@@ -1152,7 +1249,7 @@ export default function ClubCentreDashboardPage() {
             </div>
           </div>
 
-          {/* EXEC DASHBOARD (analytics stays central) */}
+          {/* EXEC DASHBOARD */}
           <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
 
           {/* MAIN GRID: Left + Right */}
@@ -1359,3 +1456,4 @@ export default function ClubCentreDashboardPage() {
     </main>
   );
 }
+
