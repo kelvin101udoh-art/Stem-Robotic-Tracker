@@ -1456,7 +1456,7 @@ export default function ClubCentreDashboardPage() {
 
 
       {/* DESKTOP LAYOUT */}
-      <div className="mx-auto flex w-full max-w-[1600px] gap-6 px-4 py-6 lg:px-6">
+      <div className="mx-auto flex w-full max-w-none gap-6 px-4 py-6 lg:px-6">
         {/* ✅ Amazon-style sidebar: NO internal scrolling, just sticky */}
         <div className="sticky top-[88px] hidden w-[340px] shrink-0 self-start lg:block">
           <Sidebar clubId={clubId} clubName={centreName} />
