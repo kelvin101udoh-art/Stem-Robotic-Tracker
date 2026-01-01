@@ -845,9 +845,7 @@ function OverviewRow({
   return (
     <section  className={[
         "mt-8",
-        wide
-          ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden"
-          : "",
+        wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden" : "",
       ].join(" ")}>
          <div className={wide ? "mx-auto w-full max-w-[1400px] px-4 lg:px-6" : ""}>
         {/* ...KEEP ALL YOUR EXISTING OverviewRow CONTENT HERE... */}
@@ -1468,7 +1466,7 @@ export default function ClubCentreDashboardPage() {
 
 
       {/* DESKTOP LAYOUT (full-bleed to escape parent max-width containers) */}
-      <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen">
+      <div className="relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden">
         <div className="flex w-full gap-6 px-4 py-6 lg:px-6">
           {/* ✅ Amazon-style sidebar: NO internal scrolling, just sticky */}
           <div className="sticky top-[88px] hidden w-[340px] shrink-0 self-start lg:block">
