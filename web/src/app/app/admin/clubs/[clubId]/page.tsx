@@ -842,18 +842,17 @@ function OverviewRow({
         ? "border-amber-200 bg-amber-50 text-amber-900"
         : "border-sky-200 bg-sky-50 text-sky-900";
 
-  return (<div className="w-64 mr-auto">
-  <section
-    className={[
-      "mt-8",
-      wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw]" : "",
-    ].join(" ")}
-  >
-    {/* ✅ ONE container that holds EVERYTHING (title + cards + panel) */}
-    <div className={wide ? "mx-auto w-full max-w-[1400px] px-4 lg:px-6" : ""}>
-      {/* Header */}
+  return (
+    <section  className={[
+        "mt-8",
+        wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden": "",
+      ].join(" ")}>
+         <div className={wide ? "mx-auto w-full max-w-[1400px] px-4 lg:px-6" : ""}>
+        {/* ...KEEP ALL YOUR EXISTING OverviewRow CONTENT HERE... */}
+      </div>
+      
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+        <div>
           <div className="text-xs font-semibold tracking-widest text-slate-500">
             EXECUTIVE OVERVIEW
           </div>
@@ -876,11 +875,11 @@ function OverviewRow({
         </div>
       </div>
 
-      {/* ✅ 2-card layout (balanced, no scatter) */}
-      <div className="grid gap-6 items-stretch lg:grid-cols-12">
+      {/* ✅ MAIN EXEC CARDS GRID (activates at lg, not xl) */}
+      <div className="min-w-0 grid gap-6 items-stretch lg:grid-cols-12">
         {/* Upcoming */}
         <Card
-          className="lg:col-span-6"
+          className="lg:col-span-5"
           title="Upcoming Sessions"
           icon="📅"
           right={
@@ -893,7 +892,6 @@ function OverviewRow({
           }
           bodyClassName="pt-3"
         >
-          {/* keep your existing Upcoming content */}
           <div className="rounded-2xl border border-slate-200/70 bg-white overflow-hidden">
             {upcoming.map((x, i) => (
               <div
@@ -917,7 +915,9 @@ function OverviewRow({
 
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <div className="text-sm font-semibold text-slate-700">{x.when}</div>
+                    <div className="text-sm font-semibold text-slate-700">
+                      {x.when}
+                    </div>
                     <div className="text-xs text-slate-500">{x.time}</div>
                   </div>
                   <span className="text-slate-400">›</span>
@@ -934,7 +934,7 @@ function OverviewRow({
 
         {/* Attendance */}
         <Card
-          className="lg:col-span-6"
+          className="lg:col-span-4"
           title="Attendance Snapshot"
           icon="📊"
           right={
@@ -945,54 +945,184 @@ function OverviewRow({
           }
           bodyClassName="pt-3"
         >
-          {/* keep your existing Attendance content */}
           <div className="grid gap-4">
+            {/* ✅ switch side-by-side at md to avoid cramping on sm */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <Donut value={92} label="Attendance" />
 
               <div className="w-full min-w-0 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 overflow-hidden">
                 <div className="mb-2 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-slate-900">Weekly participation</div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    Weekly participation
+                  </div>
                   <div className="text-xs text-slate-500">last 6</div>
                 </div>
 
-                <MiniBarsWide values={[120, 160, 140, 180, 210, 260]} labels={["W1","W2","W3","W4","W5","W6"]} />
+                {/* ✅ PROFESSIONAL WIDE HISTOGRAM */}
+                <MiniBarsWide
+                  values={[120, 160, 140, 180, 210, 260]}
+                  labels={["W1", "W2", "W3", "W4", "W5", "W6"]}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">REGISTER</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">Complete</div>
+                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                  REGISTER
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  Complete
+                </div>
                 <div className="mt-1 text-xs text-slate-500">Last session</div>
               </div>
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">CONSISTENCY</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
+                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                  CONSISTENCY
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  Strong
+                </div>
                 <div className="mt-1 text-xs text-slate-500">6-week avg</div>
               </div>
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">RISK</div>
+                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                  RISK
+                </div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">Low</div>
                 <div className="mt-1 text-xs text-slate-500">Absences</div>
               </div>
             </div>
           </div>
         </Card>
+
+        {/* AI Insights */}
+        <Card
+          className="lg:col-span-3"
+          title="AI Analytics & Insights"
+          icon="🧠"
+          right={<span className="text-xs font-semibold text-slate-500">Preview layer</span>}
+          bodyClassName="pt-3"
+        >
+          <div className="space-y-3">
+            <InsightCompactRow
+              title="2 learners missing parent link"
+              desc="Link parents to unlock home dashboards + portfolio access."
+              tone="warn"
+              tag="Action"
+            />
+            <InsightCompactRow
+              title="Term week mapping incomplete"
+              desc="Finish mapping Term → Sessions to improve reporting accuracy."
+              tone="info"
+              tag="Check"
+            />
+            <InsightCompactRow
+              title="Attendance consistency strong"
+              desc="Stable pattern — keep the schedule cadence."
+              tone="good"
+              tag="Good"
+            />
+
+            <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+              <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                RECOMMENDED NEXT
+              </div>
+              <ul className="mt-2 space-y-2 text-sm text-slate-700">
+                <li>• Generate student access links</li>
+                <li>• Complete Term → Session mapping</li>
+                <li>• Add challenge rubric for scoring</li>
+              </ul>
+            </div>
+          </div>
+        </Card>
       </div>
 
-      {/* ✅ Your Education Exec Panel stays INSIDE the same container */}
+      {/* ✅ ADVANCED EDUCATION EXEC PANEL */}
       <div className="mt-6 rounded-[22px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)] backdrop-blur">
-        {/* keep ALL your existing Education Exec Panel content here */}
-        {/* (no changes needed except it's now correctly contained) */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-xs font-semibold tracking-widest text-slate-500">
+              EDUCATION EXECUTIVE PANEL
+            </div>
+            <div className="mt-1 text-base font-semibold text-slate-900">
+              Learning delivery signals (teacher-friendly)
+            </div>
+            <div className="mt-1 text-sm text-slate-600">
+              Designed to help you plan sessions, improve engagement, and keep reporting consistent.
+            </div>
+          </div>
+
+          <Link
+            href={`/app/admin/clubs/${clubId}/reports`}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          >
+            Open Reports →
+          </Link>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {execSignals.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl border border-slate-200/70 bg-white p-4"
+            >
+              <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                {s.label.toUpperCase()}
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <div className="text-lg font-semibold text-slate-900">{s.value}</div>
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${toneBadge(s.tone)}`}
+                >
+                  {s.tone === "good" ? "Good" : s.tone === "warn" ? "Action" : "Info"}
+                </span>
+              </div>
+              <div className="mt-1 text-sm text-slate-600">{s.hint}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+            <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+              NEXT TEACHING MOVE
+            </div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">
+              Add a 3-point rubric for the next build challenge
+            </div>
+            <div className="mt-1 text-sm text-slate-600">
+              This improves assessment consistency and makes parent portfolios clearer.
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+            <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+              PARENT ENGAGEMENT
+            </div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">
+              Link missing parent accounts this week
+            </div>
+            <div className="mt-1 text-sm text-slate-600">
+              Parents get the home dashboard + learners get a portfolio story they can share.
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+            <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+              REPORTING CONSISTENCY
+            </div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">
+              Complete Term → Session mapping
+            </div>
+            <div className="mt-1 text-sm text-slate-600">
+              Unlocks clean weekly trends and reduces “missing data” flags in reports.
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
-</div>
-);
-
-
-
+    </section>
+  );
 }
 
 
