@@ -846,10 +846,10 @@ function OverviewRow({
     <section  className={[
         "mt-8",
         wide
-          ? "relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-x-hidden"
+          ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden"
           : "",
       ].join(" ")}>
-         <div className={wide ? "mx-auto w-full max-w-[1200px] px-4 lg:px-6" : ""}>
+         <div className={wide ? "mx-auto w-full max-w-[1400px] px-4 lg:px-6" : ""}>
         {/* ...KEEP ALL YOUR EXISTING OverviewRow CONTENT HERE... */}
       </div>
       
@@ -878,7 +878,7 @@ function OverviewRow({
       </div>
 
       {/* ✅ MAIN EXEC CARDS GRID (activates at lg, not xl) */}
-      <div className="grid gap-6 items-stretch lg:grid-cols-12">
+      <div className="min-w-0 grid gap-6 items-stretch lg:grid-cols-12">
         {/* Upcoming */}
         <Card
           className="lg:col-span-5"
