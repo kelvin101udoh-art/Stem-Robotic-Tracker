@@ -650,15 +650,7 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
       tone: "emerald" as const,
       values: [84, 86, 85, 88, 90, 92, 91, 92, 93, 92, 92, 92],
     },
-    {
-      icon: "📍",
-      title: "Upcoming events",
-      subtitle: "Next 14 days",
-      value: "4",
-      delta: -5,
-      tone: "amber" as const,
-      values: [6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4],
-    },
+    
   ];
 
   return (
