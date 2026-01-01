@@ -89,11 +89,11 @@ function TopBar({
 
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-300">
                 <span className="hidden xl:inline">
-                  Sessions, attendance, challenges, robotics activity & AI insights
+                  
                 </span>
                 <span className="hidden xl:inline text-slate-500">•</span>
                 <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-slate-200">
-                  ID: {clubId}
+                  
                 </span>
               </div>
             </div>
