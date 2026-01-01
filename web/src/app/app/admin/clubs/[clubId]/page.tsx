@@ -845,18 +845,17 @@ function OverviewRow({
   return (<div className="w-full">
     <section
       className={[
-        "mt-8 w-full",
+
         // ✅ Mobile: normal centered container
         // ✅ Desktop: full-bleed only when wide=true
-        wide ? "lg:relative lg:left-1/2 lg:right-1/2 lg:-mx-[50vw] lg:w-screen" : "",
+        wide ? "lg:relative lg:left-1/2 lg:w-screen lg:-translate-x-1/2 lg:max-w-none" : "",
       ].join(" ")}
     >
 
 
       <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-6">
-        
-          {/* ... your existing header content stays the same ... */}
-        </div>
+
+        {/* ... your existing header content stays the same ... */}
 
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1186,6 +1185,10 @@ function OverviewRow({
             </div>
           </div>
         </div>
+
+      </div>
+
+
     </section>
   </div>
   );
