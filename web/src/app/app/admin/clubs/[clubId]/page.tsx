@@ -559,11 +559,16 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {tiles.map((t) => (
-          <MetricTile key={t.title} {...t} />
+      <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        {tiles.map((t, idx) => (
+          <div key={t.title} className={idx === 3 ? "xl:col-span-3" : ""}>
+            <MetricTile {...t} />
+          </div>
         ))}
       </div>
+
+
+
     </section>
   );
 }
