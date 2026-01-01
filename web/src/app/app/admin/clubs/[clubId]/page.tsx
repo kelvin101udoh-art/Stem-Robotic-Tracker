@@ -1401,7 +1401,7 @@ export default function ClubCentreDashboardPage() {
   const centreName = formatTitle(club?.name);
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-clip text-slate-900">
+    <main className="relative min-h-screen w-full overflow-x-hidden text-slate-900">
       <SoftBg />
 
       <TopBar
@@ -1457,21 +1457,22 @@ export default function ClubCentreDashboardPage() {
 
 
       {/* DESKTOP LAYOUT (full-bleed to escape parent max-width containers) */}
-      <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen">
-        <div className="flex w-full gap-6 px-4 py-6 lg:px-6">
-          {/* ✅ Amazon-style sidebar: NO internal scrolling, just sticky */}
+           {/* DESKTOP + MOBILE CONTENT WRAP */}
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-6">
+        <div className="flex w-full gap-6">
+          {/* Sidebar (desktop) */}
           <div className="sticky top-[88px] hidden w-[340px] shrink-0 self-start lg:block">
             <Sidebar clubId={clubId} clubName={centreName} />
           </div>
 
+          {/* Main content */}
           <div className="min-w-0 flex-1 pb-10">
             <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
             <OverviewRow clubId={clubId} upcoming={upcoming} />
-            {/* Continue your other sections below as needed... */}
           </div>
         </div>
-        
       </div>
+
 
 
 
