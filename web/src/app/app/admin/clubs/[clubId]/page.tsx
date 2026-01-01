@@ -619,7 +619,7 @@ function Donut({ value = 92, label = "Attendance" }: { value?: number; label?: s
 function MiniBars({ values }: { values: number[] }) {
   const max = Math.max(1, ...values);
   return (
-    <div className="flex h-[120px] items-end gap-3 overflow-hidden">
+    <div className="flex h-[140px] items-end gap-3 overflow-hidden">
       {values.map((v, idx) => {
         const ht = Math.round((v / max) * 100);
         return (
@@ -766,7 +766,8 @@ function Card({
   return (
     <div
       className={[
-        "rounded-[22px] border border-slate-200/70 bg-white shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)] overflow-hidden",
+        // ✅ important: flex-col so header stays fixed, body grows, no overlap
+        "flex h-full flex-col rounded-[22px] border border-slate-200/70 bg-white shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)] overflow-hidden",
         className,
       ].join(" ")}
     >
@@ -777,16 +778,26 @@ function Card({
               {icon}
             </div>
           ) : null}
-          <h3 className="truncate text-base font-semibold text-slate-900">{title}</h3>
+          <h3 className="truncate text-base font-semibold text-slate-900">
+            {title}
+          </h3>
         </div>
         {right ? <div className="shrink-0">{right}</div> : null}
       </div>
-      <div className={["px-5 pb-5 pt-4 sm:px-6 sm:pb-6", bodyClassName].join(" ")}>
+
+      {/* ✅ important: flex-1 + min-h-0 prevents children overlap in grids */}
+      <div
+        className={[
+          "min-h-0 flex-1 px-5 pb-5 pt-4 sm:px-6 sm:pb-6",
+          bodyClassName,
+        ].join(" ")}
+      >
         {children}
       </div>
     </div>
   );
 }
+
 
 /** ----------------- Overview Row ----------------- */
 function OverviewRow({
@@ -811,9 +822,10 @@ function OverviewRow({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3 items-stretch">
+      <div className="grid gap-6 items-stretch xl:grid-cols-12">
         {/* Upcoming */}
         <Card
+          className="xl:col-span-5"
           title="Upcoming Sessions"
           icon="📅"
           right={
@@ -863,6 +875,7 @@ function OverviewRow({
 
         {/* Attendance */}
         <Card
+          className="xl:col-span-4"
           title="Attendance Snapshot"
           icon="📊"
           right={
@@ -876,7 +889,7 @@ function OverviewRow({
           <div className="grid gap-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <Donut value={92} label="Attendance" />
-              <div className="w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-4 overflow-hidden">
+              <div className="w-full min-w-0 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 overflow-hidden">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="text-sm font-semibold text-slate-900">Weekly trend</div>
                   <div className="text-xs text-slate-500">last 6</div>
@@ -907,6 +920,7 @@ function OverviewRow({
 
         {/* AI Insights */}
         <Card
+          className="xl:col-span-3"
           title="AI Analytics & Insights"
           icon="🧠"
           right={<span className="text-xs font-semibold text-slate-500">Preview layer</span>}
