@@ -221,7 +221,7 @@ function SparkArea({
 
   return (
     <div>
-      {/* top chips (no absolute = no overlap) */}
+      {/* ✅ inline chips (no absolute) — prevents overlap */}
       <div className="mb-2 flex items-center justify-end gap-2">
         <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
           Forecast: +3
@@ -231,7 +231,6 @@ function SparkArea({
         </span>
       </div>
 
-      {/* chart well */}
       <div className="rounded-xl bg-slate-50/60 p-2">
         <svg viewBox={`0 0 ${w} ${h}`} className="h-[56px] w-[150px]">
           <path d={area} fill={fill} />
@@ -257,9 +256,6 @@ function SparkArea({
       </div>
     </div>
   );
-
-
-
 }
 
 function summarizeSeries(values: number[]) {
@@ -268,10 +264,8 @@ function summarizeSeries(values: number[]) {
   const last = v[v.length - 1] ?? 0;
   const min = Math.min(...v);
   const max = Math.max(...v);
-  const pct =
-    first === 0 ? 0 : Math.round(((last - first) / Math.abs(first)) * 100);
-  const direction =
-    last > first ? "Rising" : last < first ? "Falling" : "Stable";
+  const pct = first === 0 ? 0 : Math.round(((last - first) / Math.abs(first)) * 100);
+  const direction = last > first ? "Rising" : last < first ? "Falling" : "Stable";
 
   let stepSum = 0;
   for (let i = 1; i < v.length; i++) stepSum += Math.abs(v[i] - v[i - 1]);
@@ -319,9 +313,7 @@ function MetricTile({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <div
-              className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTone} text-xl`}
-            >
+            <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTone} text-xl`}>
               {icon}
             </div>
             <div className="min-w-0">
@@ -331,9 +323,7 @@ function MetricTile({
           </div>
 
           <div className="mt-4 flex items-end gap-3">
-            <div className="text-4xl font-semibold tracking-tight text-slate-900">
-              {value}
-            </div>
+            <div className="text-4xl font-semibold tracking-tight text-slate-900">{value}</div>
             <TrendBadge delta={delta} />
           </div>
 
@@ -349,6 +339,8 @@ function MetricTile({
 
         <div className="shrink-0 text-right">
           <div className="text-[11px] font-semibold text-slate-500">Last 12</div>
+
+          {/* ✅ overflow hidden prevents any bleed/overlap */}
           <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-2">
             <SparkArea values={values} tone={tone} />
             <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
@@ -578,7 +570,7 @@ function Card({
   );
 }
 
-/** ----------------- Overview Row (FIXED from screenshot) ----------------- */
+/** ----------------- Overview Row ----------------- */
 function OverviewRow({
   clubId,
   upcoming,
@@ -737,7 +729,7 @@ function OverviewRow({
   );
 }
 
-/** ----------------- Sidebar (clean + professional) ----------------- */
+/** ----------------- Sidebar ----------------- */
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <div className="px-3 pt-4 text-[11px] font-semibold tracking-widest text-slate-500">
@@ -1035,17 +1027,9 @@ export default function ClubCentreDashboardPage() {
             className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
-          <div
-            className={[
-              "absolute left-0 top-0 h-full w-[86%] max-w-[380px]",
-              "overflow-y-auto border-r border-slate-200 bg-slate-50/60 p-4 backdrop-blur-xl",
-              // hide scrollbar (Tailwind-only)
-              "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
-            ].join(" ")}
-          >
-            {/* subtle bottom fade */}
-            <div className="pointer-events-none sticky bottom-0 z-10 h-10 w-full bg-gradient-to-t from-slate-50/80 to-transparent" />
 
+          {/* ✅ hide scrollbar + add bottom fade */}
+          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[380px] border-r border-slate-200 bg-slate-50/60 p-4 backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-semibold text-slate-900">Admin Menu</div>
               <button
@@ -1057,19 +1041,23 @@ export default function ClubCentreDashboardPage() {
               </button>
             </div>
 
-            <Sidebar clubId={clubId} clubName={centreName} onNavigate={() => setSidebarOpen(false)} />
+            <div className="relative h-[calc(100vh-92px)] overflow-y-auto pr-2 scrollbar-none">
+              <Sidebar clubId={clubId} clubName={centreName} onNavigate={() => setSidebarOpen(false)} />
 
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setSidebarOpen(false);
-                  logout("manual");
-                }}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-              >
-                Logout
-              </button>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    logout("manual");
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                >
+                  Logout
+                </button>
+              </div>
+
+              <div className="pointer-events-none sticky bottom-0 h-10 w-full bg-gradient-to-t from-slate-50/90 to-transparent" />
             </div>
           </div>
         </div>
@@ -1077,38 +1065,27 @@ export default function ClubCentreDashboardPage() {
 
       {/* DESKTOP LAYOUT */}
       <div className="flex w-full gap-6 px-4 py-6 lg:px-6">
+        {/* ✅ premium scroll container (no awkward scrollbar) */}
         <div className="sticky top-[88px] hidden w-[340px] shrink-0 lg:block">
-  <div
-    className={[
-      "relative h-[calc(100vh-110px)] overflow-y-auto pr-2",
-      "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
-    ].join(" ")}
-  >
-    {/* subtle bottom fade */}
-    <div className="pointer-events-none sticky bottom-0 z-10 h-10 w-full bg-gradient-to-t from-slate-50/80 to-transparent" />
+          <div className="relative h-[calc(100vh-110px)] overflow-y-auto pr-2 scrollbar-none">
+            <Sidebar clubId={clubId} clubName={centreName} />
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => logout("manual")}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              >
+                Logout
+              </button>
+            </div>
 
-    <Sidebar clubId={clubId} clubName={centreName} />
-
-    <div className="mt-4">
-      <button
-        type="button"
-        onClick={() => logout("manual")}
-        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-      >
-        Logout
-      </button>
-    </div>
-  </div>
-</div>
-
+            <div className="pointer-events-none sticky bottom-0 h-10 w-full bg-gradient-to-t from-slate-50/90 to-transparent" />
+          </div>
+        </div>
 
         <div className="min-w-0 flex-1 pb-10">
           <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
-
-          {/* ✅ FIXED SECTION FROM YOUR SCREENSHOT */}
           <OverviewRow clubId={clubId} upcoming={upcoming} />
-
-          {/* Continue your other sections below as needed... */}
         </div>
       </div>
     </main>
@@ -1116,10 +1093,10 @@ export default function ClubCentreDashboardPage() {
 }
 
 /*
-✅ What changed in the “screenshot section”:
-- Replaced the old uneven row with a professional “Executive Overview” strip:
-  (Upcoming Sessions | Attendance Snapshot | AI Analytics & Insights)
-- Equal card height behavior, tighter padding, no dead whitespace.
-- Bars are clipped and contained (no overflow).
-- AI insights are compact, readable, and admin-friendly.
+If `scrollbar-none` doesn't work:
+- It means you don’t have the Tailwind scrollbar plugin.
+- Quick fallback: add a tiny global css helper:
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+Then swap `scrollbar-none` to `no-scrollbar` in this file.
 */
