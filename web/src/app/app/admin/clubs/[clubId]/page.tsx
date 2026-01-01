@@ -842,7 +842,7 @@ function OverviewRow({
         ? "border-amber-200 bg-amber-50 text-amber-900"
         : "border-sky-200 bg-sky-50 text-sky-900";
 
-  return (
+  return (<div className="w-64 mr-auto">
   <section
     className={[
       "mt-8",
@@ -988,6 +988,7 @@ function OverviewRow({
       </div>
     </div>
   </section>
+</div>
 );
 
 
