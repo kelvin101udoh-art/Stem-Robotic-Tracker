@@ -616,28 +616,46 @@ function Donut({ value = 92, label = "Attendance" }: { value?: number; label?: s
   );
 }
 
-function MiniBars({ values }: { values: number[] }) {
+function MiniBarsWide({
+  values,
+  labels,
+}: {
+  values: number[];
+  labels?: string[];
+}) {
   const max = Math.max(1, ...values);
+
   return (
-    <div className="flex h-[140px] items-end gap-3 overflow-hidden">
-      {values.map((v, idx) => {
-        const ht = Math.round((v / max) * 100);
-        return (
-          <div key={idx} className="flex w-10 flex-col items-center gap-2">
-            <div className="relative h-[96px] w-10 overflow-hidden rounded-2xl bg-slate-100">
-              <div
-                className="absolute bottom-0 left-0 right-0 rounded-2xl bg-blue-500/70"
-                style={{ height: `${ht}%` }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-transparent" />
+    <div className="w-full">
+      <div className="grid grid-cols-6 gap-2">
+        {values.slice(0, 6).map((v, idx) => {
+          const ht = Math.round((v / max) * 100);
+          return (
+            <div key={idx} className="flex flex-col justify-end">
+              <div className="relative h-[120px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                <div
+                  className="absolute bottom-0 left-0 right-0 rounded-2xl bg-slate-900"
+                  style={{ height: `${Math.max(3, ht)}%` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/45 via-transparent to-transparent" />
+              </div>
+
+              <div className="mt-2 text-center text-[11px] font-semibold text-slate-500">
+                {labels?.[idx] ?? `W${idx + 1}`}
+              </div>
             </div>
-            <div className="h-2 w-6 rounded-full bg-slate-100" />
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+
+      <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+        <span>Earlier</span>
+        <span>Recent</span>
+      </div>
     </div>
   );
 }
+
 
 /** ----------------- Insight Row (compact, professional) ----------------- */
 function InsightCompactRow({
@@ -807,25 +825,52 @@ function OverviewRow({
   clubId: string;
   upcoming: { title: string; when: string; time: string; icon: string }[];
 }) {
+  // mock executive education signals (swap to real data later)
+  const execSignals = [
+    { label: "Attendance health", value: "Strong", hint: "92% avg", tone: "good" as const },
+    { label: "Learner momentum", value: "Rising", hint: "+8% active", tone: "good" as const },
+    { label: "Parent links", value: "Action needed", hint: "2 missing", tone: "warn" as const },
+    { label: "Staffing readiness", value: "On track", hint: "4 upcoming", tone: "info" as const },
+  ];
+
+  const toneBadge = (tone: "good" | "warn" | "info") =>
+    tone === "good"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : tone === "warn"
+        ? "border-amber-200 bg-amber-50 text-amber-900"
+        : "border-sky-200 bg-sky-50 text-sky-900";
+
   return (
-    <section className="mt-6">
-      <div className="mb-3 flex items-center justify-between">
+    <section className="mt-8">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="text-xs font-semibold tracking-widest text-slate-500">EXECUTIVE OVERVIEW</div>
-          <div className="mt-1 text-lg font-semibold text-slate-900">Today at a glance</div>
+          <div className="text-xs font-semibold tracking-widest text-slate-500">
+            EXECUTIVE OVERVIEW
+          </div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">
+            Today at a glance
+          </div>
+          <div className="mt-1 text-sm text-slate-600">
+            Quick operational + learning signals for planning delivery.
+          </div>
         </div>
-        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500">
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1">
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
             <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
             Operational
+          </span>
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+            Update window: <span className="ml-2 text-slate-900">Last 24h</span>
           </span>
         </div>
       </div>
 
-      <div className="grid gap-6 items-stretch xl:grid-cols-12">
+      {/* ✅ MAIN EXEC CARDS GRID (activates at lg, not xl) */}
+      <div className="grid gap-6 items-stretch lg:grid-cols-12">
         {/* Upcoming */}
         <Card
-          className="xl:col-span-5"
+          className="lg:col-span-5"
           title="Upcoming Sessions"
           icon="📅"
           right={
@@ -852,14 +897,18 @@ function OverviewRow({
                     {x.icon}
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-900">{x.title}</div>
+                    <div className="truncate text-sm font-semibold text-slate-900">
+                      {x.title}
+                    </div>
                     <div className="text-xs text-slate-500">Centre delivery</div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <div className="text-sm font-semibold text-slate-700">{x.when}</div>
+                    <div className="text-sm font-semibold text-slate-700">
+                      {x.when}
+                    </div>
                     <div className="text-xs text-slate-500">{x.time}</div>
                   </div>
                   <span className="text-slate-400">›</span>
@@ -869,13 +918,14 @@ function OverviewRow({
           </div>
 
           <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-3 text-xs text-slate-700">
-            <span className="font-semibold text-slate-900">Tip:</span> Keep session notes short and consistent — this improves AI insights quality.
+            <span className="font-semibold text-slate-900">Teaching tip:</span>{" "}
+            Capture a 1–2 sentence note per session (what was built + what learners improved).
           </div>
         </Card>
 
         {/* Attendance */}
         <Card
-          className="xl:col-span-4"
+          className="lg:col-span-4"
           title="Attendance Snapshot"
           icon="📊"
           right={
@@ -887,30 +937,49 @@ function OverviewRow({
           bodyClassName="pt-3"
         >
           <div className="grid gap-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            {/* ✅ switch side-by-side at md to avoid cramping on sm */}
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <Donut value={92} label="Attendance" />
+
               <div className="w-full min-w-0 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 overflow-hidden">
                 <div className="mb-2 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-slate-900">Weekly trend</div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    Weekly participation
+                  </div>
                   <div className="text-xs text-slate-500">last 6</div>
                 </div>
-                <MiniBars values={[120, 160, 140, 180, 210, 260]} />
+
+                {/* ✅ PROFESSIONAL WIDE HISTOGRAM */}
+                <MiniBarsWide
+                  values={[120, 160, 140, 180, 210, 260]}
+                  labels={["W1", "W2", "W3", "W4", "W5", "W6"]}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">REGISTER</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">Complete</div>
+                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                  REGISTER
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  Complete
+                </div>
                 <div className="mt-1 text-xs text-slate-500">Last session</div>
               </div>
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">CONSISTENCY</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
+                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                  CONSISTENCY
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  Strong
+                </div>
                 <div className="mt-1 text-xs text-slate-500">6-week avg</div>
               </div>
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">RISK</div>
+                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                  RISK
+                </div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">Low</div>
                 <div className="mt-1 text-xs text-slate-500">Absences</div>
               </div>
@@ -920,7 +989,7 @@ function OverviewRow({
 
         {/* AI Insights */}
         <Card
-          className="xl:col-span-3"
+          className="lg:col-span-3"
           title="AI Analytics & Insights"
           icon="🧠"
           right={<span className="text-xs font-semibold text-slate-500">Preview layer</span>}
@@ -947,7 +1016,9 @@ function OverviewRow({
             />
 
             <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold tracking-widest text-slate-500">RECOMMENDED NEXT</div>
+              <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                RECOMMENDED NEXT
+              </div>
               <ul className="mt-2 space-y-2 text-sm text-slate-700">
                 <li>• Generate student access links</li>
                 <li>• Complete Term → Session mapping</li>
@@ -957,9 +1028,94 @@ function OverviewRow({
           </div>
         </Card>
       </div>
+
+      {/* ✅ ADVANCED EDUCATION EXEC PANEL */}
+      <div className="mt-6 rounded-[22px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)] backdrop-blur">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-xs font-semibold tracking-widest text-slate-500">
+              EDUCATION EXECUTIVE PANEL
+            </div>
+            <div className="mt-1 text-base font-semibold text-slate-900">
+              Learning delivery signals (teacher-friendly)
+            </div>
+            <div className="mt-1 text-sm text-slate-600">
+              Designed to help you plan sessions, improve engagement, and keep reporting consistent.
+            </div>
+          </div>
+
+          <Link
+            href={`/app/admin/clubs/${clubId}/reports`}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          >
+            Open Reports →
+          </Link>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {execSignals.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl border border-slate-200/70 bg-white p-4"
+            >
+              <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                {s.label.toUpperCase()}
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <div className="text-lg font-semibold text-slate-900">{s.value}</div>
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${toneBadge(s.tone)}`}
+                >
+                  {s.tone === "good" ? "Good" : s.tone === "warn" ? "Action" : "Info"}
+                </span>
+              </div>
+              <div className="mt-1 text-sm text-slate-600">{s.hint}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+            <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+              NEXT TEACHING MOVE
+            </div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">
+              Add a 3-point rubric for the next build challenge
+            </div>
+            <div className="mt-1 text-sm text-slate-600">
+              This improves assessment consistency and makes parent portfolios clearer.
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+            <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+              PARENT ENGAGEMENT
+            </div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">
+              Link missing parent accounts this week
+            </div>
+            <div className="mt-1 text-sm text-slate-600">
+              Parents get the home dashboard + learners get a portfolio story they can share.
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+            <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+              REPORTING CONSISTENCY
+            </div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">
+              Complete Term → Session mapping
+            </div>
+            <div className="mt-1 text-sm text-slate-600">
+              Unlocks clean weekly trends and reduces “missing data” flags in reports.
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
+
 
 /** ----------------- Sidebar ----------------- */
 function SectionLabel({ children }: { children: ReactNode }) {
@@ -1300,7 +1456,7 @@ export default function ClubCentreDashboardPage() {
 
 
       {/* DESKTOP LAYOUT */}
-      <div className="flex w-full gap-6 px-4 py-6 lg:px-6">
+      <div className="mx-auto flex w-full max-w-[1600px] gap-6 px-4 py-6 lg:px-6">
         {/* ✅ Amazon-style sidebar: NO internal scrolling, just sticky */}
         <div className="sticky top-[88px] hidden w-[340px] shrink-0 self-start lg:block">
           <Sidebar clubId={clubId} clubName={centreName} />
