@@ -148,105 +148,146 @@ function TrendBadge({ delta }: { delta: number }) {
   );
 }
 
-function SparkHistogram({
+function ProgressLine({
   values,
   tone = "blue",
-  showTarget = true,
+  height = 96,
+  showGoal = true,
+  goalPct = 0.8, // 80% of range as "goal band" (swap later for real targets)
 }: {
   values: number[];
   tone?: "blue" | "emerald" | "amber" | "slate";
-  showTarget?: boolean;
+  height?: number;
+  showGoal?: boolean;
+  goalPct?: number;
 }) {
-  const w = 150;
-  const h = 56;
-  const padX = 6;
-  const padY = 6;
+  const w = 520; // virtual width; scales via viewBox
+  const h = height;
+  const padX = 18;
+  const padY = 16;
 
   const v = values.slice(-12);
-  const max = Math.max(1, ...v);
   const min = Math.min(...v);
+  const max = Math.max(1, ...v);
   const span = Math.max(1, max - min);
 
-  // A simple “goal” line: 80% toward max (works as a generic progress target)
-  // You can replace this with a real target later per metric.
-  const targetValue = min + span * 0.8;
+  const xFor = (i: number, n: number) =>
+    padX + (i * (w - padX * 2)) / Math.max(1, n - 1);
+
+  const yFor = (val: number) =>
+    padY + (1 - (val - min) / span) * (h - padY * 2);
+
+  const pts = v.map((val, i) => ({ x: xFor(i, v.length), y: yFor(val) }));
+
+  const lineD =
+    pts.length <= 1
+      ? `M ${padX} ${h - padY} L ${w - padX} ${h - padY}`
+      : `M ${pts[0].x} ${pts[0].y} ` + pts.slice(1).map((p) => `L ${p.x} ${p.y}`).join(" ");
+
+  const areaD =
+    `M ${pts[0]?.x ?? padX} ${h - padY} ` +
+    (pts.length ? `L ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")} ` : "") +
+    `L ${pts[pts.length - 1]?.x ?? w - padX} ${h - padY} Z`;
 
   const stroke =
     tone === "emerald"
-      ? "rgba(16,185,129,0.9)"
+      ? "rgba(16,185,129,0.95)"
       : tone === "amber"
-      ? "rgba(245,158,11,0.9)"
+      ? "rgba(245,158,11,0.95)"
       : tone === "slate"
-      ? "rgba(100,116,139,0.88)"
-      : "rgba(59,130,246,0.9)";
+      ? "rgba(100,116,139,0.92)"
+      : "rgba(59,130,246,0.95)";
 
-  const fill =
-    tone === "emerald"
-      ? "rgba(16,185,129,0.22)"
-      : tone === "amber"
-      ? "rgba(245,158,11,0.22)"
-      : tone === "slate"
-      ? "rgba(100,116,139,0.18)"
-      : "rgba(59,130,246,0.22)";
-
-  const chartW = w - padX * 2;
-  const chartH = h - padY * 2;
-
-  const barCount = v.length;
-  const gap = 3;
-  const barW = Math.max(6, Math.floor((chartW - gap * (barCount - 1)) / barCount));
-
-  const yFor = (val: number) => {
-    const t = (val - min) / span; // 0..1
-    return padY + (1 - t) * chartH;
-  };
-
-  const targetY = yFor(targetValue);
+  const goalValue = min + span * goalPct;
+  const goalY = yFor(goalValue);
 
   return (
-    <div className="relative">
-      {/* subtle baseline strip (prevents “floating”) */}
-      <div className="pointer-events-none absolute inset-x-0 top-[18px] h-[18px] rounded-xl bg-slate-100/70" />
+    <div className="w-full">
+      <div className="rounded-2xl border border-slate-200/70 bg-white px-4 py-3">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="text-xs font-semibold text-slate-600">Progress (last 12)</div>
+          <div className="text-[11px] font-semibold text-slate-500">
+            Min {min} • Max {max}
+          </div>
+        </div>
 
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-[56px] w-[150px]">
-        {/* optional target line */}
-        {showTarget ? (
-          <line
-            x1={padX}
-            x2={w - padX}
-            y1={targetY}
-            y2={targetY}
-            stroke="rgba(15,23,42,0.18)"
-            strokeDasharray="3 3"
-            strokeWidth="1.5"
-          />
-        ) : null}
+        <div className="relative w-full">
+          <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height }}>
+            <defs>
+              <linearGradient id={`area-${tone}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={stroke} stopOpacity="0.18" />
+                <stop offset="100%" stopColor={stroke} stopOpacity="0.02" />
+              </linearGradient>
+              <linearGradient id={`gridfade`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(15,23,42,0.12)" />
+                <stop offset="100%" stopColor="rgba(15,23,42,0.03)" />
+              </linearGradient>
+            </defs>
 
-        {/* bars */}
-        {v.map((val, i) => {
-          const x = padX + i * (barW + gap);
-          const y = yFor(val);
-          const barH = padY + chartH - y;
+            {/* subtle grid */}
+            {[0.25, 0.5, 0.75].map((t, i) => {
+              const y = padY + t * (h - padY * 2);
+              return (
+                <line
+                  key={i}
+                  x1={padX}
+                  x2={w - padX}
+                  y1={y}
+                  y2={y}
+                  stroke="url(#gridfade)"
+                  strokeWidth="1"
+                />
+              );
+            })}
 
-          return (
-            <rect
-              key={i}
-              x={x}
-              y={y}
-              width={barW}
-              height={barH}
-              rx={8}
-              fill={fill}
+            {/* goal band */}
+            {showGoal ? (
+              <rect
+                x={padX}
+                y={Math.max(padY, goalY - 10)}
+                width={w - padX * 2}
+                height={20}
+                rx={10}
+                fill="rgba(15,23,42,0.04)"
+              />
+            ) : null}
+
+            {/* area */}
+            <path d={areaD} fill={`url(#area-${tone})`} />
+
+            {/* line */}
+            <path
+              d={lineD}
+              fill="none"
               stroke={stroke}
-              strokeWidth="0.6"
-              opacity={0.98}
+              strokeWidth="3.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
-          );
-        })}
-      </svg>
+
+            {/* end marker */}
+            {pts.length ? (
+              <circle
+                cx={pts[pts.length - 1].x}
+                cy={pts[pts.length - 1].y}
+                r="5.5"
+                fill="white"
+                stroke={stroke}
+                strokeWidth="3"
+              />
+            ) : null}
+          </svg>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+          <span>Start: {v[0]}</span>
+          <span>Now: {v[v.length - 1]}</span>
+        </div>
+      </div>
     </div>
   );
 }
+
 
 
 
@@ -293,89 +334,59 @@ function MetricTile({
     tone === "emerald"
       ? "bg-emerald-50 text-emerald-700"
       : tone === "amber"
-        ? "bg-amber-50 text-amber-800"
-        : tone === "blue"
-          ? "bg-sky-50 text-sky-700"
-          : "bg-slate-50 text-slate-700";
+      ? "bg-amber-50 text-amber-800"
+      : tone === "blue"
+      ? "bg-sky-50 text-sky-700"
+      : "bg-slate-50 text-slate-700";
 
   const s = summarizeSeries(values);
-
-  // Compact “educational” copy (1 line + 1 next step)
-  const meaning =
-    title.toLowerCase().includes("attendance")
-      ? s.direction === "Rising"
-        ? "Routines are working — attendance is improving."
-        : s.direction === "Falling"
-          ? "Attendance is dipping — check reminders and parent links."
-          : "Attendance is steady — keep the same cadence."
-      : title.toLowerCase().includes("sessions")
-        ? s.direction === "Rising"
-          ? "Delivery pace is increasing — consistency looks strong."
-          : "Delivery pace is steady — keep weekly structure."
-        : title.toLowerCase().includes("students")
-          ? "Learner participation is growing — onboarding looks healthy."
-          : "Upcoming activity is changing — plan staffing early.";
-
-  const nextAction =
-    title.toLowerCase().includes("attendance")
-      ? "Next: follow up absences + confirm parent links."
-      : title.toLowerCase().includes("sessions")
-        ? "Next: keep Term → Session mapping current."
-        : title.toLowerCase().includes("students")
-          ? "Next: track joins + engagement quality."
-          : "Next: confirm dates + staffing coverage.";
 
   return (
     <div className="rounded-[22px] border border-slate-200/70 bg-white/90 p-5 shadow-[0_14px_46px_-34px_rgba(2,6,23,0.25)] backdrop-blur">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTone} text-xl`}>
-            {icon}
-          </div>
-
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="truncate text-sm font-semibold text-slate-900">{title}</div>
-              <TrendBadge delta={delta} />
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTone} text-xl`}>
+              {icon}
             </div>
-            <div className="truncate text-xs text-slate-500">{subtitle}</div>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-slate-900">{title}</div>
+              <div className="truncate text-xs text-slate-500">{subtitle}</div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="text-4xl font-semibold tracking-tight text-slate-900">{value}</div>
+            <TrendBadge delta={delta} />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+              Trend: {s.direction}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+              Pattern: {s.stability}
+            </span>
+          </div>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <div className="text-[11px] font-semibold text-slate-500">Last 12</div>
+          <div className="mt-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-semibold text-slate-600">
+            Forecast: +3 • MA(3)
           </div>
         </div>
       </div>
 
-      {/* Value + badges */}
-      <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-        <div className="text-4xl font-semibold tracking-tight text-slate-900">{value}</div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-            Trend: {s.direction}
-          </span>
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-            Pattern: {s.stability}
-          </span>
-        </div>
-      </div>
-
-      {/* ✅ Full-width chart (no tiny container) */}
+      {/* Full-width chart */}
       <div className="mt-4">
-        <SparkHistogram values={values} tone={tone} />
-        <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
-          <span>Min: {s.min}</span>
-          <span>Max: {s.max}</span>
-        </div>
-      </div>
-
-      {/* ✅ Compact educational insight (not tall) */}
-      <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-        <div className="text-[11px] font-semibold tracking-widest text-slate-500">CLASSROOM INSIGHT</div>
-        <div className="mt-1 text-sm font-semibold text-slate-900">{meaning}</div>
-        <div className="mt-1 text-xs text-slate-600">{nextAction}</div>
+        <ProgressLine values={values} tone={tone} height={104} />
       </div>
     </div>
   );
 }
+
 
 
 
@@ -545,7 +556,7 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-5 grid gap-5 sm:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3">
         {tiles.map((t, idx) => (
           <div key={t.title} className={idx === 3 ? "xl:col-span-3" : ""}>
             <MetricTile {...t} />
