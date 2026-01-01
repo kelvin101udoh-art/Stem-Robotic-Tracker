@@ -842,7 +842,7 @@ function OverviewRow({
         ? "border-amber-200 bg-amber-50 text-amber-900"
         : "border-sky-200 bg-sky-50 text-sky-900";
 
-  return (<div className="w-90 mx-auto -ml-4">
+  return (<div className="w-90 mx-auto -ml-40">
     <section  className={[
         "mt-8",
         wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden": "",
