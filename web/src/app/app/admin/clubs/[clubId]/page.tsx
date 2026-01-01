@@ -210,91 +210,8 @@ function ProgressLine({
   const goalValue = min + span * goalPct;
   const goalY = yFor(goalValue);
 
-  return (
-    <div className="w-full">
-      <div className="rounded-2xl border border-slate-200/70 bg-white px-4 py-3">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-xs font-semibold text-slate-600">Progress (last 12)</div>
-          <div className="text-[11px] font-semibold text-slate-500">
-            Min {min} • Max {max}
-          </div>
-        </div>
 
-        <div className="relative w-full">
-          <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height }}>
-            <defs>
-              <linearGradient id={`area-${tone}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={stroke} stopOpacity="0.18" />
-                <stop offset="100%" stopColor={stroke} stopOpacity="0.02" />
-              </linearGradient>
-              <linearGradient id={`gridfade`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(15,23,42,0.12)" />
-                <stop offset="100%" stopColor="rgba(15,23,42,0.03)" />
-              </linearGradient>
-            </defs>
 
-            {/* subtle grid */}
-            {[0.25, 0.5, 0.75].map((t, i) => {
-              const y = padY + t * (h - padY * 2);
-              return (
-                <line
-                  key={i}
-                  x1={padX}
-                  x2={w - padX}
-                  y1={y}
-                  y2={y}
-                  stroke="url(#gridfade)"
-                  strokeWidth="1"
-                />
-              );
-            })}
-
-            {/* goal band */}
-            {showGoal ? (
-              <rect
-                x={padX}
-                y={Math.max(padY, goalY - 10)}
-                width={w - padX * 2}
-                height={20}
-                rx={10}
-                fill="rgba(15,23,42,0.04)"
-              />
-            ) : null}
-
-            {/* area */}
-            <path d={areaD} fill={`url(#area-${tone})`} />
-
-            {/* line */}
-            <path
-              d={lineD}
-              fill="none"
-              stroke={stroke}
-              strokeWidth="3.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-
-            {/* end marker */}
-            {pts.length ? (
-              <circle
-                cx={pts[pts.length - 1].x}
-                cy={pts[pts.length - 1].y}
-                r="5.5"
-                fill="white"
-                stroke={stroke}
-                strokeWidth="3"
-              />
-            ) : null}
-          </svg>
-        </div>
-
-        <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
-          <span>Start: {v[0]}</span>
-          <span>Now: {v[v.length - 1]}</span>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 
@@ -1303,7 +1220,7 @@ function Sidebar({
           </div>
            */}
 
-           
+
         </nav>
       </div>
     </aside>
