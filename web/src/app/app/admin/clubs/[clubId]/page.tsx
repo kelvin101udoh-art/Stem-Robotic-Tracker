@@ -148,120 +148,106 @@ function TrendBadge({ delta }: { delta: number }) {
   );
 }
 
-function SparkArea({
+function SparkHistogram({
   values,
   tone = "blue",
+  showTarget = true,
 }: {
   values: number[];
   tone?: "blue" | "emerald" | "amber" | "slate";
+  showTarget?: boolean;
 }) {
-  const w = 160;
-  const h = 70;
-  const pad = 8;
+  const w = 150;
+  const h = 56;
+  const padX = 6;
+  const padY = 6;
 
-  const hist = values.slice(-12);
-  const forecastN = 3;
-
-  const mean = (arr: number[]) =>
-    arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-
-  const last = hist[hist.length - 1] ?? 0;
-  const tail = hist.slice(-5);
-  const diffs: number[] = [];
-  for (let i = 1; i < tail.length; i++) diffs.push(tail[i] - tail[i - 1]);
-  const slope = diffs.length ? mean(diffs.slice(-4)) : 0;
-
-  const forecast: number[] = Array.from({ length: forecastN }).map((_, i) => {
-    const v = last + slope * (i + 1);
-    return Math.max(0, Math.round(v * 100) / 100);
-  });
-
-  const series = [...hist, ...forecast];
-
-  const max = Math.max(1, ...series);
-  const min = Math.min(...series);
+  const v = values.slice(-12);
+  const max = Math.max(1, ...v);
+  const min = Math.min(...v);
   const span = Math.max(1, max - min);
 
-  const xFor = (i: number, n: number) =>
-    pad + (i * (w - pad * 2)) / Math.max(1, n - 1);
-  const yFor = (v: number) =>
-    pad + (1 - (v - min) / span) * (h - pad * 2);
-
-  const points = series.map((v, i) => ({ x: xFor(i, series.length), y: yFor(v) }));
-  const pointsHist = points.slice(0, hist.length);
-  const pointsFc = points.slice(hist.length - 1);
-
-  const ptsToStr = (pts: { x: number; y: number }[]) =>
-    pts.map((p) => `${p.x},${p.y}`).join(" ");
-
-  const lineHist = ptsToStr(pointsHist);
-  const lineFc = ptsToStr(pointsFc);
-
-  const area = `M ${pad},${h - pad} L ${pointsHist
-    .map((p) => `${p.x},${p.y}`)
-    .join(" L ")} L ${pointsHist[pointsHist.length - 1]?.x ?? w - pad},${h - pad} Z`;
+  // A simple “goal” line: 80% toward max (works as a generic progress target)
+  // You can replace this with a real target later per metric.
+  const targetValue = min + span * 0.8;
 
   const stroke =
     tone === "emerald"
-      ? "rgba(16,185,129,0.92)"
+      ? "rgba(16,185,129,0.9)"
       : tone === "amber"
-        ? "rgba(245,158,11,0.92)"
-        : tone === "slate"
-          ? "rgba(100,116,139,0.88)"
-          : "rgba(59,130,246,0.92)";
+      ? "rgba(245,158,11,0.9)"
+      : tone === "slate"
+      ? "rgba(100,116,139,0.88)"
+      : "rgba(59,130,246,0.9)";
 
   const fill =
     tone === "emerald"
-      ? "rgba(16,185,129,0.12)"
+      ? "rgba(16,185,129,0.22)"
       : tone === "amber"
-        ? "rgba(245,158,11,0.12)"
-        : tone === "slate"
-          ? "rgba(100,116,139,0.10)"
-          : "rgba(59,130,246,0.12)";
+      ? "rgba(245,158,11,0.22)"
+      : tone === "slate"
+      ? "rgba(100,116,139,0.18)"
+      : "rgba(59,130,246,0.22)";
+
+  const chartW = w - padX * 2;
+  const chartH = h - padY * 2;
+
+  const barCount = v.length;
+  const gap = 3;
+  const barW = Math.max(6, Math.floor((chartW - gap * (barCount - 1)) / barCount));
+
+  const yFor = (val: number) => {
+    const t = (val - min) / span; // 0..1
+    return padY + (1 - t) * chartH;
+  };
+
+  const targetY = yFor(targetValue);
 
   return (
-    <div className="w-full">
-      {/* ✅ No absolute pills — keep inside flow */}
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-[10px] font-semibold text-slate-500">Last 12</div>
-        <div className="flex items-center gap-1.5">
-          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-            Forecast +3
-          </span>
-          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-            MA(3)
-          </span>
-        </div>
-      </div>
+    <div className="relative">
+      {/* subtle baseline strip (prevents “floating”) */}
+      <div className="pointer-events-none absolute inset-x-0 top-[18px] h-[18px] rounded-xl bg-slate-100/70" />
 
-      <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
-        <div className="pointer-events-none mb-1 h-[16px] rounded-xl bg-slate-100/70" />
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-[56px] w-[150px]">
+        {/* optional target line */}
+        {showTarget ? (
+          <line
+            x1={padX}
+            x2={w - padX}
+            y1={targetY}
+            y2={targetY}
+            stroke="rgba(15,23,42,0.18)"
+            strokeDasharray="3 3"
+            strokeWidth="1.5"
+          />
+        ) : null}
 
-        <svg viewBox={`0 0 ${w} ${h}`} className="h-[70px] w-full">
-          <path d={area} fill={fill} />
-          <polyline
-            fill="none"
-            stroke={stroke}
-            strokeWidth="2.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={lineHist}
-          />
-          <polyline
-            fill="none"
-            stroke={stroke}
-            strokeWidth="2.25"
-            strokeDasharray="2 3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={lineFc}
-            opacity="0.9"
-          />
-        </svg>
-      </div>
+        {/* bars */}
+        {v.map((val, i) => {
+          const x = padX + i * (barW + gap);
+          const y = yFor(val);
+          const barH = padY + chartH - y;
+
+          return (
+            <rect
+              key={i}
+              x={x}
+              y={y}
+              width={barW}
+              height={barH}
+              rx={8}
+              fill={fill}
+              stroke={stroke}
+              strokeWidth="0.6"
+              opacity={0.98}
+            />
+          );
+        })}
+      </svg>
     </div>
   );
 }
+
 
 
 function summarizeSeries(values: number[]) {
@@ -374,7 +360,7 @@ function MetricTile({
 
       {/* ✅ Full-width chart (no tiny container) */}
       <div className="mt-4">
-        <SparkArea values={values} tone={tone} />
+        <SparkHistogram values={values} tone={tone} />
         <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
           <span>Min: {s.min}</span>
           <span>Max: {s.max}</span>
