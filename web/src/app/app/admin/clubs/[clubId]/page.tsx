@@ -91,7 +91,7 @@ function TopBar({
                 <span className="hidden xl:inline">
                   
                 </span>
-                <span className="hidden xl:inline text-slate-500">•</span>
+                <span className="hidden xl:inline text-slate-500"></span>
                 <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-slate-200">
                   
                 </span>
