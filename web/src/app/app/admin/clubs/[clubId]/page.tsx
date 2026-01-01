@@ -842,225 +842,135 @@ function OverviewRow({
         ? "border-amber-200 bg-amber-50 text-amber-900"
         : "border-sky-200 bg-sky-50 text-sky-900";
 
-  return (<div className="w-full">
-    <section
-      className={[
-
-        // ✅ Mobile: normal centered container
-        // ✅ Desktop: full-bleed only when wide=true
-        wide ? "lg:relative lg:left-1/2 lg:w-screen lg:-translate-x-1/2 lg:max-w-none" : "",
-      ].join(" ")}
-    >
-
-
-      <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-6">
-
-        {/* ... your existing header content stays the same ... */}
-
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+return (
+  <div className="w-full">
+    {/* ✅ Always centered, no full-bleed math */}
+    <section className="mt-8 w-full">
+      <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6">
+        {/* Header */}
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
             <div className="text-xs font-semibold tracking-widest text-slate-500">
-              EXECUTIVE OVERVIEW
+              LEARNING OVERVIEW
             </div>
             <div className="mt-1 text-lg font-semibold text-slate-900">
-              Today at a glance
+              Teaching & learner signals
             </div>
             <div className="mt-1 text-sm text-slate-600">
-              Quick operational + learning signals for planning delivery.
+              A teacher-friendly snapshot of progress, engagement, and what to do next.
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
               <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
-              Operational
+              Classroom-ready
             </span>
             <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-              Update window: <span className="ml-2 text-slate-900">Last 24h</span>
+              Updated: <span className="ml-2 text-slate-900">Last 24h</span>
             </span>
           </div>
         </div>
 
-        {/* ✅ EXECUTIVE OVERVIEW — 2 PRO CARDS ONLY */}
-        <div className="min-w-0 grid gap-6 items-stretch lg:grid-cols-12">
-          {/* CARD 1: Operations & Planning (Upcoming + AI Insights merged) */}
+        {/* ✅ 2 Education cards only — centered + responsive */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* CARD 1: Learning Outcomes & Mastery */}
           <Card
-            className="lg:col-span-7"
-            title="Operations & Planning"
-            icon="🧭"
+            title="Learning Outcomes & Mastery"
+            icon="🎯"
             right={
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                  Focus: <span className="ml-2 text-slate-900">Next 14 days</span>
-                </span>
-                <Link
-                  className="hidden sm:inline text-sm font-semibold text-slate-700 hover:text-slate-900"
-                  href={`/app/admin/clubs/${clubId}/sessions`}
-                >
-                  View all →
-                </Link>
-              </div>
+              <Link
+                href={`/app/admin/clubs/${clubId}/reports`}
+                className="text-sm font-semibold text-slate-700 hover:text-slate-900"
+              >
+                Open reports →
+              </Link>
             }
-            bodyClassName="pt-3"
+            bodyClassName="pt-4"
           >
-            <div className="grid gap-4 lg:grid-cols-12">
-              {/* Left: Upcoming list */}
-              <div className="lg:col-span-7">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-xs font-semibold tracking-widest text-slate-500 uppercase">
-                    Upcoming sessions
+            <div className="grid gap-4">
+              {/* Top KPIs */}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                    SKILL FOCUS
                   </div>
-                  <span className="text-xs font-semibold text-slate-500">
-                    {upcoming.length} scheduled
-                  </span>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">Building + Logic</div>
+                  <div className="mt-1 text-xs text-slate-600">This week</div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200/70 bg-white overflow-hidden">
-                  {upcoming.map((x, i) => (
-                    <div
-                      key={x.title}
-                      className={[
-                        "flex items-center justify-between gap-4 px-4 py-3",
-                        i !== 0 ? "border-t border-slate-200/70" : "",
-                      ].join(" ")}
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-lg">
-                          {x.icon}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-slate-900">
-                            {x.title}
-                          </div>
-                          <div className="text-xs text-slate-500">Centre delivery</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className="text-sm font-semibold text-slate-700">{x.when}</div>
-                          <div className="text-xs text-slate-500">{x.time}</div>
-                        </div>
-                        <span className="text-slate-400">›</span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                    RUBRIC READY
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">3-point</div>
+                  <div className="mt-1 text-xs text-slate-600">Recommended</div>
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-3 text-xs text-slate-700">
-                  <span className="font-semibold text-slate-900">Coach prompt:</span>{" "}
-                  Capture 1–2 lines after each session (what was built + what improved).
+                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                    PORTFOLIO QUALITY
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
+                  <div className="mt-1 text-xs text-slate-600">Notes + photos</div>
                 </div>
               </div>
 
-              {/* Right: AI insights + next actions */}
-              <div className="lg:col-span-5">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-xs font-semibold tracking-widest text-slate-500 uppercase">
-                    AI insights
+              {/* Teacher moves (education perspective) */}
+              <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                    TEACHER MOVES (NEXT)
                   </div>
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                    Preview layer
-                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500">For next session</span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="mt-3 space-y-3">
                   <InsightCompactRow
-                    title="2 learners missing parent link"
-                    desc="Link parents to unlock home dashboards + portfolio access."
+                    title="Use a 3-step success checklist"
+                    desc="Build → test → explain. Helps learners reflect and improves evidence quality."
+                    tone="info"
+                    tag="Plan"
+                  />
+                  <InsightCompactRow
+                    title="Capture one learning sentence per learner"
+                    desc="What changed today? (e.g., gears, sensors, teamwork)."
+                    tone="good"
+                    tag="Quality"
+                  />
+                  <InsightCompactRow
+                    title="Add a quick challenge score"
+                    desc="Foundation / Developing / Secure to standardise progress tracking."
                     tone="warn"
                     tag="Action"
                   />
-                  <InsightCompactRow
-                    title="Term week mapping incomplete"
-                    desc="Finish mapping Term → Sessions to improve reporting accuracy."
-                    tone="info"
-                    tag="Check"
-                  />
-                  <InsightCompactRow
-                    title="Attendance consistency strong"
-                    desc="Stable pattern — keep schedule cadence."
-                    tone="good"
-                    tag="Good"
-                  />
-
-                  {/* ✅ Professional “Next actions” box */}
-                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                        RECOMMENDED NEXT
-                      </div>
-                      <span className="text-[11px] font-semibold text-slate-500">
-                        This week
-                      </span>
-                    </div>
-
-                    <div className="mt-3 grid gap-2">
-                      <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <span className="mt-0.5 text-slate-400">•</span>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-900">
-                            Generate student access links
-                          </div>
-                          <div className="text-xs text-slate-600">
-                            Helps learners access dashboards at home.
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <span className="mt-0.5 text-slate-400">•</span>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-900">
-                            Complete Term → Session mapping
-                          </div>
-                          <div className="text-xs text-slate-600">
-                            Improves reporting accuracy and trends.
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <span className="mt-0.5 text-slate-400">•</span>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-900">
-                            Add challenge rubric for scoring
-                          </div>
-                          <div className="text-xs text-slate-600">
-                            Makes portfolios clearer for parents.
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mobile “View all” link */}
-                  <Link
-                    className="sm:hidden inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-                    href={`/app/admin/clubs/${clubId}/sessions`}
-                  >
-                    View all sessions →
-                  </Link>
                 </div>
+              </div>
+
+              {/* Lightweight “targets” strip */}
+              <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3 text-xs text-slate-700">
+                <span className="font-semibold text-slate-900">Teaching tip:</span>{" "}
+                Keep evidence simple: 1 photo + 1 sentence + 1 score per session.
               </div>
             </div>
           </Card>
 
-          {/* CARD 2: Attendance & Participation (keeps your donut + bars + mini metrics) */}
+          {/* CARD 2: Engagement & Inclusion */}
           <Card
-            className="lg:col-span-5"
-            title="Attendance & Participation"
-            icon="📊"
+            title="Engagement & Inclusion"
+            icon="🤝"
             right={
-              <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
-                <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-                Recent sessions
-              </span>
+              <Link
+                href={`/app/admin/clubs/${clubId}/attendance`}
+                className="text-sm font-semibold text-slate-700 hover:text-slate-900"
+              >
+                Manage attendance →
+              </Link>
             }
-            bodyClassName="pt-3"
+            bodyClassName="pt-4"
           >
             <div className="grid gap-4">
-              {/* ✅ better spacing: donut + bars always align nicely */}
+              {/* Donut + bars */}
               <div className="grid gap-4 md:grid-cols-2 md:items-center">
                 <div className="flex justify-center md:justify-start">
                   <Donut value={92} label="Attendance" />
@@ -1068,10 +978,9 @@ function OverviewRow({
 
                 <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 overflow-hidden">
                   <div className="mb-2 flex items-center justify-between">
-                    <div className="text-sm font-semibold text-slate-900">Weekly participation</div>
+                    <div className="text-sm font-semibold text-slate-900">Participation trend</div>
                     <div className="text-xs text-slate-500">last 6</div>
                   </div>
-
                   <MiniBarsWide
                     values={[120, 160, 140, 180, 210, 260]}
                     labels={["W1", "W2", "W3", "W4", "W5", "W6"]}
@@ -1079,119 +988,86 @@ function OverviewRow({
                 </div>
               </div>
 
-              {/* ✅ stronger “status tiles” */}
-              <div className="grid grid-cols-3 gap-2">
+              {/* Inclusion signals */}
+              <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">REGISTER</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">Complete</div>
-                  <div className="mt-1 text-xs text-slate-600">Last session</div>
-                </div>
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">CONSISTENCY</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
-                  <div className="mt-1 text-xs text-slate-600">6-week avg</div>
-                </div>
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">RISK</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">Low</div>
+                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                    SAFETY NET
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">Low risk</div>
                   <div className="mt-1 text-xs text-slate-600">Absences</div>
                 </div>
+
+                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                    PARENT LINKS
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">2 missing</div>
+                  <div className="mt-1 text-xs text-slate-600">Home access</div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                    CONSISTENCY
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
+                  <div className="mt-1 text-xs text-slate-600">Routine stable</div>
+                </div>
               </div>
+
+              {/* Next actions for inclusion */}
+              <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                    SUPPORT ACTIONS
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-500">This week</span>
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <span className="mt-0.5 text-slate-400">•</span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900">
+                        Link missing parent accounts
+                      </div>
+                      <div className="text-xs text-slate-600">
+                        Unlocks home dashboards + portfolio viewing.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <span className="mt-0.5 text-slate-400">•</span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900">
+                        Flag learners needing extra support
+                      </div>
+                      <div className="text-xs text-slate-600">
+                        Add a short note to guide next session scaffolding.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile CTA */}
+              <Link
+                className="sm:hidden inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                href={`/app/admin/clubs/${clubId}/people`}
+              >
+                Manage learners & parents →
+              </Link>
             </div>
           </Card>
         </div>
-
-
-        {/* ✅ ADVANCED EDUCATION EXEC PANEL */}
-        <div className="mt-6 rounded-[22px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)] backdrop-blur">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-xs font-semibold tracking-widest text-slate-500">
-                EDUCATION EXECUTIVE PANEL
-              </div>
-              <div className="mt-1 text-base font-semibold text-slate-900">
-                Learning delivery signals (teacher-friendly)
-              </div>
-              <div className="mt-1 text-sm text-slate-600">
-                Designed to help you plan sessions, improve engagement, and keep reporting consistent.
-              </div>
-            </div>
-
-            <Link
-              href={`/app/admin/clubs/${clubId}/reports`}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            >
-              Open Reports →
-            </Link>
-          </div>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {execSignals.map((s) => (
-              <div
-                key={s.label}
-                className="rounded-2xl border border-slate-200/70 bg-white p-4"
-              >
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                  {s.label.toUpperCase()}
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <div className="text-lg font-semibold text-slate-900">{s.value}</div>
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${toneBadge(s.tone)}`}
-                  >
-                    {s.tone === "good" ? "Good" : s.tone === "warn" ? "Action" : "Info"}
-                  </span>
-                </div>
-                <div className="mt-1 text-sm text-slate-600">{s.hint}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 grid gap-4 lg:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                NEXT TEACHING MOVE
-              </div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">
-                Add a 3-point rubric for the next build challenge
-              </div>
-              <div className="mt-1 text-sm text-slate-600">
-                This improves assessment consistency and makes parent portfolios clearer.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                PARENT ENGAGEMENT
-              </div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">
-                Link missing parent accounts this week
-              </div>
-              <div className="mt-1 text-sm text-slate-600">
-                Parents get the home dashboard + learners get a portfolio story they can share.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                REPORTING CONSISTENCY
-              </div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">
-                Complete Term → Session mapping
-              </div>
-              <div className="mt-1 text-sm text-slate-600">
-                Unlocks clean weekly trends and reduces “missing data” flags in reports.
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
-
-
     </section>
   </div>
-  );
+);
+
+
+
 }
 
 
