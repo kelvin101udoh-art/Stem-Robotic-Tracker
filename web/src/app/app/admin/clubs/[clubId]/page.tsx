@@ -86,7 +86,8 @@ function TopBar({
               <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">
                 Club Command Centre
               </h1>
-
+              
+              {/*
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-300">
                 <span className="hidden xl:inline">
                   
@@ -96,6 +97,8 @@ function TopBar({
                   
                 </span>
               </div>
+                */}
+
             </div>
 
             <div className="flex items-center gap-3">
