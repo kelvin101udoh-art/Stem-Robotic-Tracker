@@ -220,8 +220,9 @@ function SparkArea({
           : "rgba(59,130,246,0.12)";
 
   return (
-    <div className="relative">
-      <div className="absolute -top-4 right-0 flex items-center gap-2">
+    <div>
+      {/* top chips (no absolute = no overlap) */}
+      <div className="mb-2 flex items-center justify-end gap-2">
         <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
           Forecast: +3
         </span>
@@ -230,31 +231,35 @@ function SparkArea({
         </span>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-[18px] h-[18px] rounded-xl bg-slate-100/70" />
-
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-[56px] w-[150px]">
-        <path d={area} fill={fill} />
-        <polyline
-          fill="none"
-          stroke={stroke}
-          strokeWidth="2.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          points={lineHist}
-        />
-        <polyline
-          fill="none"
-          stroke={stroke}
-          strokeWidth="2.25"
-          strokeDasharray="2 3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          points={lineFc}
-          opacity="0.9"
-        />
-      </svg>
+      {/* chart well */}
+      <div className="rounded-xl bg-slate-50/60 p-2">
+        <svg viewBox={`0 0 ${w} ${h}`} className="h-[56px] w-[150px]">
+          <path d={area} fill={fill} />
+          <polyline
+            fill="none"
+            stroke={stroke}
+            strokeWidth="2.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            points={lineHist}
+          />
+          <polyline
+            fill="none"
+            stroke={stroke}
+            strokeWidth="2.25"
+            strokeDasharray="2 3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            points={lineFc}
+            opacity="0.9"
+          />
+        </svg>
+      </div>
     </div>
   );
+
+
+
 }
 
 function summarizeSeries(values: number[]) {
@@ -344,7 +349,7 @@ function MetricTile({
 
         <div className="shrink-0 text-right">
           <div className="text-[11px] font-semibold text-slate-500">Last 12</div>
-          <div className="mt-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+          <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-2">
             <SparkArea values={values} tone={tone} />
             <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
               <span>Min: {s.min}</span>
@@ -1030,7 +1035,17 @@ export default function ClubCentreDashboardPage() {
             className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[380px] overflow-y-auto border-r border-slate-200 bg-slate-50/60 p-4 backdrop-blur-xl">
+          <div
+            className={[
+              "absolute left-0 top-0 h-full w-[86%] max-w-[380px]",
+              "overflow-y-auto border-r border-slate-200 bg-slate-50/60 p-4 backdrop-blur-xl",
+              // hide scrollbar (Tailwind-only)
+              "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+            ].join(" ")}
+          >
+            {/* subtle bottom fade */}
+            <div className="pointer-events-none sticky bottom-0 z-10 h-10 w-full bg-gradient-to-t from-slate-50/80 to-transparent" />
+
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-semibold text-slate-900">Admin Menu</div>
               <button
@@ -1062,18 +1077,30 @@ export default function ClubCentreDashboardPage() {
 
       {/* DESKTOP LAYOUT */}
       <div className="flex w-full gap-6 px-4 py-6 lg:px-6">
-        <div className="sticky top-[88px] hidden h-[calc(100vh-110px)] w-[340px] shrink-0 overflow-y-auto lg:block">
-          <Sidebar clubId={clubId} clubName={centreName} />
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => logout("manual")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
+        <div className="sticky top-[88px] hidden w-[340px] shrink-0 lg:block">
+  <div
+    className={[
+      "relative h-[calc(100vh-110px)] overflow-y-auto pr-2",
+      "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+    ].join(" ")}
+  >
+    {/* subtle bottom fade */}
+    <div className="pointer-events-none sticky bottom-0 z-10 h-10 w-full bg-gradient-to-t from-slate-50/80 to-transparent" />
+
+    <Sidebar clubId={clubId} clubName={centreName} />
+
+    <div className="mt-4">
+      <button
+        type="button"
+        onClick={() => logout("manual")}
+        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+      >
+        Logout
+      </button>
+    </div>
+  </div>
+</div>
+
 
         <div className="min-w-0 flex-1 pb-10">
           <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
