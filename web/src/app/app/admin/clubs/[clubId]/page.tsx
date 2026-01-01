@@ -821,9 +821,11 @@ function Card({
 function OverviewRow({
   clubId,
   upcoming,
+  wide,
 }: {
   clubId: string;
   upcoming: { title: string; when: string; time: string; icon: string }[];
+  wide?: boolean;
 }) {
   // mock executive education signals (swap to real data later)
   const execSignals = [
@@ -841,7 +843,16 @@ function OverviewRow({
         : "border-sky-200 bg-sky-50 text-sky-900";
 
   return (
-    <section className="mt-8">
+    <section  className={[
+        "mt-8",
+        wide
+          ? "relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-x-hidden"
+          : "",
+      ].join(" ")}>
+         <div className={wide ? "mx-auto w-full max-w-[1200px] px-4 lg:px-6" : ""}>
+        {/* ...KEEP ALL YOUR EXISTING OverviewRow CONTENT HERE... */}
+      </div>
+      
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xs font-semibold tracking-widest text-slate-500">
@@ -1466,7 +1477,7 @@ export default function ClubCentreDashboardPage() {
 
           <div className="min-w-0 flex-1 pb-10">
             <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
-            <OverviewRow clubId={clubId} upcoming={upcoming} />
+            <OverviewRow clubId={clubId} upcoming={upcoming} wide />
             {/* Continue your other sections below as needed... */}
           </div>
         </div>
