@@ -843,14 +843,14 @@ function OverviewRow({
         : "border-sky-200 bg-sky-50 text-sky-900";
 
   return (
-    <section className={[
-      "mt-8",
-      wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden" : "",
-    ].join(" ")}>
-      <div className={wide ? "mx-auto w-full max-w-[1400px] px-4 lg:px-6" : ""}>
+    <section  className={[
+        "mt-8",
+        wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden" : "",
+      ].join(" ")}>
+         <div className={wide ? "mx-auto w-full max-w-[1400px] px-4 lg:px-6" : ""}>
         {/* ...KEEP ALL YOUR EXISTING OverviewRow CONTENT HERE... */}
       </div>
-
+      
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xs font-semibold tracking-widest text-slate-500">
@@ -875,8 +875,7 @@ function OverviewRow({
         </div>
       </div>
 
-
-      {/* ✅ MAIN EXEC CARDS GRID — 2 cards only */}
+      {/* ✅ MAIN EXEC CARDS GRID (activates at lg, not xl) */}
       <div className="min-w-0 grid gap-6 items-stretch lg:grid-cols-12">
         {/* Upcoming */}
         <Card
@@ -893,7 +892,6 @@ function OverviewRow({
           }
           bodyClassName="pt-3"
         >
-          {/* keep your existing Upcoming content */}
           <div className="rounded-2xl border border-slate-200/70 bg-white overflow-hidden">
             {upcoming.map((x, i) => (
               <div
@@ -917,7 +915,9 @@ function OverviewRow({
 
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <div className="text-sm font-semibold text-slate-700">{x.when}</div>
+                    <div className="text-sm font-semibold text-slate-700">
+                      {x.when}
+                    </div>
                     <div className="text-xs text-slate-500">{x.time}</div>
                   </div>
                   <span className="text-slate-400">›</span>
@@ -934,7 +934,7 @@ function OverviewRow({
 
         {/* Attendance */}
         <Card
-          className="lg:col-span-6"
+          className="lg:col-span-4"
           title="Attendance Snapshot"
           icon="📊"
           right={
@@ -945,8 +945,8 @@ function OverviewRow({
           }
           bodyClassName="pt-3"
         >
-          {/* keep your existing Attendance content */}
           <div className="grid gap-4">
+            {/* ✅ switch side-by-side at md to avoid cramping on sm */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <Donut value={92} label="Attendance" />
 
@@ -958,6 +958,7 @@ function OverviewRow({
                   <div className="text-xs text-slate-500">last 6</div>
                 </div>
 
+                {/* ✅ PROFESSIONAL WIDE HISTOGRAM */}
                 <MiniBarsWide
                   values={[120, 160, 140, 180, 210, 260]}
                   labels={["W1", "W2", "W3", "W4", "W5", "W6"]}
@@ -970,14 +971,18 @@ function OverviewRow({
                 <div className="text-[11px] font-semibold tracking-widest text-slate-500">
                   REGISTER
                 </div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">Complete</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  Complete
+                </div>
                 <div className="mt-1 text-xs text-slate-500">Last session</div>
               </div>
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
                 <div className="text-[11px] font-semibold tracking-widest text-slate-500">
                   CONSISTENCY
                 </div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  Strong
+                </div>
                 <div className="mt-1 text-xs text-slate-500">6-week avg</div>
               </div>
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
@@ -991,11 +996,47 @@ function OverviewRow({
           </div>
         </Card>
 
-        
+        {/* AI Insights */}
+        <Card
+          className="lg:col-span-3"
+          title="AI Analytics & Insights"
+          icon="🧠"
+          right={<span className="text-xs font-semibold text-slate-500">Preview layer</span>}
+          bodyClassName="pt-3"
+        >
+          <div className="space-y-3">
+            <InsightCompactRow
+              title="2 learners missing parent link"
+              desc="Link parents to unlock home dashboards + portfolio access."
+              tone="warn"
+              tag="Action"
+            />
+            <InsightCompactRow
+              title="Term week mapping incomplete"
+              desc="Finish mapping Term → Sessions to improve reporting accuracy."
+              tone="info"
+              tag="Check"
+            />
+            <InsightCompactRow
+              title="Attendance consistency strong"
+              desc="Stable pattern — keep the schedule cadence."
+              tone="good"
+              tag="Good"
+            />
+
+            <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+              <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                RECOMMENDED NEXT
+              </div>
+              <ul className="mt-2 space-y-2 text-sm text-slate-700">
+                <li>• Generate student access links</li>
+                <li>• Complete Term → Session mapping</li>
+                <li>• Add challenge rubric for scoring</li>
+              </ul>
+            </div>
+          </div>
+        </Card>
       </div>
-
-
-
 
       {/* ✅ ADVANCED EDUCATION EXEC PANEL */}
       <div className="mt-6 rounded-[22px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)] backdrop-blur">
@@ -1438,7 +1479,7 @@ export default function ClubCentreDashboardPage() {
             {/* Continue your other sections below as needed... */}
           </div>
         </div>
-
+        
       </div>
 
 
