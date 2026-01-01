@@ -193,10 +193,10 @@ function ProgressLine({
     tone === "emerald"
       ? "rgba(16,185,129,0.95)"
       : tone === "amber"
-      ? "rgba(245,158,11,0.95)"
-      : tone === "slate"
-      ? "rgba(100,116,139,0.92)"
-      : "rgba(59,130,246,0.95)";
+        ? "rgba(245,158,11,0.95)"
+        : tone === "slate"
+          ? "rgba(100,116,139,0.92)"
+          : "rgba(59,130,246,0.95)";
 
   const goalValue = min + span * goalPct;
   const goalY = yFor(goalValue);
@@ -312,6 +312,174 @@ function summarizeSeries(values: number[]) {
   return { first, last, min, max, pct, direction, stability };
 }
 
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function EducationProgress({
+  values,
+  unitLabel = "Activity score",
+  targetMin,
+  targetMax,
+}: {
+  values: number[];
+  unitLabel?: string;
+  targetMin?: number;
+  targetMax?: number;
+}) {
+  const v = values.slice(-12);
+  const minV = Math.min(...v);
+  const maxV = Math.max(...v);
+  const start = v[0] ?? 0;
+  const now = v[v.length - 1] ?? 0;
+
+  const span = Math.max(1, maxV - minV);
+
+  // percent of overall observed range (feels like “progress this term”)
+  const pct = clamp(Math.round(((now - minV) / span) * 100), 0, 100);
+
+  // educational labeling
+  const status =
+    targetMin != null && targetMax != null
+      ? now >= targetMin && now <= targetMax
+        ? "On track"
+        : now < targetMin
+          ? "Below target"
+          : "Above target"
+      : pct >= 70
+        ? "On track"
+        : pct >= 45
+          ? "Needs attention"
+          : "At risk";
+
+  const statusTone =
+    status === "On track"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : status === "Needs attention"
+        ? "border-amber-200 bg-amber-50 text-amber-900"
+        : "border-rose-200 bg-rose-50 text-rose-900";
+
+  // milestone steps (Amazon-style segments)
+  const steps = [20, 40, 60, 80, 100];
+
+  // weekly bars (make them THICK + visible)
+  const barMax = Math.max(1, ...v);
+  const normalized = v.map((x) => clamp(Math.round((x / barMax) * 100), 2, 100));
+
+  // target band positioning within the bar area
+  const bandLeft =
+    targetMin == null ? null : clamp(Math.round((targetMin / barMax) * 100), 0, 100);
+  const bandRight =
+    targetMax == null ? null : clamp(Math.round((targetMax / barMax) * 100), 0, 100);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold tracking-widest text-slate-500 uppercase">
+            Progress (last 12)
+          </div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">{unitLabel}</div>
+          <div className="mt-1 text-xs text-slate-500">
+            Start: <span className="font-semibold text-slate-700">{start}</span>{" "}
+            <span className="text-slate-400">→</span>{" "}
+            Now: <span className="font-semibold text-slate-900">{now}</span>
+          </div>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusTone}`}>
+            {status}
+          </span>
+          <div className="mt-2 text-xs text-slate-500">
+            Min <span className="font-semibold text-slate-700">{minV}</span> · Max{" "}
+            <span className="font-semibold text-slate-700">{maxV}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Segmented mastery bar */}
+      <div className="mt-4">
+        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+          <span>Mastery</span>
+          <span>{pct}%</span>
+        </div>
+
+        <div className="mt-2 relative h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+          {/* Filled */}
+          <div className="h-full rounded-full bg-slate-900" style={{ width: `${pct}%` }} />
+
+          {/* Milestone ticks */}
+          {steps.map((s) => (
+            <div
+              key={s}
+              className="absolute top-0 h-full w-[2px] bg-white/70"
+              style={{ left: `${s}%` }}
+            />
+          ))}
+        </div>
+
+        <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+          <span>Foundation</span>
+          <span>Developing</span>
+          <span>Secure</span>
+          <span>Advanced</span>
+        </div>
+      </div>
+
+      {/* Weekly activity bars (big + modern) */}
+      <div className="mt-4">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="text-xs font-semibold tracking-widest text-slate-500 uppercase">
+            Weekly activity
+          </div>
+          {targetMin != null && targetMax != null ? (
+            <div className="text-xs font-semibold text-slate-500">
+              Target band:{" "}
+              <span className="font-semibold text-slate-700">
+                {targetMin}–{targetMax}
+              </span>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="relative rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          {/* target band */}
+          {bandLeft != null && bandRight != null ? (
+            <div
+              className="absolute inset-y-3 rounded-xl bg-emerald-200/35"
+              style={{
+                left: `${Math.min(bandLeft, bandRight)}%`,
+                width: `${Math.abs(bandRight - bandLeft)}%`,
+              }}
+            />
+          ) : null}
+
+          <div className="relative flex h-[84px] items-end gap-2">
+            {normalized.map((h, i) => (
+              <div key={i} className="flex-1">
+                <div className="relative h-[84px] w-full rounded-xl bg-white/70 overflow-hidden border border-slate-200">
+                  <div
+                    className="absolute bottom-0 left-0 right-0 rounded-xl bg-slate-900"
+                    style={{ height: `${h}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+            <span>Week 1</span>
+            <span>Week 12</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 /** ----------------- Metric Tile ----------------- */
 function MetricTile({
   icon,
@@ -334,10 +502,10 @@ function MetricTile({
     tone === "emerald"
       ? "bg-emerald-50 text-emerald-700"
       : tone === "amber"
-      ? "bg-amber-50 text-amber-800"
-      : tone === "blue"
-      ? "bg-sky-50 text-sky-700"
-      : "bg-slate-50 text-slate-700";
+        ? "bg-amber-50 text-amber-800"
+        : tone === "blue"
+          ? "bg-sky-50 text-sky-700"
+          : "bg-slate-50 text-slate-700";
 
   const s = summarizeSeries(values);
 
@@ -380,9 +548,18 @@ function MetricTile({
       </div>
 
       {/* Full-width chart */}
-      <div className="mt-4">
-        <ProgressLine values={values} tone={tone} height={104} />
+      <div className="mt-3">
+        <EducationProgress
+          values={values}
+          unitLabel="Participation & delivery signal"
+          // optional: set “target band” per tile
+          targetMin={tone === "emerald" ? 88 : undefined}
+          targetMax={tone === "emerald" ? 95 : undefined}
+        />
       </div>
+
+
+
     </div>
   );
 }
