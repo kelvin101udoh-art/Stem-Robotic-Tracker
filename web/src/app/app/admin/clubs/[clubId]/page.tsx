@@ -732,11 +732,12 @@ function OverviewRow({
 /** ----------------- Sidebar ----------------- */
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="px-3 pt-4 text-[11px] font-semibold tracking-widest text-slate-500">
+    <div className="px-3 pt-3 text-[10px] font-semibold tracking-widest text-slate-500">
       {children}
     </div>
   );
 }
+
 
 function NavLink({
   href,
@@ -760,18 +761,20 @@ function NavLink({
       href={href}
       onClick={onNavigate}
       className={[
-        "group flex items-start gap-3 rounded-xl px-3 py-3 transition",
+        "group flex items-start gap-3 rounded-xl px-3 py-2.5 transition",
         active ? "bg-slate-900 text-white" : "hover:bg-slate-50 text-slate-900",
       ].join(" ")}
+
     >
       <div
         className={[
-          "grid h-9 w-9 shrink-0 place-items-center rounded-xl border text-base",
+          "grid h-8 w-8 shrink-0 place-items-center rounded-xl border text-base",
           active ? "border-white/20 bg-white/10 text-white" : "border-slate-200 bg-white text-slate-700",
         ].join(" ")}
       >
         {icon}
       </div>
+
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -1063,31 +1066,23 @@ export default function ClubCentreDashboardPage() {
         </div>
       ) : null}
 
+
       {/* DESKTOP LAYOUT */}
       <div className="flex w-full gap-6 px-4 py-6 lg:px-6">
-        {/* ✅ premium scroll container (no awkward scrollbar) */}
-        <div className="sticky top-[88px] hidden w-[340px] shrink-0 lg:block">
-          <div className="relative h-[calc(100vh-110px)] overflow-y-auto pr-2 scrollbar-none">
-            <Sidebar clubId={clubId} clubName={centreName} />
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => logout("manual")}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-              >
-                Logout
-              </button>
-            </div>
-
-            <div className="pointer-events-none sticky bottom-0 h-10 w-full bg-gradient-to-t from-slate-50/90 to-transparent" />
-          </div>
+        {/* ✅ Amazon-style sidebar: NO internal scrolling, just sticky */}
+        <div className="sticky top-[88px] hidden w-[340px] shrink-0 self-start lg:block">
+          <Sidebar clubId={clubId} clubName={centreName} />
+          {/* ✅ Removed the extra Logout button under the sidebar */}
         </div>
 
         <div className="min-w-0 flex-1 pb-10">
           <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
           <OverviewRow clubId={clubId} upcoming={upcoming} />
+          {/* Continue your other sections below as needed... */}
         </div>
       </div>
+
+
     </main>
   );
 }
