@@ -1455,20 +1455,24 @@ export default function ClubCentreDashboardPage() {
       ) : null}
 
 
-      {/* DESKTOP LAYOUT */}
-      <div className="mx-auto flex w-full max-w-none gap-6 px-4 py-6 lg:px-6">
-        {/* ✅ Amazon-style sidebar: NO internal scrolling, just sticky */}
-        <div className="sticky top-[88px] hidden w-[340px] shrink-0 self-start lg:block">
-          <Sidebar clubId={clubId} clubName={centreName} />
-          {/* ✅ Removed the extra Logout button under the sidebar */}
-        </div>
 
-        <div className="min-w-0 flex-1 pb-10">
-          <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
-          <OverviewRow clubId={clubId} upcoming={upcoming} />
-          {/* Continue your other sections below as needed... */}
+      {/* DESKTOP LAYOUT (full-bleed to escape parent max-width containers) */}
+      <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen">
+        <div className="flex w-full gap-6 px-4 py-6 lg:px-6">
+          {/* ✅ Amazon-style sidebar: NO internal scrolling, just sticky */}
+          <div className="sticky top-[88px] hidden w-[340px] shrink-0 self-start lg:block">
+            <Sidebar clubId={clubId} clubName={centreName} />
+          </div>
+
+          <div className="min-w-0 flex-1 pb-10">
+            <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
+            <OverviewRow clubId={clubId} upcoming={upcoming} />
+            {/* Continue your other sections below as needed... */}
+          </div>
         </div>
+        
       </div>
+
 
 
     </main>
