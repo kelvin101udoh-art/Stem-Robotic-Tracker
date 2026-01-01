@@ -1179,7 +1179,7 @@ function Sidebar({
     <aside className="h-full w-full">
       <div className="rounded-[22px] border border-slate-200/70 bg-white/85 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.22)] backdrop-blur">
       
-      
+
        {/* 
         <div className="border-b border-slate-200/70 px-4 py-4">
           <div className="text-[11px] font-semibold tracking-widest text-slate-500">CENTRE</div>
@@ -1283,6 +1283,7 @@ function Sidebar({
             />
           </div>
 
+          {/*
           <SectionLabel>QUICK ACTIONS</SectionLabel>
           <div className="mt-2 grid gap-2 px-4">
             <Link
@@ -1300,6 +1301,9 @@ function Sidebar({
               Invite users
             </Link>
           </div>
+           */}
+
+           
         </nav>
       </div>
     </aside>
