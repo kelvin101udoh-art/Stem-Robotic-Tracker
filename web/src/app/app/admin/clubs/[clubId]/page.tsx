@@ -843,14 +843,14 @@ function OverviewRow({
         : "border-sky-200 bg-sky-50 text-sky-900";
 
   return (<div className="relative -left-40">
-    <section  className={[
-        "mt-8",
-        wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden": "",
-      ].join(" ")}>
-         <div className={wide ? "mx-auto w-full max-w-[1400px] px-4 lg:px-6" : ""}>
+    <section className={[
+      "mt-8",
+      wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden" : "",
+    ].join(" ")}>
+      <div className={wide ? "mx-auto w-full max-w-[1400px] px-4 lg:px-6" : ""}>
         {/* ...KEEP ALL YOUR EXISTING OverviewRow CONTENT HERE... */}
       </div>
-      
+
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xs font-semibold tracking-widest text-slate-500">
@@ -875,67 +875,175 @@ function OverviewRow({
         </div>
       </div>
 
-      {/* ✅ MAIN EXEC CARDS GRID (activates at lg, not xl) */}
+      {/* ✅ EXECUTIVE OVERVIEW — 2 PRO CARDS ONLY */}
       <div className="min-w-0 grid gap-6 items-stretch lg:grid-cols-12">
-        {/* Upcoming */}
+        {/* CARD 1: Operations & Planning (Upcoming + AI Insights merged) */}
         <Card
-          className="lg:col-span-5"
-          title="Upcoming Sessions"
-          icon="📅"
+          className="lg:col-span-7"
+          title="Operations & Planning"
+          icon="🧭"
           right={
-            <Link
-              className="text-sm font-semibold text-slate-700 hover:text-slate-900"
-              href={`/app/admin/clubs/${clubId}/sessions`}
-            >
-              View all
-            </Link>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                Focus: <span className="ml-2 text-slate-900">Next 14 days</span>
+              </span>
+              <Link
+                className="hidden sm:inline text-sm font-semibold text-slate-700 hover:text-slate-900"
+                href={`/app/admin/clubs/${clubId}/sessions`}
+              >
+                View all →
+              </Link>
+            </div>
           }
           bodyClassName="pt-3"
         >
-          <div className="rounded-2xl border border-slate-200/70 bg-white overflow-hidden">
-            {upcoming.map((x, i) => (
-              <div
-                key={x.title}
-                className={[
-                  "flex items-center justify-between gap-4 px-4 py-3",
-                  i !== 0 ? "border-t border-slate-200/70" : "",
-                ].join(" ")}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-lg">
-                    {x.icon}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-900">
-                      {x.title}
-                    </div>
-                    <div className="text-xs text-slate-500">Centre delivery</div>
-                  </div>
+          <div className="grid gap-4 lg:grid-cols-12">
+            {/* Left: Upcoming list */}
+            <div className="lg:col-span-7">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-xs font-semibold tracking-widest text-slate-500 uppercase">
+                  Upcoming sessions
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-slate-700">
-                      {x.when}
-                    </div>
-                    <div className="text-xs text-slate-500">{x.time}</div>
-                  </div>
-                  <span className="text-slate-400">›</span>
-                </div>
+                <span className="text-xs font-semibold text-slate-500">
+                  {upcoming.length} scheduled
+                </span>
               </div>
-            ))}
-          </div>
 
-          <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-3 text-xs text-slate-700">
-            <span className="font-semibold text-slate-900">Teaching tip:</span>{" "}
-            Capture a 1–2 sentence note per session (what was built + what learners improved).
+              <div className="rounded-2xl border border-slate-200/70 bg-white overflow-hidden">
+                {upcoming.map((x, i) => (
+                  <div
+                    key={x.title}
+                    className={[
+                      "flex items-center justify-between gap-4 px-4 py-3",
+                      i !== 0 ? "border-t border-slate-200/70" : "",
+                    ].join(" ")}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-lg">
+                        {x.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-900">
+                          {x.title}
+                        </div>
+                        <div className="text-xs text-slate-500">Centre delivery</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-slate-700">{x.when}</div>
+                        <div className="text-xs text-slate-500">{x.time}</div>
+                      </div>
+                      <span className="text-slate-400">›</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-3 text-xs text-slate-700">
+                <span className="font-semibold text-slate-900">Coach prompt:</span>{" "}
+                Capture 1–2 lines after each session (what was built + what improved).
+              </div>
+            </div>
+
+            {/* Right: AI insights + next actions */}
+            <div className="lg:col-span-5">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-xs font-semibold tracking-widest text-slate-500 uppercase">
+                  AI insights
+                </div>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                  Preview layer
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                <InsightCompactRow
+                  title="2 learners missing parent link"
+                  desc="Link parents to unlock home dashboards + portfolio access."
+                  tone="warn"
+                  tag="Action"
+                />
+                <InsightCompactRow
+                  title="Term week mapping incomplete"
+                  desc="Finish mapping Term → Sessions to improve reporting accuracy."
+                  tone="info"
+                  tag="Check"
+                />
+                <InsightCompactRow
+                  title="Attendance consistency strong"
+                  desc="Stable pattern — keep schedule cadence."
+                  tone="good"
+                  tag="Good"
+                />
+
+                {/* ✅ Professional “Next actions” box */}
+                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                      RECOMMENDED NEXT
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      This week
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid gap-2">
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="mt-0.5 text-slate-400">•</span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">
+                          Generate student access links
+                        </div>
+                        <div className="text-xs text-slate-600">
+                          Helps learners access dashboards at home.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="mt-0.5 text-slate-400">•</span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">
+                          Complete Term → Session mapping
+                        </div>
+                        <div className="text-xs text-slate-600">
+                          Improves reporting accuracy and trends.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="mt-0.5 text-slate-400">•</span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">
+                          Add challenge rubric for scoring
+                        </div>
+                        <div className="text-xs text-slate-600">
+                          Makes portfolios clearer for parents.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile “View all” link */}
+                <Link
+                  className="sm:hidden inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                  href={`/app/admin/clubs/${clubId}/sessions`}
+                >
+                  View all sessions →
+                </Link>
+              </div>
+            </div>
           </div>
         </Card>
 
-        {/* Attendance */}
+        {/* CARD 2: Attendance & Participation (keeps your donut + bars + mini metrics) */}
         <Card
-          className="lg:col-span-4"
-          title="Attendance Snapshot"
+          className="lg:col-span-5"
+          title="Attendance & Participation"
           icon="📊"
           right={
             <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
@@ -946,19 +1054,18 @@ function OverviewRow({
           bodyClassName="pt-3"
         >
           <div className="grid gap-4">
-            {/* ✅ switch side-by-side at md to avoid cramping on sm */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <Donut value={92} label="Attendance" />
+            {/* ✅ better spacing: donut + bars always align nicely */}
+            <div className="grid gap-4 md:grid-cols-2 md:items-center">
+              <div className="flex justify-center md:justify-start">
+                <Donut value={92} label="Attendance" />
+              </div>
 
-              <div className="w-full min-w-0 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 overflow-hidden">
+              <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 overflow-hidden">
                 <div className="mb-2 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Weekly participation
-                  </div>
+                  <div className="text-sm font-semibold text-slate-900">Weekly participation</div>
                   <div className="text-xs text-slate-500">last 6</div>
                 </div>
 
-                {/* ✅ PROFESSIONAL WIDE HISTOGRAM */}
                 <MiniBarsWide
                   values={[120, 160, 140, 180, 210, 260]}
                   labels={["W1", "W2", "W3", "W4", "W5", "W6"]}
@@ -966,77 +1073,28 @@ function OverviewRow({
               </div>
             </div>
 
+            {/* ✅ stronger “status tiles” */}
             <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                  REGISTER
-                </div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  Complete
-                </div>
-                <div className="mt-1 text-xs text-slate-500">Last session</div>
+              <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                <div className="text-[11px] font-semibold tracking-widest text-slate-500">REGISTER</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">Complete</div>
+                <div className="mt-1 text-xs text-slate-600">Last session</div>
               </div>
-              <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                  CONSISTENCY
-                </div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  Strong
-                </div>
-                <div className="mt-1 text-xs text-slate-500">6-week avg</div>
+              <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                <div className="text-[11px] font-semibold tracking-widest text-slate-500">CONSISTENCY</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
+                <div className="mt-1 text-xs text-slate-600">6-week avg</div>
               </div>
-              <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
-                <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                  RISK
-                </div>
+              <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                <div className="text-[11px] font-semibold tracking-widest text-slate-500">RISK</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">Low</div>
-                <div className="mt-1 text-xs text-slate-500">Absences</div>
+                <div className="mt-1 text-xs text-slate-600">Absences</div>
               </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* AI Insights */}
-        <Card
-          className="lg:col-span-3"
-          title="AI Analytics & Insights"
-          icon="🧠"
-          right={<span className="text-xs font-semibold text-slate-500">Preview layer</span>}
-          bodyClassName="pt-3"
-        >
-          <div className="space-y-3">
-            <InsightCompactRow
-              title="2 learners missing parent link"
-              desc="Link parents to unlock home dashboards + portfolio access."
-              tone="warn"
-              tag="Action"
-            />
-            <InsightCompactRow
-              title="Term week mapping incomplete"
-              desc="Finish mapping Term → Sessions to improve reporting accuracy."
-              tone="info"
-              tag="Check"
-            />
-            <InsightCompactRow
-              title="Attendance consistency strong"
-              desc="Stable pattern — keep the schedule cadence."
-              tone="good"
-              tag="Good"
-            />
-
-            <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                RECOMMENDED NEXT
-              </div>
-              <ul className="mt-2 space-y-2 text-sm text-slate-700">
-                <li>• Generate student access links</li>
-                <li>• Complete Term → Session mapping</li>
-                <li>• Add challenge rubric for scoring</li>
-              </ul>
             </div>
           </div>
         </Card>
       </div>
+
 
       {/* ✅ ADVANCED EDUCATION EXEC PANEL */}
       <div className="mt-6 rounded-[22px] border border-slate-200/70 bg-white/85 p-5 shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)] backdrop-blur">
@@ -1122,7 +1180,7 @@ function OverviewRow({
         </div>
       </div>
     </section>
-    </div>
+  </div>
   );
 }
 
@@ -1480,7 +1538,7 @@ export default function ClubCentreDashboardPage() {
             {/* Continue your other sections below as needed... */}
           </div>
         </div>
-        
+
       </div>
 
 
