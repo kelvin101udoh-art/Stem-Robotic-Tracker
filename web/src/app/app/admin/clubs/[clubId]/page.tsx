@@ -845,7 +845,7 @@ function OverviewRow({
   return (<div className="relative -left-40">
     <section className={[
       "mt-8",
-      wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden" : "",
+      wide ? "relative left-1/2 right-1/2 -mx-[50dvw] w-[50dvw] overflow-x-hidden" : "",
     ].join(" ")}>
       <div className={wide ? "mx-auto w-full max-w-[1400px] px-4 lg:px-6" : ""}>
         {/* ...KEEP ALL YOUR EXISTING OverviewRow CONTENT HERE... */}
