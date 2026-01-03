@@ -30,6 +30,9 @@ function requireEnv(name: string) {
     return v;
 }
 
+export async function GET() {
+  return NextResponse.json({ ok: true, route: "attendance-summary" });
+}
 
 
 export async function POST(req: Request) {
