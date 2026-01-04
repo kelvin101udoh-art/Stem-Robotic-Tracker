@@ -508,7 +508,7 @@ export default function AttendanceRegisterAutoPage() {
           <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
 
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-900">Auto Register</div>
+            <div className="text-sm font-semibold text-slate-900">Attendance Register</div>
             <div className="text-xs text-slate-600">
               AI Auto-Logger 
             </div>
