@@ -1,4 +1,5 @@
-// web/src/app/app/admin/clubs/[clubId]/attendance/register/page.tsx
+//  web/src/app/app/admin/clubs/[clubId]/attendance/register/page.tsx
+
 "use client";
 
 import Link from "next/link";
@@ -11,6 +12,7 @@ type SessionRow = {
   club_id: string;
   title: string | null;
   starts_at: string | null;
+  duration_minutes?: number | null; // ✅ NEW
 };
 
 type StudentRow = {
@@ -37,6 +39,12 @@ function formatDateTime(iso?: string | null) {
   });
 }
 
+function formatTime(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
 function sameLocalDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -59,34 +67,64 @@ function pickTodaySession(sessions: SessionRow[]) {
     .map((s) => ({ s, dt: s.starts_at ? new Date(s.starts_at) : null }))
     .filter((x) => x.dt && sameLocalDay(x.dt, now)) as Array<{ s: SessionRow; dt: Date }>;
 
-  if (today.length) {
-    today.sort((a, b) => a.dt.getTime() - b.dt.getTime());
-    return today[0].s;
-  }
-  return null;
+  if (!today.length) return null;
+  today.sort((a, b) => a.dt.getTime() - b.dt.getTime());
+  return today[0].s;
 }
+
+function computeSessionEnd(session: SessionRow, fallbackMinutes = 90) {
+  const start = session.starts_at ? new Date(session.starts_at) : null;
+  if (!start) return null;
+
+  const mins =
+    typeof session.duration_minutes === "number" && session.duration_minutes > 0
+      ? session.duration_minutes
+      : fallbackMinutes;
+
+  return new Date(start.getTime() + mins * 60_000);
+}
+
+function msToClock(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const mm = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${mm}:${String(ss).padStart(2, "0")}`;
+}
+
+const FINALISE_QUEUE_KEY = "attendance_register_finalise_queue_v1";
+
+type QueuedFinalise = {
+  clubId: string;
+  sessionId: string;
+  stamp: string;
+  presentIds: string[];
+};
 
 export default function AttendanceRegisterTodayPage() {
   const router = useRouter();
   const params = useParams<{ clubId: string }>();
   const clubId = params.clubId;
 
-  // If later you build teacher/staff guard, swap this.
+  // Later you can swap to a teacher/staff guard
   const { checking, supabase } = useAdminGuard({ idleMinutes: 30 });
 
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState<string>("");
 
   const [todaySession, setTodaySession] = useState<SessionRow | null>(null);
+  const [sessionEndAt, setSessionEndAt] = useState<Date | null>(null);
+
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [present, setPresent] = useState<Record<string, boolean>>({});
 
   const [query, setQuery] = useState("");
-  const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
   const [online, setOnline] = useState(true);
   const autosaveRef = useRef<number | null>(null);
+
+  const [remainingMs, setRemainingMs] = useState<number>(0);
+  const finalisingRef = useRef(false);
 
   useEffect(() => {
     const sync = () => setOnline(navigator.onLine);
@@ -99,7 +137,108 @@ export default function AttendanceRegisterTodayPage() {
     };
   }, []);
 
-  // Load today's session + enrolled students
+  // Helper: safe query sessions with duration_minutes
+  async function fetchTodaySessionsSafe(from: string, to: string) {
+    // Try including duration_minutes (new column)
+    const rich = await supabase
+      .from("sessions")
+      .select("id, club_id, title, starts_at, duration_minutes")
+      .eq("club_id", clubId)
+      .gte("starts_at", from)
+      .lte("starts_at", to)
+      .order("starts_at", { ascending: true })
+      .limit(20);
+
+    if (!rich.error) return (rich.data ?? []) as SessionRow[];
+
+    // Fallback minimal select (if migrations not applied yet)
+    const basic = await supabase
+      .from("sessions")
+      .select("id, club_id, title, starts_at")
+      .eq("club_id", clubId)
+      .gte("starts_at", from)
+      .lte("starts_at", to)
+      .order("starts_at", { ascending: true })
+      .limit(20);
+
+    if (basic.error) throw basic.error;
+    return (basic.data ?? []) as SessionRow[];
+  }
+
+  function queueFinaliseOffline(sessionId: string, presentIds: string[]) {
+    try {
+      const stamp = new Date().toISOString();
+      const item: QueuedFinalise = { clubId, sessionId, stamp, presentIds };
+      const raw = localStorage.getItem(FINALISE_QUEUE_KEY);
+      const arr = raw ? (JSON.parse(raw) as QueuedFinalise[]) : [];
+      const next = [
+        ...arr.filter((x) => !(x.clubId === clubId && x.sessionId === sessionId)),
+        item,
+      ];
+      localStorage.setItem(FINALISE_QUEUE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  }
+
+  async function finaliseRegisterAuto(opts: { reason: "timer" | "resume" }) {
+    if (!todaySession) return;
+    if (!students.length) return;
+    if (finalisingRef.current) return;
+    finalisingRef.current = true;
+
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const userId = u.user?.id ?? null;
+
+      const stamp = new Date().toISOString();
+      const presentIds = new Set(
+        Object.entries(present)
+          .filter(([, v]) => v)
+          .map(([id]) => id)
+      );
+
+      const payload = students.map((st) => ({
+        club_id: clubId,
+        session_id: todaySession.id,
+        student_id: st.id,
+        status: (presentIds.has(st.id) ? "present" : "absent") as AttendanceStatus,
+        saved_at: stamp,
+        saved_by: userId,
+        finalised_at: stamp,
+        finalised_by: userId,
+      }));
+
+      const { error } = await supabase.from("attendance").upsert(payload as any, {
+        onConflict: "club_id,session_id,student_id",
+      });
+      if (error) throw error;
+
+      // Remove queue item if exists
+      try {
+        const raw = localStorage.getItem(FINALISE_QUEUE_KEY);
+        if (raw) {
+          const arr = JSON.parse(raw) as QueuedFinalise[];
+          const next = arr.filter((x) => !(x.clubId === clubId && x.sessionId === todaySession.id));
+          localStorage.setItem(FINALISE_QUEUE_KEY, JSON.stringify(next));
+        }
+      } catch {
+        // ignore
+      }
+
+      setSaveMsg("Register auto-finalised ✓");
+      setTimeout(() => setSaveMsg(""), 900);
+
+      router.replace(`/app/admin/clubs/${clubId}/attendance`);
+    } catch {
+      setSaveMsg("Auto-finalise failed (RLS/constraint).");
+      setTimeout(() => setSaveMsg(""), 1400);
+    } finally {
+      finalisingRef.current = false;
+    }
+  }
+
+  // Load today session + participants + existing present marks + finalise state
   useEffect(() => {
     if (checking) return;
     let cancelled = false;
@@ -114,77 +253,76 @@ export default function AttendanceRegisterTodayPage() {
         const from = startOfLocalDay(now).toISOString();
         const to = endOfLocalDay(now).toISOString();
 
-        // 1) Only pull sessions "today"
-        const sRes = await supabase
-          .from("sessions")
-          .select("id, club_id, title, starts_at")
-          .eq("club_id", clubId)
-          .gte("starts_at", from)
-          .lte("starts_at", to)
-          .order("starts_at", { ascending: true })
-          .limit(20);
+        const sessionsToday = await fetchTodaySessionsSafe(from, to);
+        const session = pickTodaySession(sessionsToday);
 
-        if (sRes.error) throw sRes.error;
-
-        const session = pickTodaySession((sRes.data ?? []) as SessionRow[]);
         if (!session) {
-          if (cancelled) return;
-          setTodaySession(null);
-          setStudents([]);
-          setPresent({});
+          if (!cancelled) {
+            setTodaySession(null);
+            setSessionEndAt(null);
+            setStudents([]);
+            setPresent({});
+          }
           return;
         }
 
-        if (cancelled) return;
-        setTodaySession(session);
+        const endAt = computeSessionEnd(session, 90);
+        if (!endAt) throw new Error("Session has no valid start time.");
+        if (!cancelled) {
+          setTodaySession(session);
+          setSessionEndAt(endAt);
+        }
 
-        // 2) Pull who is meant to participate
-        // ✅ Use the table we recommended earlier (it is NOT "enrollments")
-        // If you created: public.club_student_enrolments
-        const eRes = await supabase
-          .from("club_student_enrolments")
-          .select("student_id, is_active")
+        // ✅ Use session_participants (your real schema)
+        const pRes = await supabase
+          .from("session_participants")
+          .select("student_id")
           .eq("club_id", clubId)
-          .eq("is_active", true);
+          .eq("session_id", session.id);
 
-        // --- If you instead created session_participants, swap to this:
-        // const eRes = await supabase
-        //   .from("session_participants")
-        //   .select("student_id")
-        //   .eq("club_id", clubId)
-        //   .eq("session_id", session.id);
-        // --------------------------------------------
+        if (pRes.error) throw pRes.error;
 
-        if (eRes.error) throw eRes.error;
+        const participantIds = (pRes.data ?? []).map((x: any) => x.student_id).filter(Boolean);
 
-        const enrolledIds = (eRes.data ?? [])
-          .map((x: any) => x.student_id)
-          .filter(Boolean);
-
-        if (!enrolledIds.length) {
-          if (cancelled) return;
-          setStudents([]);
-          setPresent({});
+        if (!participantIds.length) {
+          if (!cancelled) {
+            setStudents([]);
+            setPresent({});
+          }
           return;
         }
 
-        // 3) Fetch student rows
         const stRes = await supabase
           .from("students")
           .select("id, club_id, full_name")
           .eq("club_id", clubId)
-          .in("id", enrolledIds)
+          .in("id", participantIds)
           .order("full_name", { ascending: true });
 
         if (stRes.error) throw stRes.error;
 
-        // 4) Load existing attendance marks (if already started)
+        // If finalised already -> do not show register
+        const finRes = await supabase
+          .from("attendance")
+          .select("finalised_at")
+          .eq("club_id", clubId)
+          .eq("session_id", session.id)
+          .not("finalised_at", "is", null)
+          .limit(1);
+
+        if (finRes.error) throw finRes.error;
+
+        if ((finRes.data ?? []).length > 0) {
+          router.replace(`/app/admin/clubs/${clubId}/attendance`);
+          return;
+        }
+
         const aRes = await supabase
           .from("attendance")
           .select("student_id, status")
           .eq("club_id", clubId)
           .eq("session_id", session.id)
-          .in("student_id", enrolledIds);
+          .in("student_id", participantIds);
 
         if (aRes.error) throw aRes.error;
 
@@ -197,11 +335,12 @@ export default function AttendanceRegisterTodayPage() {
         setStudents((stRes.data ?? []) as StudentRow[]);
         setPresent(presentMap);
       } catch (e: any) {
-        // ❗ Do NOT auto-redirect back (it hides the real problem).
-        const msg =
-          (e?.message as string) ||
-          "Load failed (check table names, RLS, or session data).";
-        if (!cancelled) setFatalError(msg);
+        if (!cancelled) {
+          setFatalError(
+            e?.message ||
+              "Load failed (check session_participants table, RLS, session data)."
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -211,7 +350,59 @@ export default function AttendanceRegisterTodayPage() {
     return () => {
       cancelled = true;
     };
-  }, [checking, clubId, supabase]);
+  }, [checking, clubId, supabase, router]);
+
+  // Countdown + auto-finalise at end time
+  useEffect(() => {
+    if (!todaySession || !sessionEndAt) return;
+
+    const tick = () => {
+      const now = Date.now();
+      const ms = sessionEndAt.getTime() - now;
+      setRemainingMs(ms);
+
+      if (ms <= 0) {
+        const presentIds = Object.entries(present)
+          .filter(([, v]) => v)
+          .map(([id]) => id);
+
+        if (!online) {
+          setSaveMsg("Offline — will auto-finalise when online");
+          queueFinaliseOffline(todaySession.id, presentIds);
+          return;
+        }
+
+        finaliseRegisterAuto({ reason: "timer" });
+      }
+    };
+
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [todaySession, sessionEndAt, online, present]);
+
+  // Resume queued finalise when back online
+  useEffect(() => {
+    if (!online) return;
+    if (!todaySession || !sessionEndAt) return;
+    if (Date.now() < sessionEndAt.getTime()) return;
+
+    try {
+      const raw = localStorage.getItem(FINALISE_QUEUE_KEY);
+      if (!raw) return;
+      const arr = JSON.parse(raw) as QueuedFinalise[];
+      const hit = arr.find((x) => x.clubId === clubId && x.sessionId === todaySession.id);
+      if (!hit) return;
+
+      const restored: Record<string, boolean> = {};
+      hit.presentIds.forEach((id) => (restored[id] = true));
+      setPresent((prev) => ({ ...prev, ...restored }));
+
+      finaliseRegisterAuto({ reason: "resume" });
+    } catch {
+      // ignore
+    }
+  }, [online, todaySession, sessionEndAt, clubId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -219,17 +410,14 @@ export default function AttendanceRegisterTodayPage() {
     return students.filter((s) => s.full_name.toLowerCase().includes(q));
   }, [students, query]);
 
-  const presentCount = useMemo(
-    () => Object.values(present).filter(Boolean).length,
-    [present]
-  );
+  const presentCount = useMemo(() => Object.values(present).filter(Boolean).length, [present]);
   const total = students.length;
 
   function togglePresent(studentId: string) {
     setPresent((prev) => ({ ...prev, [studentId]: !prev[studentId] }));
   }
 
-  // Autosave debounce: only writes PRESENT marks (fast + minimal)
+  // Autosave debounce (only PRESENT marks)
   useEffect(() => {
     if (!todaySession) return;
     if (!online) return;
@@ -268,9 +456,8 @@ export default function AttendanceRegisterTodayPage() {
         setSaveMsg("Synced");
         setTimeout(() => setSaveMsg(""), 700);
       } catch {
-        // keep silent, but show a small hint
-        setSaveMsg("Offline / not saved");
-        setTimeout(() => setSaveMsg(""), 1000);
+        setSaveMsg("Not saved (check RLS/offline)");
+        setTimeout(() => setSaveMsg(""), 1200);
       }
     }, 700);
 
@@ -278,51 +465,6 @@ export default function AttendanceRegisterTodayPage() {
       if (autosaveRef.current) window.clearTimeout(autosaveRef.current);
     };
   }, [present, todaySession, online, students.length, supabase, clubId]);
-
-  // Complete register: writes ABSENT for everyone not marked present + stamps saved_at
-  async function completeRegister() {
-    if (!todaySession) return;
-    if (!students.length) return;
-
-    setSaving(true);
-    setSaveMsg("");
-
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      const userId = u.user?.id ?? null;
-      const stamp = new Date().toISOString();
-
-      const presentIds = new Set(
-        Object.entries(present)
-          .filter(([, v]) => v)
-          .map(([id]) => id)
-      );
-
-      const payload = students.map((st) => ({
-        club_id: clubId,
-        session_id: todaySession.id,
-        student_id: st.id,
-        status: (presentIds.has(st.id) ? "present" : "absent") as AttendanceStatus,
-        saved_at: stamp,
-        saved_by: userId,
-      }));
-
-      const { error } = await supabase.from("attendance").upsert(payload as any, {
-        onConflict: "club_id,session_id,student_id",
-      });
-
-      if (error) throw error;
-
-      setSaveMsg("Register completed — dashboard updating");
-      setTimeout(() => setSaveMsg(""), 1200);
-
-      router.push(`/app/admin/clubs/${clubId}/attendance`);
-    } catch {
-      setSaveMsg("Complete failed (check RLS / unique constraint / columns)");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   if (checking || loading) {
     return (
@@ -353,7 +495,7 @@ export default function AttendanceRegisterTodayPage() {
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">Today’s Register</div>
             <div className="text-xs text-slate-600">
-              Only action: mark Present. Everyone else becomes Absent on completion.
+              Only action: mark Present. Auto-finalises at session end time.
             </div>
           </div>
 
@@ -364,15 +506,12 @@ export default function AttendanceRegisterTodayPage() {
             >
               Back to Dashboard
             </Link>
-
-            <button
-              type="button"
-              onClick={completeRegister}
-              disabled={!todaySession || !students.length || saving}
-              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+            <Link
+              href={`/app/admin/clubs/${clubId}/attendance/history`}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
             >
-              {saving ? "Completing…" : "Complete register"}
-            </button>
+              History
+            </Link>
           </div>
         </div>
       </div>
@@ -381,13 +520,7 @@ export default function AttendanceRegisterTodayPage() {
         {fatalError ? (
           <div className="mb-4 rounded-[18px] border border-amber-200 bg-amber-50 p-4">
             <div className="text-sm font-semibold text-amber-900">Register failed to load</div>
-            <div className="mt-1 text-sm text-amber-900/90">
-              {fatalError}
-            </div>
-            <div className="mt-3 text-xs text-amber-900/80">
-              Most common cause: you queried a table that doesn’t exist (e.g. “enrollments”). This page expects{" "}
-              <span className="font-semibold">club_student_enrolments</span> (or switch to session_participants).
-            </div>
+            <div className="mt-1 text-sm text-amber-900/90">{fatalError}</div>
           </div>
         ) : null}
 
@@ -414,7 +547,25 @@ export default function AttendanceRegisterTodayPage() {
                   <div className="mt-1 text-xl font-semibold text-slate-900">
                     {todaySession.title || "Untitled session"}
                   </div>
-                  <div className="mt-1 text-sm text-slate-600">{formatDateTime(todaySession.starts_at)}</div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    {formatDateTime(todaySession.starts_at)}
+                    {sessionEndAt ? (
+                      <>
+                        {" "}
+                        • Ends{" "}
+                        <span className="font-semibold text-slate-900">
+                          {formatTime(sessionEndAt.toISOString())}
+                        </span>
+                      </>
+                    ) : null}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    Duration:{" "}
+                    <span className="font-semibold text-slate-900">
+                      {todaySession.duration_minutes ?? 90} mins
+                    </span>{" "}
+                    (default if not set)
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -434,6 +585,12 @@ export default function AttendanceRegisterTodayPage() {
                   >
                     {online ? "Online" : "Offline"}
                   </span>
+                  {sessionEndAt ? (
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                      Auto-finalise in{" "}
+                      <span className="ml-2 text-slate-900">{msToClock(remainingMs)}</span>
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
@@ -507,11 +664,10 @@ export default function AttendanceRegisterTodayPage() {
 
             {/* Footer helper */}
             <div className="mt-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)]">
-              <div className="text-sm font-semibold text-slate-900">
-                What happens when you click “Complete register”?
-              </div>
+              <div className="text-sm font-semibold text-slate-900">Auto-finalise behaviour</div>
               <div className="mt-1 text-sm text-slate-600">
-                Everyone not marked Present becomes Absent automatically. Attendance analytics will appear on the Attendance Dashboard.
+                When the session ends, everyone not marked Present becomes Absent, the register is locked (finalised),
+                and analytics appear on the Attendance Dashboard. To view completed registers, use History.
               </div>
             </div>
           </>
