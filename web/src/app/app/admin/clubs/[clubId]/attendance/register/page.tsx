@@ -510,7 +510,7 @@ export default function AttendanceRegisterAutoPage() {
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">Auto Register</div>
             <div className="text-xs text-slate-600">
-              Opens only when a session is active • Auto-completes at session end • Then prepares the next session register
+              AI Auto-Logger 
             </div>
           </div>
 
@@ -634,7 +634,6 @@ export default function AttendanceRegisterAutoPage() {
             <div className="text-sm font-semibold text-slate-900">Register is not open yet</div>
             <div className="mt-1 text-sm text-slate-600">
               This page will automatically switch into “Register Open” when the session start time arrives.
-              After a session ends, it auto-completes and then prepares the next session register.
             </div>
           </div>
         ) : (
