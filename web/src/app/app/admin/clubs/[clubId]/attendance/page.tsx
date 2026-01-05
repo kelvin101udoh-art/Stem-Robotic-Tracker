@@ -912,63 +912,6 @@ export default function AttendanceDashboardPage() {
 
 
 
-                {/* Recent sessions list (range-based) */}
-                <div className="mt-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)]">
-                    <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                        <div>
-                            <div className="text-sm font-semibold text-slate-900">Sessions in range</div>
-                            <div className="mt-0.5 text-xs text-slate-600">Click Register to open the session-day register workflow.</div>
-                        </div>
-                    </div>
-
-                    <div className="divide-y divide-slate-200">
-                        {sessionsView.length ? (
-                            sessionsView.map((x) => (
-                                <div key={x.session.id} className="px-5 py-4 sm:px-6 hover:bg-indigo-50/40">
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                        <div className="min-w-0">
-                                            <div className="truncate text-sm font-semibold text-slate-900">{x.session.title || "Untitled session"}</div>
-                                            <div className="mt-0.5 text-xs text-slate-600">{formatDateTime(x.session.starts_at)}</div>
-                                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
-                                                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">P: {x.present}</span>
-                                                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">L: {x.late}</span>
-                                                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">A: {x.absent}</span>
-                                                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">Total: {x.total || "—"}</span>
-                                                <span
-                                                    className={cx(
-                                                        "rounded-full border px-2.5 py-1",
-                                                        x.finalised
-                                                            ? "border-slate-900 bg-slate-900 text-white"
-                                                            : x.completed
-                                                                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                                                                : "border-amber-200 bg-amber-50 text-amber-900"
-                                                    )}
-                                                >
-                                                    {x.finalised ? "Locked" : x.completed ? "Saved" : "Pending"}
-
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <Link
-                                                href={`/app/admin/clubs/${clubId}/attendance/register`}
-                                                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                                            >
-                                                Open Register
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="px-6 py-10 text-center">
-                                <div className="text-sm font-semibold text-slate-900">No sessions found</div>
-                                <div className="mt-1 text-sm text-slate-600">Try changing the range.</div>
-                            </div>
-                        )}
-                    </div>
-                </div>
             </div>
         </main>
     );
