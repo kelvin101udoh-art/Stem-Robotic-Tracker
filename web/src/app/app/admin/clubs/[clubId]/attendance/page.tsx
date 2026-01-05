@@ -754,8 +754,8 @@ export default function AttendanceDashboardPage() {
                                     ) : null}
 
                                     {aiError ? (
-                                        <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-900">
-                                            
+                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-900">
+                                            Club Health Overview
                                         </span>
                                     ) : null}
                                 </div>
