@@ -199,7 +199,7 @@ export default function AttendanceDashboardPage() {
                     steps: ["Display a quick warm-up task", "Mark present only", "Let auto-finalise close the session register"],
                 },
                 {
-                    title: "Follow-up loop for absentees",
+                    title: "Absentee Support Follow-Up",
                     why: "Raises coverage by removing barriers and reinforcing habit.",
                     steps: ["Identify repeat absences in History", "Send gentle reminder", "Offer catch-up summary"],
                 },
@@ -884,7 +884,7 @@ export default function AttendanceDashboardPage() {
                             </div>
 
                             <div className="lg:col-span-6 rounded-2xl border border-slate-200 bg-white p-4">
-                                <div className="text-[11px] font-semibold tracking-widest text-slate-500">COACH NOTES (WHY THIS IS HAPPENING)</div>
+                                <div className="text-[11px] font-semibold tracking-widest text-slate-500">COACH NOTES</div>
                                 <div className="mt-3 text-sm text-slate-800 whitespace-pre-wrap">
                                     {aiInsights?.trend_diagnosis || "—"}
                                 </div>
