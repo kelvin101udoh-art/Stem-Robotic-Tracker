@@ -79,15 +79,48 @@ function daysAgo(n: number) {
     return d;
 }
 
-function KPI({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
+function KPI({
+    label,
+    value,
+    hint,
+    tone = "neutral",
+}: {
+    label: string;
+    value: string | number;
+    hint?: string;
+    tone?: "neutral" | "good" | "warn";
+}) {
+    const toneClasses =
+        tone === "good"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+            : tone === "warn"
+                ? "border-amber-200 bg-amber-50 text-amber-900"
+                : "border-slate-200 bg-white text-slate-700";
+
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_10px_28px_-28px_rgba(2,6,23,0.35)]">
-            <div className="text-[11px] font-semibold tracking-widest text-slate-500">{label.toUpperCase()}</div>
-            <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{value}</div>
-            {hint ? <div className="mt-1 text-xs text-slate-600">{hint}</div> : null}
+        <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_14px_45px_-38px_rgba(2,6,23,0.55)]">
+            {/* subtle glow */}
+            <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-indigo-200/25 blur-3xl opacity-0 transition group-hover:opacity-100" />
+
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                        {label.toUpperCase()}
+                    </div>
+                    <div className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+                        {value}
+                    </div>
+                    {hint ? <div className="mt-1 text-xs text-slate-600">{hint}</div> : null}
+                </div>
+
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${toneClasses}`}>
+                    {tone === "good" ? "Healthy" : tone === "warn" ? "Needs attention" : "In view"}
+                </span>
+            </div>
         </div>
     );
 }
+
 
 export default function AttendanceDashboardPage() {
     const router = useRouter();
@@ -600,14 +633,75 @@ export default function AttendanceDashboardPage() {
                     ) : null}
                 </div>
 
-                {/* KPI row */}
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                    <KPI label="Sessions" value={stats.sessionsCount} hint="in range" />
-                    <KPI label="Register completed" value={stats.completedSessions} hint="any saved rows" />
-                    <KPI label="Finalised" value={stats.finalisedSessions} hint="locked sessions" />
-                    <KPI label="Coverage" value={`${stats.coverage}%`} hint="present+late / total" />
-                    <KPI label="Total marks" value={stats.totalMarks} hint="rows" />
+                {/* ✅ Quick Stats (business-owner friendly) */}
+                <div className="mt-4 overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_18px_60px_-42px_rgba(2,6,23,0.45)]">
+                    <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-indigo-50 px-5 py-4 sm:px-6">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <div className="text-sm font-semibold text-slate-900">Quick Stats</div>
+                                <div className="text-xs text-slate-600">
+                                    A simple snapshot of delivery, record-keeping, and attendance strength.
+                                </div>
+                            </div>
+
+                            <span className="mt-2 inline-flex w-fit items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 sm:mt-0">
+                                Range: <span className="ml-1 text-slate-900">{timeWindow.label}</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="px-5 py-5 sm:px-6">
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                            <KPI
+                                label="Sessions"
+                                value={stats.sessionsCount}
+                                hint="planned sessions in this range"
+                                tone={stats.sessionsCount > 0 ? "neutral" : "warn"}
+                            />
+
+                            <KPI
+                                label="Registers saved"
+                                value={`${stats.completedSessions}/${stats.sessionsCount || 0}`}
+                                hint="sessions with attendance recorded"
+                                tone={
+                                    stats.sessionsCount === 0
+                                        ? "neutral"
+                                        : stats.completedSessions >= Math.max(1, Math.ceil(stats.sessionsCount * 0.9))
+                                            ? "good"
+                                            : "warn"
+                                }
+                            />
+
+                            <KPI
+                                label="Records locked"
+                                value={`${stats.finalisedSessions}/${stats.sessionsCount || 0}`}
+                                hint="ready for parents & audits"
+                                tone={
+                                    stats.sessionsCount === 0
+                                        ? "neutral"
+                                        : stats.finalisedSessions >= Math.max(1, Math.ceil(stats.sessionsCount * 0.85))
+                                            ? "good"
+                                            : "warn"
+                                }
+                            />
+
+                            <KPI
+                                label="Attendance strength"
+                                value={`${stats.coverage}%`}
+                                hint="present + late, across all marks"
+                                tone={stats.coverage >= 90 ? "good" : stats.coverage >= 75 ? "neutral" : "warn"}
+                            />
+
+                            <KPI
+                                label="Marks recorded"
+                                value={stats.totalMarks}
+                                hint="total attendance entries"
+                                tone={stats.totalMarks > 0 ? "neutral" : "warn"}
+                            />
+                        </div>
+                    </div>
                 </div>
+
 
 
                 {/* ✅ PREMIUM: Attendance Business Report (Owner-friendly) */}
@@ -837,7 +931,8 @@ export default function AttendanceDashboardPage() {
                                                                 : "border-amber-200 bg-amber-50 text-amber-900"
                                                     )}
                                                 >
-                                                    {x.finalised ? "Finalised" : x.completed ? "Completed" : "Not completed"}
+                                                    {x.finalised ? "Locked" : x.completed ? "Saved" : "Pending"}
+
                                                 </span>
                                             </div>
                                         </div>
