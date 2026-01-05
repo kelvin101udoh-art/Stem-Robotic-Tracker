@@ -31,6 +31,8 @@ type AiInsights = {
 };
 
 
+
+
 type AttendanceRow = {
     club_id: string;
     session_id: string;
@@ -203,31 +205,24 @@ export default function AttendanceDashboardPage() {
 
         try {
             const payload = {
-                clubId,
-                range: timeWindow.label,
-                window: { from: timeWindow.from, to: timeWindow.to },
-                kpis: {
-                    sessionsCount: stats.sessionsCount,
-                    completedSessions: stats.completedSessions,
-                    finalisedSessions: stats.finalisedSessions,
-                    totalMarks: stats.totalMarks,
+                sessionTitle: sessionsView?.[0]?.session?.title ?? "Attendance window",
+                sessionTime: timeWindow.label,
+                stats: {
+                    total: stats.totalMarks,
                     present: stats.present,
                     late: stats.late,
                     absent: stats.absent,
                     coverage: stats.coverage,
+                    missingEvidence: 0,
                 },
-                // A compact session rollup for richer trend reasoning
-                sessions: sessionsView.slice(0, 30).map((x) => ({
-                    session_id: x.session.id,
-                    title: x.session.title ?? "Untitled session",
-                    starts_at: x.session.starts_at,
-                    present: x.present,
-                    late: x.late,
-                    absent: x.absent,
-                    total: x.total,
-                    completed: x.completed,
-                    finalised: x.finalised,
-                })),
+                notes: [
+                    `Range: ${timeWindow.label}`,
+                    `Sessions: ${stats.sessionsCount}`,
+                    `Completed: ${stats.completedSessions}`,
+                    `Finalised: ${stats.finalisedSessions}`,
+                ],
+                // optional: if you later add reasons/notes per student, you can pass here
+                reasons: [],
             };
 
             const res = await fetch("/api/ai/attendance-summary", {
@@ -236,82 +231,118 @@ export default function AttendanceDashboardPage() {
                 body: JSON.stringify(payload),
             });
 
-
             const text = await res.text();
             const isHtml = text.trim().startsWith("<!DOCTYPE html");
 
             if (!res.ok || isHtml) {
-                throw new Error(isHtml ? "AI route returned HTML (likely missing route/middleware redirect)" : `AI error ${res.status}: ${text.slice(0, 180)}`);
+                throw new Error(
+                    isHtml
+                        ? "AI route returned HTML (likely middleware redirect / auth / missing route)"
+                        : `AI error ${res.status}: ${text.slice(0, 220)}`
+                );
             }
 
             const data = JSON.parse(text);
 
-            const mapped: AiInsights = {
-                executive_summary: data.exportReady || "—",
-                trend_diagnosis: `${data.engagement || ""}\n\n${data.integrity || ""}\n\n${data.improvement || ""}`.trim() || "—",
-                risks: [
-                    {
-                        label: "Attendance risk",
-                        severity: stats.coverage >= 90 ? "low" : stats.coverage >= 75 ? "medium" : "high",
-                        detail: `Coverage is ${stats.coverage}%.`,
-                    },
-                    {
-                        label: "Punctuality risk",
-                        severity: (data.punctuality ?? 0) >= 80 ? "low" : (data.punctuality ?? 0) >= 60 ? "medium" : "high",
-                        detail: `Punctuality score: ${data.punctuality ?? "—"}%.`,
-                    },
-                    {
-                        label: "Evidence/data risk",
-                        severity: stats.totalMarks > 0 ? "low" : "high",
-                        detail: stats.totalMarks > 0 ? "Attendance evidence exists in this range." : "No attendance rows found for this range.",
-                    },
-                ],
-                actions_next_session: [
-                    {
-                        title: "Next session improvement focus",
-                        why: "AI-selected interventions based on engagement + integrity signals.",
-                        steps: [
-                            data.improvement || "Apply a short arrival routine and check-in.",
-                            ...(Array.isArray(data.skills) ? data.skills.slice(0, 3).map((s: string) => `Reinforce skill: ${s}`) : []),
-                        ].filter(Boolean),
-                    },
-                ],
-                anomalies:
-                    stats.sessionsCount > 0 && stats.totalMarks === 0
-                        ? [{ signal: "Sessions exist but no attendance marks", interpretation: "Likely register saving or participant mapping issue (RLS / session_participants / upsert key)." }]
-                        : [],
-                data_quality: {
-                    coverage_confidence: Math.min(100, Math.max(40, stats.totalMarks ? 90 : 50)),
-                    register_completion_confidence: Math.min(100, Math.max(40, stats.sessionsCount ? Math.round((stats.completedSessions / stats.sessionsCount) * 100) : 50)),
-                    notes: ["Generated by Azure AI summary route", `AI model coverage estimate: ${data.coverage ?? "—"}%`],
-                },
-                kpi_story: {
-                    headline: data.engagement ? "AI narrative generated" : "AI narrative unavailable",
-                    bullets: [
-                        `Coverage: ${stats.coverage}%`,
-                        `Sessions: ${stats.sessionsCount}`,
-                        `Completed registers: ${stats.completedSessions}`,
+            // If the API route itself returned an error object, surface it.
+            if (data?.error) {
+                throw new Error(data.details ? `${data.error}: ${String(data.details).slice(0, 220)}` : String(data.error));
+            }
+
+            // ✅ If already in dashboard schema, use it
+            if (data?.executive_summary) {
+                setAiInsights({ ...data, source: "azure" });
+                return;
+            }
+
+            // ✅ If in Azure-summary schema, map it to dashboard schema
+            if (data?.exportReady || data?.engagement || data?.integrity || data?.improvement) {
+                const punctualityScore = typeof data.punctuality === "number" ? data.punctuality : 0;
+
+                const mapped: AiInsights = {
+                    executive_summary: String(data.exportReady || "AI summary unavailable."),
+                    trend_diagnosis:
+                        `${data.engagement || ""}\n\n${data.integrity || ""}\n\n${data.improvement || ""}`.trim() || "—",
+
+                    risks: [
+                        {
+                            label: "Attendance risk",
+                            severity: stats.coverage >= 90 ? "low" : stats.coverage >= 75 ? "medium" : "high",
+                            detail: String(`Coverage is ${stats.coverage}% across the selected window.`),
+                        },
+                        {
+                            label: "Punctuality risk",
+                            severity: punctualityScore >= 80 ? "low" : punctualityScore >= 60 ? "medium" : "high",
+                            detail: String(`Estimated punctuality score: ${punctualityScore}%.`),
+                        },
+                        {
+                            label: "Data completeness risk",
+                            severity: stats.totalMarks > 0 ? "low" : "high",
+                            detail: stats.totalMarks > 0 ? "Attendance evidence exists in this window." : "No attendance rows found for this window.",
+                        },
                     ],
-                },
-                source: "azure",
-            };
 
-            setAiInsights(mapped);
+                    actions_next_session: [
+                        {
+                            title: "Next-session action plan",
+                            why: "AI-generated improvement focus based on engagement + integrity signals.",
+                            steps: [
+                                data.improvement || "Apply a 3-minute arrival routine and quick check-in.",
+                                ...(Array.isArray(data.skills) ? data.skills.slice(0, 4).map((s: any) => `Reinforce: ${String(s)}`) : []),
+                            ].filter(Boolean) as string[],
+                        },
+                    ],
 
+                    anomalies:
+                        stats.sessionsCount > 0 && stats.totalMarks === 0
+                            ? [
+                                {
+                                    signal: "Sessions exist but no attendance marks",
+                                    interpretation: "Likely register saving/upsert key or session_participants mapping / RLS issue.",
+                                },
+                            ]
+                            : [],
 
-            // Basic sanity check
-            if (!data?.executive_summary) throw new Error("Invalid AI response shape");
+                    data_quality: {
+                        coverage_confidence: Math.min(100, Math.max(40, stats.totalMarks ? 90 : 50)),
+                        register_completion_confidence: Math.min(
+                            100,
+                            Math.max(40, stats.sessionsCount ? Math.round((stats.completedSessions / stats.sessionsCount) * 100) : 50)
+                        ),
+                        notes: [
+                            "Generated via Azure attendance-summary route.",
+                            typeof data.coverage === "number" ? `AI-estimated coverage: ${data.coverage}%` : "AI-estimated coverage not provided.",
+                        ],
+                    },
 
-            setAiInsights({ ...data, source: "azure" });
+                    kpi_story: {
+                        headline: data.engagement ? "AI narrative generated" : "AI narrative unavailable",
+                        bullets: [
+                            `Coverage: ${stats.coverage}%`,
+                            `Sessions: ${stats.sessionsCount}`,
+                            `Completed registers: ${stats.completedSessions}`,
+                            `Finalised: ${stats.finalisedSessions}`,
+                        ],
+                    },
+
+                    source: "azure",
+                };
+
+                setAiInsights(mapped);
+                return;
+
+            }
+
+            // If it’s neither schema, show a more helpful error (and fallback)
+            throw new Error(`Unexpected AI response shape: ${Object.keys(data || {}).slice(0, 10).join(", ") || "empty object"}`);
         } catch (e: any) {
             setAiInsights(fallbackInsights());
             setAiError(e?.message || "Azure insights unavailable — using fallback.");
         } finally {
             setAiBusy(false);
         }
-
-
     }
+
 
 
 
