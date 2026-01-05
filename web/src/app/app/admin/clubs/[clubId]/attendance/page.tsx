@@ -194,8 +194,8 @@ export default function AttendanceDashboardPage() {
 
             actions_next_session: [
                 {
-                    title: "Run a 3-minute arrival routine",
-                    why: "Improves punctuality + reduces admin overhead at the start of the session.",
+                    title: "Quick Start Routine",
+                    why: "Improves punctuality and reduces admin overhead at the start of the session.",
                     steps: ["Display a quick warm-up task", "Mark present only", "Let auto-finalise close the session register"],
                 },
                 {
@@ -638,13 +638,7 @@ export default function AttendanceDashboardPage() {
                             </div>
 
                             <div className="mt-1 flex flex-wrap items-center gap-2 sm:mt-0">
-                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
-                                    
-                                </span>
-
-                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
-                                  
-                                </span>
+                              
                             </div>
                         </div>
 
@@ -665,13 +659,11 @@ export default function AttendanceDashboardPage() {
                             <div>
                                 <div className="text-sm font-semibold text-slate-900">Quick Stats</div>
                                 <div className="text-xs text-slate-600">
-                                    A simple snapshot of delivery, record-keeping, and attendance strength.
+                                    Snapshot of delivery
                                 </div>
                             </div>
 
-                            <span className="mt-2 inline-flex w-fit items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 sm:mt-0">
-                                Range: <span className="ml-1 text-slate-900">{timeWindow.label}</span>
-                            </span>
+                            
                         </div>
                     </div>
 
@@ -700,7 +692,7 @@ export default function AttendanceDashboardPage() {
                             <KPI
                                 label="Records locked"
                                 value={`${stats.finalisedSessions}/${stats.sessionsCount || 0}`}
-                                hint="ready for parents & audits"
+                                hint="ready for audits"
                                 tone={
                                     stats.sessionsCount === 0
                                         ? "neutral"
@@ -713,7 +705,7 @@ export default function AttendanceDashboardPage() {
                             <KPI
                                 label="Attendance strength"
                                 value={`${stats.coverage}%`}
-                                hint="present + late, across all marks"
+                                hint="present and absent, across all marks"
                                 tone={stats.coverage >= 90 ? "good" : stats.coverage >= 75 ? "neutral" : "warn"}
                             />
 
@@ -742,9 +734,7 @@ export default function AttendanceDashboardPage() {
                                         Attendance Report
                                     </span>
 
-                                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
-                                        Range: <span className="ml-1 text-slate-900">{timeWindow.label}</span>
-                                    </span>
+                                    
 
                                     <span
                                         className={cx(
@@ -764,24 +754,22 @@ export default function AttendanceDashboardPage() {
                                     ) : null}
 
                                     {aiError ? (
-                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-900">
-                                            Using standard insights
+                                        <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-900">
+                                            
                                         </span>
                                     ) : null}
                                 </div>
 
                                 <div className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
-                                    What this means for your STEM club
+                                    Your STEM Roadmap
                                 </div>
                                 <div className="mt-1 text-sm text-slate-600">
-                                    A clear summary of attendance, consistency, and practical actions to improve next session.
+                                    A clear summary of attendance
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
-                                    Auto-updates when registers are completed
-                                </span>
+                                
                             </div>
                         </div>
                     </div>
@@ -790,7 +778,7 @@ export default function AttendanceDashboardPage() {
                     <div className="px-5 py-5 sm:px-6">
                         {/* Headline summary */}
                         <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-4">
-                            <div className="text-[11px] font-semibold tracking-widest text-slate-500">THIS PERIOD’S HEADLINE</div>
+                            <div className="text-[11px] font-semibold tracking-widest text-slate-500">Performance Summary</div>
                             <div className="mt-2 text-sm font-semibold text-slate-900 whitespace-pre-wrap">
                                 {aiInsights?.executive_summary || "—"}
                             </div>
@@ -914,9 +902,9 @@ export default function AttendanceDashboardPage() {
 
                         {/* Small footer */}
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <div className="text-sm font-semibold text-slate-900">Business-friendly insights</div>
+                            <div className="text-sm font-semibold text-slate-900">Actionable Intelligence</div>
                             <div className="text-xs text-slate-600">
-                                Updates automatically when attendance registers are completed/finalised.
+                                Auto-syncs on completion. Powered by secure Azure AI.
                             </div>
                         </div>
                     </div>
