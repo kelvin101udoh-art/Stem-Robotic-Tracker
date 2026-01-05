@@ -744,7 +744,7 @@ export default function AttendanceDashboardPage() {
                                                 : "border-slate-200 bg-slate-50 text-slate-700"
                                         )}
                                     >
-                                        {aiInsights?.source === "azure" ? "AI-generated" : "Standard insights"}
+                                        {aiInsights?.source === "azure" ? "AI-generated" : "Club Health Overview"}
                                     </span>
 
                                     {aiBusy ? (
