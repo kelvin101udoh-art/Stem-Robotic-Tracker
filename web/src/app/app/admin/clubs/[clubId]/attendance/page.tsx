@@ -571,8 +571,8 @@ export default function AttendanceDashboardPage() {
                     <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
 
                     <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-900">Attendance Dashboard</div>
-                        <div className="text-xs text-slate-600">KPIs, trends, AI insights — register is handled on a separate page.</div>
+                        <div className="text-sm font-semibold text-slate-900">Attendance</div>
+                        <div className="text-xs text-slate-600">KPIs, trends, AI insights</div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -604,7 +604,7 @@ export default function AttendanceDashboardPage() {
                 <div className="flex flex-col gap-2">
                     <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Attendance Intelligence</h1>
                     <p className="max-w-3xl text-sm text-slate-600">
-                        Filter by time range to review performance and compliance. Today’s register is completed on the Register page.
+                        Filter by time range to review performance and compliance. 
                     </p>
                 </div>
 
@@ -617,16 +617,14 @@ export default function AttendanceDashboardPage() {
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
-                                        Today’s Dashboard
+                                        Showing: <span className="ml-1 text-slate-900">Today</span>
                                     </span>
 
                                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-900">
                                         Live view
                                     </span>
 
-                                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
-                                        Showing: <span className="ml-1 text-slate-900">Today</span>
-                                    </span>
+                                    
                                 </div>
 
                                 <div className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
@@ -635,18 +633,17 @@ export default function AttendanceDashboardPage() {
 
                                 <div className="mt-1 max-w-3xl text-sm text-slate-600">
                                     This dashboard focuses on <span className="font-semibold text-slate-900">today’s session only</span> —
-                                    so it stays simple for owners. For yesterday and older sessions, use the{" "}
-                                    <span className="font-semibold text-slate-900">History</span> page.
+                                    
                                 </div>
                             </div>
 
                             <div className="mt-1 flex flex-wrap items-center gap-2 sm:mt-0">
                                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
-                                    No clutter • Owner-friendly
+                                    
                                 </span>
 
                                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
-                                    Trends → History
+                                  
                                 </span>
                             </div>
                         </div>
