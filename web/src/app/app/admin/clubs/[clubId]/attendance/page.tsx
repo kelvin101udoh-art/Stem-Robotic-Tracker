@@ -466,6 +466,28 @@ export default function AttendanceDashboardPage() {
         });
     }, [attendance, sessions]);
 
+
+    const aiSignature = useMemo(() => {
+        return [
+            range,
+            stats.sessionsCount,
+            stats.completedSessions,
+            stats.finalisedSessions,
+            stats.coverage,
+            stats.totalMarks,
+            sessionsView[0]?.session?.id || "none",
+        ].join("|");
+    }, [
+        range,
+        stats.sessionsCount,
+        stats.completedSessions,
+        stats.finalisedSessions,
+        stats.coverage,
+        stats.totalMarks,
+        sessionsView,
+    ]);
+
+
     useEffect(() => {
         if (checking) return;
 
@@ -475,19 +497,15 @@ export default function AttendanceDashboardPage() {
             return;
         }
 
-        // Refresh whenever window or data changes
-        fetchAzureInsights();
+        // Debounce AI calls (prevents multiple calls during rapid state updates)
+        const t = window.setTimeout(() => {
+            fetchAzureInsights();
+        }, 450);
+
+        return () => window.clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        checking,
-        range,
-        sessions.length,
-        attendance.length,
-        stats.coverage,
-        stats.totalMarks,
-        stats.completedSessions,
-        stats.finalisedSessions,
-    ]);
+    }, [checking, aiSignature]);
+
 
 
     if (checking || loading) {
@@ -632,22 +650,11 @@ export default function AttendanceDashboardPage() {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={fetchAzureInsights}
-                                disabled={aiBusy}
-                                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60 disabled:opacity-60"
-                            >
-                                {aiBusy ? "Refreshing…" : "Refresh AI"}
-                            </button>
-
-                            <Link
-                                href={`/app/admin/clubs/${clubId}/attendance/register`}
-                                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                            >
-                                Open Register
-                            </Link>
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                Auto-updates on register completion
+                            </span>
                         </div>
+
                     </div>
 
                     {/* Content */}
