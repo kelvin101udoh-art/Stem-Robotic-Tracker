@@ -608,183 +608,201 @@ export default function AttendanceDashboardPage() {
                     <KPI label="Coverage" value={`${stats.coverage}%`} hint="present+late / total" />
                     <KPI label="Total marks" value={stats.totalMarks} hint="rows" />
                 </div>
-                {/* ✅ PREMIUM: Azure AI Insight panel */}
-                <div className="mt-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)]">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <div className="text-xs font-semibold tracking-widest text-slate-500">AI INSIGHTS</div>
 
-                                <span
-                                    className={cx(
-                                        "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                                        aiInsights?.source === "azure"
-                                            ? "border-cyan-200 bg-cyan-50 text-cyan-900"
-                                            : "border-slate-200 bg-slate-50 text-slate-700"
-                                    )}
-                                >
-                                    {aiInsights?.source === "azure" ? "Azure Intelligence" : "Fallback Engine"}
-                                </span>
 
-                                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                    Range: <span className="ml-1 text-slate-900">{timeWindow.label}</span>
-                                </span>
+                {/* ✅ PREMIUM: Attendance Business Report (Owner-friendly) */}
+                <div className="mt-4 overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_18px_60px_-42px_rgba(2,6,23,0.45)]">
+                    {/* Header */}
+                    <div className="relative border-b border-slate-200 bg-gradient-to-r from-indigo-50 via-white to-cyan-50 px-5 py-5 sm:px-6">
+                        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
 
-                                {aiBusy ? (
-                                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-900">
-                                        Generating…
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
+                                        Attendance Report
                                     </span>
-                                ) : null}
 
-                                {aiError ? (
-                                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-900">
-                                        {aiError}
+                                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
+                                        Range: <span className="ml-1 text-slate-900">{timeWindow.label}</span>
                                     </span>
-                                ) : null}
+
+                                    <span
+                                        className={cx(
+                                            "rounded-full border px-3 py-1 text-[11px] font-semibold",
+                                            aiInsights?.source === "azure"
+                                                ? "border-cyan-200 bg-cyan-50 text-cyan-900"
+                                                : "border-slate-200 bg-slate-50 text-slate-700"
+                                        )}
+                                    >
+                                        {aiInsights?.source === "azure" ? "AI-generated" : "Standard insights"}
+                                    </span>
+
+                                    {aiBusy ? (
+                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-900">
+                                            Updating…
+                                        </span>
+                                    ) : null}
+
+                                    {aiError ? (
+                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-900">
+                                            Using standard insights
+                                        </span>
+                                    ) : null}
+                                </div>
+
+                                <div className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+                                    What this means for your STEM club
+                                </div>
+                                <div className="mt-1 text-sm text-slate-600">
+                                    A clear summary of attendance, consistency, and practical actions to improve next session.
+                                </div>
                             </div>
 
-                            <div className="mt-1 text-lg font-semibold text-slate-900">Executive-grade attendance intelligence</div>
-                            <div className="mt-1 text-sm text-slate-600">
-                                Azure generates insights using register completion signals + marks across your selected window — including risk radar and next-session actions.
+                            <div className="flex items-center gap-2">
+                                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
+                                    Auto-updates when registers are completed
+                                </span>
                             </div>
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                Auto-updates on register completion
-                            </span>
-                        </div>
-
                     </div>
 
-                    {/* Content */}
-                    <div className="mt-4 grid gap-4 lg:grid-cols-12">
-                        {/* Left: executive + story */}
-                        <div className="lg:col-span-7 space-y-4">
-                            <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 p-4">
-                                <div className="text-[11px] font-semibold tracking-widest text-slate-500">EXECUTIVE SUMMARY</div>
-                                <div className="mt-2 text-sm font-semibold text-slate-900 whitespace-pre-wrap">
-                                    {aiInsights?.executive_summary || "—"}
-                                </div>
-                            </div>
-
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                <div className="text-[11px] font-semibold tracking-widest text-slate-500">KPI STORY</div>
-                                <div className="mt-2 text-sm font-semibold text-slate-900">{aiInsights?.kpi_story?.headline || "—"}</div>
-                                <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                                    {(aiInsights?.kpi_story?.bullets || []).map((b, idx) => (
-                                        <li key={idx} className="flex gap-2">
-                                            <span className="text-slate-400">•</span>
-                                            <span>{b}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                <div className="text-[11px] font-semibold tracking-widest text-slate-500">TREND DIAGNOSIS</div>
-                                <div className="mt-2 text-sm text-slate-800 whitespace-pre-wrap">{aiInsights?.trend_diagnosis || "—"}</div>
+                    {/* Body */}
+                    <div className="px-5 py-5 sm:px-6">
+                        {/* Headline summary */}
+                        <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-4">
+                            <div className="text-[11px] font-semibold tracking-widest text-slate-500">THIS PERIOD’S HEADLINE</div>
+                            <div className="mt-2 text-sm font-semibold text-slate-900 whitespace-pre-wrap">
+                                {aiInsights?.executive_summary || "—"}
                             </div>
                         </div>
 
-                        {/* Right: risk + actions */}
-                        <div className="lg:col-span-5 space-y-4">
+                        {/* Signals */}
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">RISK RADAR</div>
-                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                        Live
-                                    </span>
+                                <div className="text-xs font-semibold text-slate-600">Attendance strength</div>
+                                <div className="mt-1 flex items-baseline gap-2">
+                                    <div className="text-2xl font-semibold tracking-tight text-slate-900">{stats.coverage}%</div>
+                                    <div className="text-xs font-semibold text-slate-500">coverage</div>
                                 </div>
-
-                                <div className="mt-3 space-y-2">
-                                    {(aiInsights?.risks || []).map((r, idx) => (
-                                        <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="text-sm font-semibold text-slate-900">{r.label}</div>
-                                                <span
-                                                    className={cx(
-                                                        "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                                                        r.severity === "high"
-                                                            ? "border-rose-200 bg-rose-50 text-rose-900"
-                                                            : r.severity === "medium"
-                                                                ? "border-amber-200 bg-amber-50 text-amber-900"
-                                                                : "border-emerald-200 bg-emerald-50 text-emerald-900"
-                                                    )}
-                                                >
-                                                    {r.severity.toUpperCase()}
-                                                </span>
-                                            </div>
-                                            <div className="mt-1 text-sm text-slate-700">{r.detail}</div>
-                                        </div>
-                                    ))}
+                                <div className="mt-2 text-sm text-slate-700">
+                                    {stats.coverage >= 90
+                                        ? "Strong turnout — keep the routine consistent."
+                                        : stats.coverage >= 75
+                                            ? "Good turnout — small improvements can raise consistency."
+                                            : "Turnout is low — focus on follow-ups and barriers to attendance."}
                                 </div>
                             </div>
 
                             <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                <div className="text-[11px] font-semibold tracking-widest text-slate-500">NEXT SESSION PLAYBOOK</div>
+                                <div className="text-xs font-semibold text-slate-600">Registers completed</div>
+                                <div className="mt-1 flex items-baseline gap-2">
+                                    <div className="text-2xl font-semibold tracking-tight text-slate-900">
+                                        {stats.completedSessions}/{stats.sessionsCount || 0}
+                                    </div>
+                                    <div className="text-xs font-semibold text-slate-500">sessions</div>
+                                </div>
+                                <div className="mt-2 text-sm text-slate-700">
+                                    {stats.sessionsCount === 0
+                                        ? "Create sessions to start tracking performance."
+                                        : stats.completedSessions >= Math.max(1, Math.ceil(stats.sessionsCount * 0.9))
+                                            ? "Great consistency — reports will be reliable."
+                                            : "Some sessions are missing registers — complete them for accurate reporting."}
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="text-xs font-semibold text-slate-600">Sessions locked</div>
+                                <div className="mt-1 flex items-baseline gap-2">
+                                    <div className="text-2xl font-semibold tracking-tight text-slate-900">
+                                        {stats.finalisedSessions}/{stats.sessionsCount || 0}
+                                    </div>
+                                    <div className="text-xs font-semibold text-slate-500">finalised</div>
+                                </div>
+                                <div className="mt-2 text-sm text-slate-700">
+                                    {stats.sessionsCount === 0
+                                        ? "No sessions available in this range."
+                                        : stats.finalisedSessions >= Math.max(1, Math.ceil(stats.sessionsCount * 0.85))
+                                            ? "Strong admin discipline — great for audits and parent trust."
+                                            : "Finalise more sessions to keep records consistent and trusted."}
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="text-xs font-semibold text-slate-600">Learner reliability</div>
+                                <div className="mt-1 flex items-baseline gap-2">
+                                    <div className="text-2xl font-semibold tracking-tight text-slate-900">{stats.present}</div>
+                                    <div className="text-xs font-semibold text-slate-500">present</div>
+                                </div>
+                                <div className="mt-2 text-sm text-slate-700">
+                                    {stats.present + stats.late === 0 && stats.totalMarks > 0
+                                        ? "No learners marked present/late — review attendance marking."
+                                        : "Use attendance trends to improve retention and weekly consistency."}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Next actions + Coach notes */}
+                        <div className="mt-4 grid gap-4 lg:grid-cols-12">
+                            <div className="lg:col-span-6 rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">NEXT SESSION — ACTIONS THAT IMPROVE RESULTS</div>
+                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                        Practical
+                                    </span>
+                                </div>
 
                                 <div className="mt-3 space-y-3">
-                                    {(aiInsights?.actions_next_session || []).slice(0, 3).map((a, idx) => (
-                                        <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3">
+                                    {(aiInsights?.actions_next_session || []).slice(0, 2).map((a, idx) => (
+                                        <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                             <div className="text-sm font-semibold text-slate-900">{a.title}</div>
                                             <div className="mt-1 text-sm text-slate-700">{a.why}</div>
                                             <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                                                {a.steps.map((s, j) => (
+                                                {a.steps.slice(0, 4).map((s, j) => (
                                                     <li key={j} className="flex gap-2">
-                                                        <span className="text-slate-400">•</span>
+                                                        <span className="mt-[2px] h-4 w-4 flex-none rounded-full border border-slate-300 bg-white" />
                                                         <span>{s}</span>
                                                     </li>
                                                 ))}
                                             </ul>
                                         </div>
                                     ))}
+
+                                    {(!aiInsights?.actions_next_session || aiInsights.actions_next_session.length === 0) ? (
+                                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                                            No recommended actions yet — complete a register to unlock personalised improvements.
+                                        </div>
+                                    ) : null}
                                 </div>
                             </div>
 
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                <div className="text-[11px] font-semibold tracking-widest text-slate-500">DATA QUALITY</div>
-                                <div className="mt-2 grid grid-cols-2 gap-3">
-                                    <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                        <div className="text-xs font-semibold text-slate-600">Coverage confidence</div>
-                                        <div className="mt-1 text-lg font-semibold text-slate-900">
-                                            {aiInsights?.data_quality?.coverage_confidence ?? "—"}%
-                                        </div>
-                                    </div>
-                                    <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                        <div className="text-xs font-semibold text-slate-600">Completion confidence</div>
-                                        <div className="mt-1 text-lg font-semibold text-slate-900">
-                                            {aiInsights?.data_quality?.register_completion_confidence ?? "—"}%
-                                        </div>
-                                    </div>
+                            <div className="lg:col-span-6 rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="text-[11px] font-semibold tracking-widest text-slate-500">COACH NOTES (WHY THIS IS HAPPENING)</div>
+                                <div className="mt-3 text-sm text-slate-800 whitespace-pre-wrap">
+                                    {aiInsights?.trend_diagnosis || "—"}
                                 </div>
 
-                                <ul className="mt-3 space-y-1 text-sm text-slate-700">
-                                    {(aiInsights?.data_quality?.notes || []).map((n, idx) => (
-                                        <li key={idx} className="flex gap-2">
-                                            <span className="text-slate-400">•</span>
-                                            <span>{n}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-
                                 {(aiInsights?.anomalies || []).length ? (
-                                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                                        <div className="text-sm font-semibold text-amber-900">Anomalies detected</div>
-                                        <div className="mt-2 space-y-2">
-                                            {aiInsights!.anomalies.map((a, idx) => (
-                                                <div key={idx}>
-                                                    <div className="text-sm font-semibold text-amber-900">{a.signal}</div>
-                                                    <div className="text-sm text-amber-900/90">{a.interpretation}</div>
-                                                </div>
-                                            ))}
+                                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                        <div className="text-sm font-semibold text-amber-900">Attention needed</div>
+                                        <div className="mt-1 text-sm text-amber-900/90">
+                                            Something looks unusual in this period. Check registers for missing marks.
                                         </div>
                                     </div>
                                 ) : null}
                             </div>
                         </div>
+
+                        {/* Small footer */}
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div className="text-sm font-semibold text-slate-900">Business-friendly insights</div>
+                            <div className="text-xs text-slate-600">
+                                Updates automatically when attendance registers are completed/finalised.
+                            </div>
+                        </div>
                     </div>
                 </div>
+
 
 
                 {/* Recent sessions list (range-based) */}
