@@ -445,7 +445,7 @@ export default function AttendanceHistoryPage() {
 
                     <div className="min-w-0">
                         <div className="text-sm font-semibold text-slate-900">Attendance History</div>
-                        <div className="text-xs text-slate-600">Select any session and drill into register details + export.</div>
+                        <div className="text-xs text-slate-600">Register Analysis & Export</div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -468,9 +468,9 @@ export default function AttendanceHistoryPage() {
 
             <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
                 <div className="flex flex-col gap-2">
-                    <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Register Archive</h1>
+                    <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Past Registers</h1>
                     <p className="max-w-3xl text-sm text-slate-600">
-                        Explore previous sessions. Filter by time, select a session, then drill down by learner or status.
+                        Review attendance history and learner performance for past sessions.
                     </p>
                 </div>
 
