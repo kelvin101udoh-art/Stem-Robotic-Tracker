@@ -86,7 +86,7 @@ function TopBar({
               <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">
                 Club Command Centre
               </h1>
-              
+
               {/*
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-300">
                 <span className="hidden xl:inline">
@@ -102,7 +102,7 @@ function TopBar({
             </div>
 
             <div className="flex items-center gap-3">
-              
+
               {/*
               <div className="hidden md:flex items-center gap-2">
               <div className="hidden md:flex items-center gap-2">
@@ -210,10 +210,10 @@ function ProgressLine({
   const goalValue = min + span * goalPct;
   const goalY = yFor(goalValue);
 
- 
 
-  
-  
+
+
+
 
 
 
@@ -420,6 +420,7 @@ function MetricTile({
   delta,
   values,
   tone = "slate",
+  children,
 }: {
   icon: string;
   title: string;
@@ -428,6 +429,7 @@ function MetricTile({
   delta: number;
   values: number[];
   tone?: "blue" | "emerald" | "amber" | "slate";
+  children?: ReactNode;
 }) {
   const iconTone =
     tone === "emerald"
@@ -478,16 +480,20 @@ function MetricTile({
         </div>
       </div>
 
-      {/* Full-width chart */}
+      {/* Body (default chart) OR custom body */}
       <div className="mt-3">
-        <EducationProgress
-          values={values}
-          unitLabel="Participation & delivery signal"
-          // optional: set “target band” per tile
-          targetMin={tone === "emerald" ? 88 : undefined}
-          targetMax={tone === "emerald" ? 95 : undefined}
-        />
+        {children ? (
+          children
+        ) : (
+          <EducationProgress
+            values={values}
+            unitLabel="Participation & delivery signal"
+            targetMin={tone === "emerald" ? 88 : undefined}
+            targetMax={tone === "emerald" ? 95 : undefined}
+          />
+        )}
       </div>
+
 
 
 
@@ -620,6 +626,235 @@ function InsightCompactRow({
   );
 }
 
+function AttendanceMonthlySummary({
+  monthLabel = "January 2026",
+  rate = 92,
+  present = 210,
+  absent = 18,
+  sessions = 6,
+  aiEvidenceReadyPct = 84,
+  riskFlags = 2,
+}: {
+  monthLabel?: string;
+  rate?: number;
+  present?: number;
+  absent?: number;
+  sessions?: number;
+  aiEvidenceReadyPct?: number;
+  riskFlags?: number;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500 uppercase">
+            Attendance Monthly Summary (AI)
+          </div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">
+            {monthLabel}
+          </div>
+          <div className="mt-1 text-xs text-slate-600">
+            Generated from Attendance Dashboard + History insights (monthly roll-up).
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-700">
+            AI: Auto-summary
+          </span>
+          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-900">
+            Evidence ready: {aiEvidenceReadyPct}%
+          </span>
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500">RATE</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{rate}%</div>
+          <div className="mt-1 text-xs text-slate-600">Monthly average</div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500">PRESENT</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{present}</div>
+          <div className="mt-1 text-xs text-slate-600">Total marks</div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500">ABSENT</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{absent}</div>
+          <div className="mt-1 text-xs text-slate-600">Total marks</div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500">SESSIONS</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{sessions}</div>
+          <div className="mt-1 text-xs text-slate-600">Delivered</div>
+        </div>
+      </div>
+
+      {/* AI insight bullets */}
+      <div className="mt-4 space-y-2">
+        <InsightCompactRow
+          title="What the AI sees"
+          desc="Attendance stayed stable across the month, with a small cluster of repeated absences requiring follow-up."
+          tone="info"
+          tag="Insight"
+        />
+        <InsightCompactRow
+          title="Operational action"
+          desc="Send a quick parent check-in for the top 2 recurring absences and confirm timetable clashes."
+          tone={riskFlags > 0 ? "warn" : "good"}
+          tag={riskFlags > 0 ? `Risk: ${riskFlags}` : "Clear"}
+        />
+        <InsightCompactRow
+          title="Evidence quality"
+          desc="AI evidence is improving. Aim for ≥ 90% evidence-ready to strengthen parent reporting."
+          tone={aiEvidenceReadyPct >= 90 ? "good" : aiEvidenceReadyPct >= 75 ? "info" : "warn"}
+          tag="Quality"
+        />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+        <span className="font-semibold text-slate-900">Note:</span> This is a monthly roll-up.
+        Wire it later to your Attendance tables (history + dashboard aggregates).
+      </div>
+    </div>
+  );
+}
+
+
+function AskKiKiCard({
+  centreName,
+}: {
+  centreName: string;
+}) {
+  const [q, setQ] = useState("");
+  const [messages, setMessages] = useState<Array<{ role: "user" | "kiki"; text: string }>>([
+    {
+      role: "kiki",
+      text: `Hi 👋 I’m KiKi. Ask me anything about your dashboard analytics (attendance, sessions, students, parents, teachers).`,
+    },
+  ]);
+
+  function reply(prompt: string) {
+    const p = prompt.toLowerCase();
+
+    // lightweight “smart” replies (UI only, wire to Azure later)
+    if (p.includes("attendance")) {
+      return "Attendance rate summarises Present vs Absent across the selected month. If evidence-ready is low, focus on capturing one photo + one sentence per session to improve report quality.";
+    }
+    if (p.includes("why") || p.includes("explain")) {
+      return "Tell me which metric you’re looking at (e.g., Attendance rate, Sessions delivered, Students enrolled) and the month. I’ll explain what it means and what action to take.";
+    }
+    if (p.includes("business") || p.includes("improve")) {
+      return "From a business angle: use stable attendance + strong evidence-ready % to support parent retention, renewals, and funding reports. If absences rise, trigger follow-up workflows early.";
+    }
+    return "Got it. Ask me what metric you want explained (and what month), and I’ll translate it into plain English + an action plan.";
+  }
+
+  return (
+    <div className="mt-6 rounded-[22px] border border-slate-200/70 bg-white shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)] overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 sm:px-6">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
+            🤖
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-base font-semibold text-slate-900">
+              Ask KiKi
+            </div>
+            <div className="truncate text-xs text-slate-500">
+              AI helper for analytics + business insights • {centreName}
+            </div>
+          </div>
+        </div>
+
+        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+          Azure AI: planned
+        </span>
+      </div>
+
+      <div className="px-5 py-4 sm:px-6">
+        {/* Suggestions */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            "Explain the attendance rate for this month",
+            "Why is evidence-ready important?",
+            "Give me actions to improve parent retention",
+            "Summarise risks from this dashboard",
+          ].map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setQ(s)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        {/* Chat log */}
+        <div className="mt-4 max-h-[260px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div className="space-y-2">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={[
+                  "rounded-2xl px-3 py-2 text-sm",
+                  m.role === "kiki"
+                    ? "bg-white border border-slate-200 text-slate-800"
+                    : "bg-slate-900 text-white ml-auto",
+                ].join(" ")}
+              >
+                <div className="text-[11px] font-semibold opacity-70">
+                  {m.role === "kiki" ? "KiKi" : "You"}
+                </div>
+                <div className="mt-0.5">{m.text}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Input */}
+        <div className="mt-3 flex gap-2">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder='Ask KiKi... e.g. "Explain attendance rate"'
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const text = q.trim();
+              if (!text) return;
+
+              setMessages((prev) => [...prev, { role: "user", text }]);
+              setQ("");
+
+              const kiki = reply(text);
+              setMessages((prev) => [...prev, { role: "user", text }, { role: "kiki", text: kiki }]);
+            }}
+            className="shrink-0 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Send
+          </button>
+        </div>
+
+        <div className="mt-2 text-xs text-slate-500">
+          KiKi is UI-only for now. Later you can connect Azure OpenAI + your monthly analytics payload.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
 /** ----------------- Pro Analytics Screen ----------------- */
 function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName: string }) {
   const tiles = [
@@ -650,7 +885,7 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
       tone: "emerald" as const,
       values: [84, 86, 85, 88, 90, 92, 91, 92, 93, 92, 92, 92],
     },
-    
+
   ];
 
   return (
@@ -675,12 +910,29 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
       </div>
 
       <div className="mt-5 grid gap-5 sm:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3">
-        {tiles.map((t, idx) => (
-          <div key={t.title} className={idx === 3 ? "xl:col-span-3" : ""}>
-            <MetricTile {...t} />
-          </div>
-        ))}
+        {tiles.map((t) => {
+          const isAttendance = t.title === "Attendance rate";
+
+          return (
+            <div key={t.title}>
+              <MetricTile {...t}>
+                {isAttendance ? (
+                  <AttendanceMonthlySummary
+                    monthLabel="January 2026"
+                    rate={92}
+                    present={210}
+                    absent={18}
+                    sessions={6}
+                    aiEvidenceReadyPct={84}
+                    riskFlags={2}
+                  />
+                ) : null}
+              </MetricTile>
+            </div>
+          );
+        })}
       </div>
+
 
 
 
@@ -765,229 +1017,229 @@ function OverviewRow({
         ? "border-amber-200 bg-amber-50 text-amber-900"
         : "border-sky-200 bg-sky-50 text-sky-900";
 
-return (
-  <div className="w-full">
-    {/* ✅ Always centered, no full-bleed math */}
-    <section className="mt-8 w-full">
-      <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6">
-        {/* Header */}
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <div className="text-xs font-semibold tracking-widest text-slate-500">
-              LEARNING OVERVIEW
+  return (
+    <div className="w-full">
+      {/* ✅ Always centered, no full-bleed math */}
+      <section className="mt-8 w-full">
+        <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6">
+          {/* Header */}
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold tracking-widest text-slate-500">
+                LEARNING OVERVIEW
+              </div>
+              <div className="mt-1 text-lg font-semibold text-slate-900">
+                Teaching & learner signals
+              </div>
+              <div className="mt-1 text-sm text-slate-600">
+                A teacher-friendly snapshot of progress, engagement, and what to do next.
+              </div>
             </div>
-            <div className="mt-1 text-lg font-semibold text-slate-900">
-              Teaching & learner signals
-            </div>
-            <div className="mt-1 text-sm text-slate-600">
-              A teacher-friendly snapshot of progress, engagement, and what to do next.
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
+                Classroom-ready
+              </span>
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                Updated: <span className="ml-2 text-slate-900">Last 24h</span>
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-              <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
-              Classroom-ready
-            </span>
-            <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-              Updated: <span className="ml-2 text-slate-900">Last 24h</span>
-            </span>
+          {/* ✅ 2 Education cards only — centered + responsive */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* CARD 1: Learning Outcomes & Mastery */}
+            <Card
+              title="Learning Outcomes & Mastery"
+              icon="🎯"
+              right={
+                <Link
+                  href={`/app/admin/clubs/${clubId}/reports`}
+                  className="text-sm font-semibold text-slate-700 hover:text-slate-900"
+                >
+                  Open reports →
+                </Link>
+              }
+              bodyClassName="pt-4"
+            >
+              <div className="grid gap-4">
+                {/* Top KPIs */}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                      SKILL FOCUS
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">Building + Logic</div>
+                    <div className="mt-1 text-xs text-slate-600">This week</div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                      RUBRIC READY
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">3-point</div>
+                    <div className="mt-1 text-xs text-slate-600">Recommended</div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                      PORTFOLIO QUALITY
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
+                    <div className="mt-1 text-xs text-slate-600">Notes + photos</div>
+                  </div>
+                </div>
+
+                {/* Teacher moves (education perspective) */}
+                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                      TEACHER MOVES (NEXT)
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-500">For next session</span>
+                  </div>
+
+                  <div className="mt-3 space-y-3">
+                    <InsightCompactRow
+                      title="Use a 3-step success checklist"
+                      desc="Build → test → explain. Helps learners reflect and improves evidence quality."
+                      tone="info"
+                      tag="Plan"
+                    />
+                    <InsightCompactRow
+                      title="Capture one learning sentence per learner"
+                      desc="What changed today? (e.g., gears, sensors, teamwork)."
+                      tone="good"
+                      tag="Quality"
+                    />
+                    <InsightCompactRow
+                      title="Add a quick challenge score"
+                      desc="Foundation / Developing / Secure to standardise progress tracking."
+                      tone="warn"
+                      tag="Action"
+                    />
+                  </div>
+                </div>
+
+                {/* Lightweight “targets” strip */}
+                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3 text-xs text-slate-700">
+                  <span className="font-semibold text-slate-900">Teaching tip:</span>{" "}
+                  Keep evidence simple: 1 photo + 1 sentence + 1 score per session.
+                </div>
+              </div>
+            </Card>
+
+            {/* CARD 2: Engagement & Inclusion */}
+            <Card
+              title="Engagement & Inclusion"
+              icon="🤝"
+              right={
+                <Link
+                  href={`/app/admin/clubs/${clubId}/attendance`}
+                  className="text-sm font-semibold text-slate-700 hover:text-slate-900"
+                >
+                  Manage attendance →
+                </Link>
+              }
+              bodyClassName="pt-4"
+            >
+              <div className="grid gap-4">
+                {/* Donut + bars */}
+                <div className="grid gap-4 md:grid-cols-2 md:items-center">
+                  <div className="flex justify-center md:justify-start">
+                    <Donut value={92} label="Attendance" />
+                  </div>
+
+                  <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 overflow-hidden">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="text-sm font-semibold text-slate-900">Participation trend</div>
+                      <div className="text-xs text-slate-500">last 6</div>
+                    </div>
+                    <MiniBarsWide
+                      values={[120, 160, 140, 180, 210, 260]}
+                      labels={["W1", "W2", "W3", "W4", "W5", "W6"]}
+                    />
+                  </div>
+                </div>
+
+                {/* Inclusion signals */}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                      SAFETY NET
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">Low risk</div>
+                    <div className="mt-1 text-xs text-slate-600">Absences</div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                      PARENT LINKS
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">2 missing</div>
+                    <div className="mt-1 text-xs text-slate-600">Home access</div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                      CONSISTENCY
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
+                    <div className="mt-1 text-xs text-slate-600">Routine stable</div>
+                  </div>
+                </div>
+
+                {/* Next actions for inclusion */}
+                <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                      SUPPORT ACTIONS
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-500">This week</span>
+                  </div>
+
+                  <div className="mt-3 grid gap-2">
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="mt-0.5 text-slate-400">•</span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">
+                          Link missing parent accounts
+                        </div>
+                        <div className="text-xs text-slate-600">
+                          Unlocks home dashboards + portfolio viewing.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="mt-0.5 text-slate-400">•</span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">
+                          Flag learners needing extra support
+                        </div>
+                        <div className="text-xs text-slate-600">
+                          Add a short note to guide next session scaffolding.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile CTA */}
+                <Link
+                  className="sm:hidden inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                  href={`/app/admin/clubs/${clubId}/people`}
+                >
+                  Manage learners & parents →
+                </Link>
+              </div>
+            </Card>
           </div>
         </div>
-
-        {/* ✅ 2 Education cards only — centered + responsive */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* CARD 1: Learning Outcomes & Mastery */}
-          <Card
-            title="Learning Outcomes & Mastery"
-            icon="🎯"
-            right={
-              <Link
-                href={`/app/admin/clubs/${clubId}/reports`}
-                className="text-sm font-semibold text-slate-700 hover:text-slate-900"
-              >
-                Open reports →
-              </Link>
-            }
-            bodyClassName="pt-4"
-          >
-            <div className="grid gap-4">
-              {/* Top KPIs */}
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                    SKILL FOCUS
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">Building + Logic</div>
-                  <div className="mt-1 text-xs text-slate-600">This week</div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                    RUBRIC READY
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">3-point</div>
-                  <div className="mt-1 text-xs text-slate-600">Recommended</div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                    PORTFOLIO QUALITY
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
-                  <div className="mt-1 text-xs text-slate-600">Notes + photos</div>
-                </div>
-              </div>
-
-              {/* Teacher moves (education perspective) */}
-              <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                    TEACHER MOVES (NEXT)
-                  </div>
-                  <span className="text-[11px] font-semibold text-slate-500">For next session</span>
-                </div>
-
-                <div className="mt-3 space-y-3">
-                  <InsightCompactRow
-                    title="Use a 3-step success checklist"
-                    desc="Build → test → explain. Helps learners reflect and improves evidence quality."
-                    tone="info"
-                    tag="Plan"
-                  />
-                  <InsightCompactRow
-                    title="Capture one learning sentence per learner"
-                    desc="What changed today? (e.g., gears, sensors, teamwork)."
-                    tone="good"
-                    tag="Quality"
-                  />
-                  <InsightCompactRow
-                    title="Add a quick challenge score"
-                    desc="Foundation / Developing / Secure to standardise progress tracking."
-                    tone="warn"
-                    tag="Action"
-                  />
-                </div>
-              </div>
-
-              {/* Lightweight “targets” strip */}
-              <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3 text-xs text-slate-700">
-                <span className="font-semibold text-slate-900">Teaching tip:</span>{" "}
-                Keep evidence simple: 1 photo + 1 sentence + 1 score per session.
-              </div>
-            </div>
-          </Card>
-
-          {/* CARD 2: Engagement & Inclusion */}
-          <Card
-            title="Engagement & Inclusion"
-            icon="🤝"
-            right={
-              <Link
-                href={`/app/admin/clubs/${clubId}/attendance`}
-                className="text-sm font-semibold text-slate-700 hover:text-slate-900"
-              >
-                Manage attendance →
-              </Link>
-            }
-            bodyClassName="pt-4"
-          >
-            <div className="grid gap-4">
-              {/* Donut + bars */}
-              <div className="grid gap-4 md:grid-cols-2 md:items-center">
-                <div className="flex justify-center md:justify-start">
-                  <Donut value={92} label="Attendance" />
-                </div>
-
-                <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 overflow-hidden">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-sm font-semibold text-slate-900">Participation trend</div>
-                    <div className="text-xs text-slate-500">last 6</div>
-                  </div>
-                  <MiniBarsWide
-                    values={[120, 160, 140, 180, 210, 260]}
-                    labels={["W1", "W2", "W3", "W4", "W5", "W6"]}
-                  />
-                </div>
-              </div>
-
-              {/* Inclusion signals */}
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                    SAFETY NET
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">Low risk</div>
-                  <div className="mt-1 text-xs text-slate-600">Absences</div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                    PARENT LINKS
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">2 missing</div>
-                  <div className="mt-1 text-xs text-slate-600">Home access</div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                    CONSISTENCY
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">Strong</div>
-                  <div className="mt-1 text-xs text-slate-600">Routine stable</div>
-                </div>
-              </div>
-
-              {/* Next actions for inclusion */}
-              <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                    SUPPORT ACTIONS
-                  </div>
-                  <span className="text-[11px] font-semibold text-slate-500">This week</span>
-                </div>
-
-                <div className="mt-3 grid gap-2">
-                  <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <span className="mt-0.5 text-slate-400">•</span>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-slate-900">
-                        Link missing parent accounts
-                      </div>
-                      <div className="text-xs text-slate-600">
-                        Unlocks home dashboards + portfolio viewing.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <span className="mt-0.5 text-slate-400">•</span>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-slate-900">
-                        Flag learners needing extra support
-                      </div>
-                      <div className="text-xs text-slate-600">
-                        Add a short note to guide next session scaffolding.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mobile CTA */}
-              <Link
-                className="sm:hidden inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-                href={`/app/admin/clubs/${clubId}/people`}
-              >
-                Manage learners & parents →
-              </Link>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </section>
-  </div>
-);
+      </section>
+    </div>
+  );
 
 
 
@@ -1092,9 +1344,9 @@ function Sidebar({
   return (
     <aside className="h-full w-full">
       <div className="rounded-[22px] border border-slate-200/70 bg-white/85 shadow-[0_18px_60px_-45px_rgba(2,6,23,0.22)] backdrop-blur">
-      
 
-       {/* 
+
+        {/* 
         <div className="border-b border-slate-200/70 px-4 py-4">
           <div className="text-[11px] font-semibold tracking-widest text-slate-500">CENTRE</div>
           <div className="mt-1 text-lg font-semibold text-slate-900">{clubName}</div>
@@ -1352,9 +1604,13 @@ export default function ClubCentreDashboardPage() {
 
           <div className="min-w-0 flex-1 pb-10">
             <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
+
+            {/* ✅ KiKi lives here (dashboard-level helper) */}
+            <AskKiKiCard centreName={centreName} />
+
             <OverviewRow clubId={clubId} upcoming={upcoming} wide />
-            {/* Continue your other sections below as needed... */}
           </div>
+
         </div>
 
       </div>
