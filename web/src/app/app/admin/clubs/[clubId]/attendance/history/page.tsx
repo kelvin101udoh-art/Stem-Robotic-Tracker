@@ -347,9 +347,14 @@ export default function AttendanceHistoryPage() {
 
         return rows
             .map((r) => {
-                const name = studentNameById.get(r.student_id) ?? r.student_id;
-                return { ...r, _name: name };
+                const mappedName = studentNameById.get(r.student_id);
+                return {
+                    ...r,
+                    _name: mappedName ?? "Unknown learner",
+                    _unlinked: !mappedName, // UI-only flag (no IDs shown)
+                };
             })
+
             .filter((r: any) => {
                 const matchesQ =
                     !query ||
@@ -753,15 +758,20 @@ export default function AttendanceHistoryPage() {
                                                         <div className="flex items-center gap-2">
                                                             <div className="truncate text-sm font-semibold text-slate-900">{r._name}</div>
 
+                                                            {r._unlinked ? (
+                                                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700">
+                                                                    Unlinked
+                                                                </span>
+                                                            ) : null}
+
                                                             {needsAiEvidence ? (
                                                                 <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-900">
                                                                     Awaiting AI evidence
                                                                 </span>
                                                             ) : null}
                                                         </div>
-
-                                                        <div className="mt-0.5 text-xs text-slate-500">ID: {String(r.student_id).slice(0, 8)}…</div>
                                                     </div>
+
 
                                                     <div className="lg:col-span-2">
                                                         <StatusChip status={r.status} />
