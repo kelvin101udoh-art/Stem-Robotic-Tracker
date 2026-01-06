@@ -317,7 +317,7 @@ export default function AttendanceHistoryPage() {
     const stats = useMemo(() => {
         const total = rows.length;
         const present = rows.filter((r) => r.status === "present").length;
-        
+
         const absent = rows.filter((r) => r.status === "absent").length;
 
         const missingEvidence = rows.filter((r) => (r.status === "present" || r.status === "absent") && (r.note ?? "").trim().length < 6).length;
@@ -583,25 +583,42 @@ export default function AttendanceHistoryPage() {
                                             href={`/app/admin/clubs/${clubId}/attendance`}
                                             className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                                         >
-                                            View KPIs
+                                            View Today Register
                                         </Link>
                                     </div>
                                 </div>
 
-                                {/* Session audit chips */}
+                                {/* Session integrity chips (AI register automation) */}
                                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
                                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
-                                        Saved: <span className="ml-2 text-slate-900">{stats.saved_at ? formatTime(stats.saved_at) : "—"}</span>
+                                        Captured:{" "}
+                                        <span className="ml-2 text-slate-900">
+                                            {stats.saved_at ? formatTime(stats.saved_at) : "—"}
+                                        </span>
                                     </span>
+
                                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
-                                        Finalised: <span className="ml-2 text-slate-900">{stats.finalised_at ? formatTime(stats.finalised_at) : "—"}</span>
+                                        Verified:{" "}
+                                        <span className="ml-2 text-slate-900">
+                                            {stats.finalised_at ? formatTime(stats.finalised_at) : "—"}
+                                        </span>
                                     </span>
+
                                     {stats.finalised_at ? (
-                                        <span className="rounded-full border border-slate-900 bg-slate-900 px-3 py-1 text-white">Locked</span>
+                                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-900">
+                                            Integrity: Verified
+                                        </span>
                                     ) : (
-                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-900">Not locked</span>
+                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-900">
+                                            Integrity: Pending review
+                                        </span>
                                     )}
+
+                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">
+                                        AI Register: Enabled
+                                    </span>
                                 </div>
+
                             </div>
 
                             {/* ✅ Session KPIs (owner-friendly) */}
@@ -610,22 +627,22 @@ export default function AttendanceHistoryPage() {
                                     <div>
                                         <div className="text-sm font-semibold text-slate-900">Session Snapshot</div>
                                         <div className="text-xs text-slate-600">
-                                            Clear indicators for attendance, punctuality, and evidence quality.
+                                            Clear indicators for attendance quality & completeness
                                         </div>
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
                                         <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700">
-                                            Saved: <span className="ml-1 text-slate-900">{stats.saved_at ? formatTime(stats.saved_at) : "—"}</span>
+                                            Saved at: <span className="ml-1 text-slate-900">{stats.saved_at ? formatTime(stats.saved_at) : "—"}</span>
                                         </span>
 
                                         {stats.finalised_at ? (
                                             <span className="rounded-full border border-slate-900 bg-slate-900 px-3 py-1 text-white">
-                                                Locked
+                                                Register Saved & Locked
                                             </span>
                                         ) : (
                                             <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-900">
-                                                Not locked
+                                                Register Unsaved & Unlocked
                                             </span>
                                         )}
                                     </div>
@@ -635,7 +652,7 @@ export default function AttendanceHistoryPage() {
                                     <KPI
                                         label="Coverage"
                                         value={`${stats.coverage}%`}
-                                        hint="Who attended (Present + Late)"
+                                        hint="Who attended (Present and absent)"
                                         bar={stats.coverage}
                                         tone={stats.coverage >= 90 ? "good" : stats.coverage >= 75 ? "neutral" : "warn"}
                                         badge={stats.coverage >= 90 ? "Strong" : stats.coverage >= 75 ? "OK" : "Low"}
@@ -647,7 +664,7 @@ export default function AttendanceHistoryPage() {
                                         hint="Arrived on time (Present out of attended)"
                                         bar={stats.punctuality}
                                         tone={stats.punctuality >= 85 ? "good" : stats.punctuality >= 65 ? "neutral" : "warn"}
-                                        badge={stats.punctuality >= 85 ? "On time" : stats.punctuality >= 65 ? "Mixed" : "Late-heavy"}
+                                        badge={stats.punctuality >= 85 ? "On time" : stats.punctuality >= 65 ? "Mixed" : "High-Risk Absences"}
                                     />
 
                                     <KPI
@@ -793,7 +810,7 @@ export default function AttendanceHistoryPage() {
                         </div>
 
                         {/* Mini help block */}
-                       
+
                     </div>
                 </div>
             </div>
