@@ -102,21 +102,13 @@ function TopBar({
             </div>
 
             <div className="flex items-center gap-3">
-
-              {/*
-              <div className="hidden md:flex items-center gap-2">
-              <div className="hidden md:flex items-center gap-2">
-                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">
-                  
-                </span>
-              </div>
-              */}
-
-
+              <button
+                type="button"
+                onClick={onOpenSidebar}
+                className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
+              >
+                ☰ Menu
+              </button>
 
               <Link
                 href="/app/admin"
@@ -132,6 +124,7 @@ function TopBar({
                 Invite users
               </Link>
             </div>
+
           </div>
         </div>
       </div>
@@ -909,7 +902,7 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 sm:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3">
+      <div className="mt-5 grid gap-6 sm:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
         {tiles.map((t) => {
           const isAttendance = t.title === "Attendance rate";
 
@@ -1551,14 +1544,15 @@ export default function ClubCentreDashboardPage() {
 
       {/* MOBILE SIDEBAR DRAWER */}
       {sidebarOpen ? (
-        <div className="fixed inset-0 z-[60] lg:hidden">
+        <div className="fixed inset-0 z-[60]">
+
           <div
             className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
 
           {/* ✅ hide scrollbar + add bottom fade */}
-          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[380px] border-r border-slate-200 bg-slate-50/60 p-4 backdrop-blur-xl">
+          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[380px] lg:w-[420px] lg:max-w-none border-r border-slate-200 bg-slate-50/60 p-4 backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-semibold text-slate-900">Admin Menu</div>
               <button
@@ -1596,24 +1590,20 @@ export default function ClubCentreDashboardPage() {
 
       {/* DESKTOP LAYOUT (full-bleed to escape parent max-width containers) */}
       <div className="relative left-1/2 right-1/2 -mx-[50dvw] w-[100dvw] overflow-x-hidden">
-        <div className="flex w-full gap-6 px-4 py-6 lg:px-6">
-          {/* ✅ Amazon-style sidebar: NO internal scrolling, just sticky */}
-          <div className="sticky top-[88px] hidden w-[340px] shrink-0 self-start lg:block">
-            <Sidebar clubId={clubId} clubName={centreName} />
+        <div className="w-full px-4 py-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1400px]">
+            <div className="min-w-0 pb-10">
+              <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
+
+              {/* ✅ KiKi lives here (dashboard-level helper) */}
+              <AskKiKiCard centreName={centreName} />
+
+              <OverviewRow clubId={clubId} upcoming={upcoming} wide />
+            </div>
           </div>
-
-          <div className="min-w-0 flex-1 pb-10">
-            <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
-
-            {/* ✅ KiKi lives here (dashboard-level helper) */}
-            <AskKiKiCard centreName={centreName} />
-
-            <OverviewRow clubId={clubId} upcoming={upcoming} wide />
-          </div>
-
         </div>
-
       </div>
+
 
 
 
