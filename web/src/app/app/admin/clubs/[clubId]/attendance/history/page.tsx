@@ -21,7 +21,7 @@ type StudentRow = {
     full_name: string;
 };
 
-type AttendanceStatus = "present" | "absent" | "late";
+type AttendanceStatus = "present" | "absent";
 
 type AttendanceRow = {
     club_id: string;
@@ -85,18 +85,18 @@ function pct(n: number, d: number) {
 
 function statusBadge(status: AttendanceStatus) {
     if (status === "present") return "border-emerald-200 bg-emerald-50 text-emerald-900";
-    if (status === "late") return "border-amber-200 bg-amber-50 text-amber-900";
     return "border-rose-200 bg-rose-50 text-rose-900";
 }
 
 function StatusChip({ status }: { status: AttendanceStatus }) {
-    const label = status === "present" ? "Present" : status === "late" ? "Late" : "Absent";
+    const label = status === "present" ? "Present" : "Absent";
     return (
         <span className={cx("inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold", statusBadge(status))}>
             {label}
         </span>
     );
 }
+
 
 
 function KPI({
@@ -158,6 +158,12 @@ function KPI({
     );
 }
 
+function aiEvidenceText(r: AttendanceRow) {
+    // If you already store AI evidence somewhere later, map it here.
+    // For now, we’ll re-use `note` as "AI evidence summary" (read-only UI).
+    return (r.note ?? "").trim();
+}
+
 
 
 function exportCSVFile(filename: string, headers: string[], rows: Array<Record<string, any>>) {
@@ -193,7 +199,8 @@ export default function AttendanceHistoryPage() {
     const [rows, setRows] = useState<AttendanceRow[]>([]);
 
     const [q, setQ] = useState("");
-    const [filter, setFilter] = useState<"all" | "present" | "late" | "absent" | "missingEvidence">("all");
+    const [filter, setFilter] = useState<"all" | "present" | "absent" | "needsAiEvidence">("all");
+
 
     const [msg, setMsg] = useState("");
 
@@ -349,16 +356,18 @@ export default function AttendanceHistoryPage() {
                     !query ||
                     r._name.toLowerCase().includes(query) ||
                     String(r.student_id).toLowerCase().includes(query) ||
-                    String(r.note ?? "").toLowerCase().includes(query) ||
-                    String(r.late_reason ?? "").toLowerCase().includes(query) ||
                     String(r.absent_reason ?? "").toLowerCase().includes(query);
+
+                const aiText = aiEvidenceText(r);
+                const hasAiEvidence = aiText.length >= 6;
 
                 const matchesFilter =
                     filter === "all"
                         ? true
-                        : filter === "missingEvidence"
-                            ? (r.status === "present" || r.status === "late") && String(r.note ?? "").trim().length < 6
+                        : filter === "needsAiEvidence"
+                            ? r.status === "present" && !hasAiEvidence
                             : r.status === filter;
+
 
                 return matchesQ && matchesFilter;
             });
@@ -671,13 +680,14 @@ export default function AttendanceHistoryPage() {
                                             <input
                                                 value={q}
                                                 onChange={(e) => setQ(e.target.value)}
-                                                placeholder="Search learner, note, or reason…"
+                                                placeholder="Search learner or absence reason…"
+
                                                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                                             />
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-2">
-                                            {(["all", "present", "late", "absent", "missingEvidence"] as const).map((k) => (
+                                            {(["all", "present", "absent", "needsAiEvidence"] as const).map((k) => (
                                                 <button
                                                     key={k}
                                                     type="button"
@@ -689,13 +699,10 @@ export default function AttendanceHistoryPage() {
                                                             : "border-slate-200 bg-white text-slate-900 hover:bg-indigo-50/60"
                                                     )}
                                                 >
-                                                    {k === "all"
-                                                        ? "All"
-                                                        : k === "missingEvidence"
-                                                            ? "Missing evidence"
-                                                            : k[0].toUpperCase() + k.slice(1)}
+                                                    {k === "all" ? "All" : k === "needsAiEvidence" ? "Needs AI evidence" : k[0].toUpperCase() + k.slice(1)}
                                                 </button>
                                             ))}
+
                                         </div>
                                     </div>
 
@@ -708,30 +715,35 @@ export default function AttendanceHistoryPage() {
                             {/* Drill-down table */}
                             <div className="border-t border-slate-200">
                                 <div className="hidden lg:grid grid-cols-12 gap-3 bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 px-6 py-3 text-[11px] font-semibold tracking-widest text-slate-500">
-                                    <div className="col-span-4">LEARNER</div>
+                                    <div className="col-span-5">LEARNER</div>
                                     <div className="col-span-2">STATUS</div>
-                                    <div className="col-span-3">REASON</div>
-                                    <div className="col-span-3">EVIDENCE NOTE</div>
+                                    <div className="col-span-3">ABSENCE REASON</div>
+                                    <div className="col-span-2">AI EVIDENCE</div>
                                 </div>
+
 
                                 <div className="divide-y divide-slate-200">
                                     {filteredRows.map((r: any) => {
-                                        const reason = r.status === "late" ? (r.late_reason ?? "") : r.status === "absent" ? (r.absent_reason ?? "") : "";
-                                        const note = (r.note ?? "").trim();
-                                        const evidenceMissing = (r.status === "present" || r.status === "late") && note.length < 6;
+                                        const reason = r.status === "absent" ? (r.absent_reason ?? "") : "";
+                                        const aiText = aiEvidenceText(r);
+                                        const hasAiEvidence = aiText.length >= 6;
+                                        const needsAiEvidence = r.status === "present" && !hasAiEvidence;
+
 
                                         return (
                                             <div key={`${r.session_id}_${r.student_id}`} className="px-5 py-4 sm:px-6 hover:bg-indigo-50/40">
                                                 <div className="grid gap-3 lg:grid-cols-12 lg:items-center">
-                                                    <div className="lg:col-span-4 min-w-0">
+                                                    <div className="lg:col-span-5 min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             <div className="truncate text-sm font-semibold text-slate-900">{r._name}</div>
-                                                            {evidenceMissing ? (
+
+                                                            {needsAiEvidence ? (
                                                                 <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-900">
-                                                                    Evidence missing
+                                                                    Awaiting AI evidence
                                                                 </span>
                                                             ) : null}
                                                         </div>
+
                                                         <div className="mt-0.5 text-xs text-slate-500">ID: {String(r.student_id).slice(0, 8)}…</div>
                                                     </div>
 
@@ -747,14 +759,23 @@ export default function AttendanceHistoryPage() {
                                                         )}
                                                     </div>
 
-                                                    <div className="lg:col-span-3">
-                                                        {note ? (
-                                                            <div className="text-sm text-slate-800">{note}</div>
+                                                    <div className="lg:col-span-2">
+                                                        {r.status === "present" ? (
+                                                            hasAiEvidence ? (
+                                                                <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-900">
+                                                                    Ready
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                                                    Pending
+                                                                </span>
+                                                            )
                                                         ) : (
-                                                            <div className="text-xs text-slate-500">—</div>
+                                                            <span className="text-xs text-slate-500">—</span>
                                                         )}
                                                     </div>
                                                 </div>
+
                                             </div>
                                         );
                                     })}
@@ -762,7 +783,10 @@ export default function AttendanceHistoryPage() {
                                     {!filteredRows.length ? (
                                         <div className="px-6 py-10 text-center">
                                             <div className="text-sm font-semibold text-slate-900">No results</div>
-                                            <div className="mt-1 text-sm text-slate-600">Try clearing search or switching filter.</div>
+                                            <div className="mt-1 text-sm text-slate-600">
+                                                Try clearing search, switching to “All”, or picking another session.
+                                            </div>
+
                                         </div>
                                     ) : null}
                                 </div>
