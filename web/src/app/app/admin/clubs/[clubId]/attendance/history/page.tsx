@@ -793,12 +793,7 @@ export default function AttendanceHistoryPage() {
                         </div>
 
                         {/* Mini help block */}
-                        <div className="mt-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)]">
-                            <div className="text-sm font-semibold text-slate-900">Exports</div>
-                            <div className="mt-1 text-sm text-slate-600">
-                                Export is session-scoped to keep files audit-friendly (one session = one CSV). You can later add a “range export” if you want.
-                            </div>
-                        </div>
+                       
                     </div>
                 </div>
             </div>
