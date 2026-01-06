@@ -317,13 +317,13 @@ export default function AttendanceHistoryPage() {
     const stats = useMemo(() => {
         const total = rows.length;
         const present = rows.filter((r) => r.status === "present").length;
-        const late = rows.filter((r) => r.status === "late").length;
+        
         const absent = rows.filter((r) => r.status === "absent").length;
 
-        const missingEvidence = rows.filter((r) => (r.status === "present" || r.status === "late") && (r.note ?? "").trim().length < 6).length;
+        const missingEvidence = rows.filter((r) => (r.status === "present" || r.status === "absent") && (r.note ?? "").trim().length < 6).length;
 
-        const coverage = pct(present + late, total);
-        const punctuality = pct(present, present + late);
+        const coverage = pct(present + absent, total);
+        const punctuality = pct(present, present + absent);
 
         const anySaved = rows.find((r) => r.saved_at) ?? null;
         const anyFinal = rows.find((r) => r.finalised_at) ?? null;
@@ -331,7 +331,6 @@ export default function AttendanceHistoryPage() {
         return {
             total,
             present,
-            late,
             absent,
             missingEvidence,
             coverage,
