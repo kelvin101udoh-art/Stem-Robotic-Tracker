@@ -105,7 +105,7 @@ function TopBar({
               <button
                 type="button"
                 onClick={onOpenSidebar}
-                className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
+                className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
               >
                 ☰ Menu
               </button>
@@ -132,23 +132,171 @@ function TopBar({
   );
 }
 
+
+function OwnerKpi({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+      <div className="text-[11px] font-semibold tracking-widest text-slate-500 uppercase">{label}</div>
+      <div className="mt-1 text-lg font-semibold text-slate-900">{value}</div>
+      {hint ? <div className="mt-1 text-xs text-slate-600">{hint}</div> : null}
+    </div>
+  );
+}
+
+function OwnerInsight30Days({
+  monthLabel = "Last 30 days",
+  attendanceRate = 92,
+  deltaPct = 3,
+  sessionsDelivered = 6,
+  absences = 18,
+  evidenceReadyPct = 84,
+  followUps = 2,
+}: {
+  monthLabel?: string;
+  attendanceRate?: number;
+  deltaPct?: number; // compare to previous 30 days
+  sessionsDelivered?: number;
+  absences?: number;
+  evidenceReadyPct?: number;
+  followUps?: number;
+}) {
+  const health =
+    attendanceRate >= 90 ? "Great" : attendanceRate >= 80 ? "Watch" : "At risk";
+
+  const healthTone =
+    health === "Great"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : health === "Watch"
+        ? "border-amber-200 bg-amber-50 text-amber-900"
+        : "border-rose-200 bg-rose-50 text-rose-900";
+
+  const evidenceTone =
+    evidenceReadyPct >= 90
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : evidenceReadyPct >= 75
+        ? "border-sky-200 bg-sky-50 text-sky-900"
+        : "border-amber-200 bg-amber-50 text-amber-900";
+
+  const renewalSignal =
+    attendanceRate >= 90 && evidenceReadyPct >= 85 ? "Strong" : attendanceRate >= 85 ? "Good" : "Needs work";
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500 uppercase">
+            Owner Summary
+          </div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">{monthLabel}</div>
+          <div className="mt-1 text-xs text-slate-600">
+            A simple view of delivery consistency, parent confidence, and follow-ups.
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${healthTone}`}>
+            Attendance health: {health}
+          </span>
+          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${evidenceTone}`}>
+            Parent-ready evidence: {evidenceReadyPct}%
+          </span>
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        <OwnerKpi label="Attendance" value={`${attendanceRate}%`} hint="Average (30 days)" />
+        <OwnerKpi label="Sessions delivered" value={`${sessionsDelivered}`} hint="Delivered (30 days)" />
+        <OwnerKpi label="Missed seats" value={`${absences}`} hint="Absences (30 days)" />
+        <OwnerKpi label="Renewal signal" value={renewalSignal} hint="Retention indicator" />
+      </div>
+
+      {/* Delta + actions */}
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <DeltaPill delta={deltaPct} label="vs previous 30 days" />
+
+        <span
+          className={[
+            "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold",
+            followUps > 0
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-emerald-200 bg-emerald-50 text-emerald-900",
+          ].join(" ")}
+        >
+          {followUps > 0 ? `${followUps} follow-ups needed` : "No follow-ups needed"}
+        </span>
+      </div>
+
+      {/* Actions box */}
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="text-[11px] font-semibold tracking-widest text-slate-500 uppercase">
+          What to do next (7 days)
+        </div>
+
+        <div className="mt-3 grid gap-2">
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <div className="text-sm font-semibold text-slate-900">Message recurring absences</div>
+            <div className="text-xs text-slate-600">
+              Quick parent check-ins reduce drop-offs and protect renewals.
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <div className="text-sm font-semibold text-slate-900">Improve evidence capture</div>
+            <div className="text-xs text-slate-600">
+              Aim for 90%+ with 1 photo + 1 sentence per learner per session.
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <div className="text-sm font-semibold text-slate-900">Use attendance as a growth asset</div>
+            <div className="text-xs text-slate-600">
+              Strong attendance + strong portfolios = more referrals and easier upsells.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+        Built from your Attendance History (last 30 days). No forecasting, no jargon.
+      </div>
+    </div>
+  );
+}
+
+
 /** ----------------- Small UI Pieces ----------------- */
-function TrendBadge({ delta }: { delta: number }) {
+function DeltaPill({
+  label = "vs last 30 days",
+  delta,
+}: {
+  label?: string;
+  delta: number;
+}) {
   const up = delta >= 0;
   return (
     <span
       className={[
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-        up
-          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-          : "border-rose-200 bg-rose-50 text-rose-800",
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold",
+        up ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900",
       ].join(" ")}
     >
-      <span className="text-[12px]">{up ? "▲" : "▼"}</span>
-      {Math.abs(delta)}%
+      <span className="text-[12px]">{up ? "↑" : "↓"}</span>
+      <span>{Math.abs(delta)}%</span>
+      <span className="text-slate-500 font-semibold">{label}</span>
     </span>
   );
 }
+
 
 function ProgressLine({
   values,
@@ -411,8 +559,6 @@ function MetricTile({
   subtitle,
   value,
   delta,
-  values,
-  tone = "slate",
   children,
 }: {
   icon: string;
@@ -420,28 +566,14 @@ function MetricTile({
   subtitle: string;
   value: string;
   delta: number;
-  values: number[];
-  tone?: "blue" | "emerald" | "amber" | "slate";
   children?: ReactNode;
 }) {
-  const iconTone =
-    tone === "emerald"
-      ? "bg-emerald-50 text-emerald-700"
-      : tone === "amber"
-        ? "bg-amber-50 text-amber-800"
-        : tone === "blue"
-          ? "bg-sky-50 text-sky-700"
-          : "bg-slate-50 text-slate-700";
-
-  const s = summarizeSeries(values);
-
   return (
     <div className="rounded-[22px] border border-slate-200/70 bg-white/90 p-5 shadow-[0_14px_46px_-34px_rgba(2,6,23,0.25)] backdrop-blur">
-      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTone} text-xl`}>
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
               {icon}
             </div>
             <div className="min-w-0">
@@ -450,49 +582,22 @@ function MetricTile({
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="text-4xl font-semibold tracking-tight text-slate-900">{value}</div>
-            <TrendBadge delta={delta} />
+            <DeltaPill delta={delta} />
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-              Trend: {s.direction}
-            </span>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-              Pattern: {s.stability}
-            </span>
-          </div>
-        </div>
-
-        <div className="shrink-0 text-right">
-          <div className="text-[11px] font-semibold text-slate-500">Last 12</div>
-          <div className="mt-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-semibold text-slate-600">
-            Forecast: +3 • MA(3)
+          <div className="mt-2 text-xs text-slate-600">
+            Snapshot for the last <span className="font-semibold text-slate-900">30 days</span>.
           </div>
         </div>
       </div>
 
-      {/* Body (default chart) OR custom body */}
-      <div className="mt-3">
-        {children ? (
-          children
-        ) : (
-          <EducationProgress
-            values={values}
-            unitLabel="Participation & delivery signal"
-            targetMin={tone === "emerald" ? 88 : undefined}
-            targetMax={tone === "emerald" ? 95 : undefined}
-          />
-        )}
-      </div>
-
-
-
-
+      <div className="mt-4">{children}</div>
     </div>
   );
 }
+
 
 
 
@@ -619,13 +724,13 @@ function InsightCompactRow({
   );
 }
 
-function AttendanceMonthlySummary({
+function AttendanceOwnerInsight({
   monthLabel = "January 2026",
   rate = 92,
   present = 210,
   absent = 18,
   sessions = 6,
-  aiEvidenceReadyPct = 84,
+  evidenceReadyPct = 84,
   riskFlags = 2,
 }: {
   monthLabel?: string;
@@ -633,52 +738,66 @@ function AttendanceMonthlySummary({
   present?: number;
   absent?: number;
   sessions?: number;
-  aiEvidenceReadyPct?: number;
+  evidenceReadyPct?: number;
   riskFlags?: number;
 }) {
+  const health =
+    rate >= 90 ? "Great" : rate >= 80 ? "Watch" : "At risk";
+
+  const healthTone =
+    health === "Great"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : health === "Watch"
+        ? "border-amber-200 bg-amber-50 text-amber-900"
+        : "border-rose-200 bg-rose-50 text-rose-900";
+
+  const evidenceTone =
+    evidenceReadyPct >= 90
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : evidenceReadyPct >= 75
+        ? "border-sky-200 bg-sky-50 text-sky-900"
+        : "border-amber-200 bg-amber-50 text-amber-900";
+
+  const missed = absent; // simple business language
+  const renewalSignal =
+    rate >= 90 && evidenceReadyPct >= 85 ? "Strong" : rate >= 85 ? "Good" : "Needs work";
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold tracking-widest text-slate-500 uppercase">
-            Attendance Monthly Summary (AI)
+            Attendance — Owner Summary
           </div>
-          <div className="mt-1 text-sm font-semibold text-slate-900">
-            {monthLabel}
-          </div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">{monthLabel}</div>
           <div className="mt-1 text-xs text-slate-600">
-            Generated from Attendance Dashboard + History insights (monthly roll-up).
+            A simple view of delivery consistency, parent trust, and follow-up needs.
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-700">
-            AI: Auto-summary
+          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${healthTone}`}>
+            Health: {health}
           </span>
-          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-900">
-            Evidence ready: {aiEvidenceReadyPct}%
+          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${evidenceTone}`}>
+            Parent-ready evidence: {evidenceReadyPct}%
           </span>
         </div>
       </div>
 
-      {/* KPI strip */}
+      {/* KPI Strip */}
       <div className="mt-4 grid gap-3 sm:grid-cols-4">
         <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-          <div className="text-[11px] font-semibold tracking-widest text-slate-500">RATE</div>
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500">ATTENDANCE</div>
           <div className="mt-1 text-lg font-semibold text-slate-900">{rate}%</div>
-          <div className="mt-1 text-xs text-slate-600">Monthly average</div>
+          <div className="mt-1 text-xs text-slate-600">Average this month</div>
         </div>
 
         <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-          <div className="text-[11px] font-semibold tracking-widest text-slate-500">PRESENT</div>
-          <div className="mt-1 text-lg font-semibold text-slate-900">{present}</div>
-          <div className="mt-1 text-xs text-slate-600">Total marks</div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
-          <div className="text-[11px] font-semibold tracking-widest text-slate-500">ABSENT</div>
-          <div className="mt-1 text-lg font-semibold text-slate-900">{absent}</div>
-          <div className="mt-1 text-xs text-slate-600">Total marks</div>
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500">MISSED</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{missed}</div>
+          <div className="mt-1 text-xs text-slate-600">Learner absences</div>
         </div>
 
         <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
@@ -686,37 +805,59 @@ function AttendanceMonthlySummary({
           <div className="mt-1 text-lg font-semibold text-slate-900">{sessions}</div>
           <div className="mt-1 text-xs text-slate-600">Delivered</div>
         </div>
+
+        <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500">RENEWAL SIGNAL</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{renewalSignal}</div>
+          <div className="mt-1 text-xs text-slate-600">Retention indicator</div>
+        </div>
       </div>
 
-      {/* AI insight bullets */}
-      <div className="mt-4 space-y-2">
-        <InsightCompactRow
-          title="What the AI sees"
-          desc="Attendance stayed stable across the month, with a small cluster of repeated absences requiring follow-up."
-          tone="info"
-          tag="Insight"
-        />
-        <InsightCompactRow
-          title="Operational action"
-          desc="Send a quick parent check-in for the top 2 recurring absences and confirm timetable clashes."
-          tone={riskFlags > 0 ? "warn" : "good"}
-          tag={riskFlags > 0 ? `Risk: ${riskFlags}` : "Clear"}
-        />
-        <InsightCompactRow
-          title="Evidence quality"
-          desc="AI evidence is improving. Aim for ≥ 90% evidence-ready to strengthen parent reporting."
-          tone={aiEvidenceReadyPct >= 90 ? "good" : aiEvidenceReadyPct >= 75 ? "info" : "warn"}
-          tag="Quality"
-        />
-      </div>
+      {/* Owner actions */}
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-[11px] font-semibold tracking-widest text-slate-500 uppercase">
+            Owner Actions (next 7 days)
+          </div>
+          <span
+            className={[
+              "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+              riskFlags > 0
+                ? "border-amber-200 bg-amber-50 text-amber-900"
+                : "border-emerald-200 bg-emerald-50 text-emerald-900",
+            ].join(" ")}
+          >
+            {riskFlags > 0 ? `${riskFlags} follow-ups` : "All clear"}
+          </span>
+        </div>
 
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-        <span className="font-semibold text-slate-900">Note:</span> This is a monthly roll-up.
-        Wire it later to your Attendance tables (history + dashboard aggregates).
+        <div className="mt-3 grid gap-2">
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <div className="text-sm font-semibold text-slate-900">Message recurring absences</div>
+            <div className="text-xs text-slate-600">
+              A quick parent check-in prevents drop-offs and protects renewals.
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <div className="text-sm font-semibold text-slate-900">Improve evidence capture</div>
+            <div className="text-xs text-slate-600">
+              Aim for 90%+ with 1 photo + 1 sentence per learner per session.
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <div className="text-sm font-semibold text-slate-900">Use attendance as a growth asset</div>
+            <div className="text-xs text-slate-600">
+              High attendance + strong portfolios = stronger referrals and easier upsells.
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
 
 
 function AskKiKiCard({
@@ -906,18 +1047,26 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
         {tiles.map((t) => {
           const isAttendance = t.title === "Attendance rate";
 
+
+
           return (
             <div key={t.title}>
-              <MetricTile {...t}>
+              <MetricTile
+                icon={t.icon}
+                title="Attendance"
+                subtitle="Owner view (last 30 days)"
+                value={t.value}
+                delta={t.delta}
+              >
                 {isAttendance ? (
-                  <AttendanceMonthlySummary
-                    monthLabel="January 2026"
-                    rate={92}
-                    present={210}
-                    absent={18}
-                    sessions={6}
-                    aiEvidenceReadyPct={84}
-                    riskFlags={2}
+                  <OwnerInsight30Days
+                    monthLabel="Last 30 days"
+                    attendanceRate={92}
+                    deltaPct={3}
+                    sessionsDelivered={6}
+                    absences={18}
+                    evidenceReadyPct={84}
+                    followUps={2}
                   />
                 ) : null}
               </MetricTile>
