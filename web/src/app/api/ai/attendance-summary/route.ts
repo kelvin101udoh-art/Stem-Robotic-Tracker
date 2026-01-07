@@ -27,13 +27,16 @@ type Body = {
 };
 
 function requireEnv(name: string) {
+    const apiKey = requireEnv("AZURE_OPENAI_API_KEY");
+    const deployment = requireEnv("AZURE_OPENAI_DEPLOYMENT");
+
     const v = process.env[name];
     if (!v) throw new Error(`Missing env var: ${name}`);
     return v;
 }
 
 export async function GET() {
-  return NextResponse.json({ ok: true, route: "attendance-summary" });
+    return NextResponse.json({ ok: true, route: "attendance-summary" });
 }
 
 
@@ -56,8 +59,13 @@ export async function POST(req: Request) {
         const stats = body.stats || {};
         const notes = (body.notes || []).join(" | ");
 
+        const total = Number(stats.total ?? 0);
+        const present = Number(stats.present ?? 0);
+        const absent = Number(stats.absent ?? 0);
+        const coverage = stats.coverage ?? null;
+
         const fullPrompt = `
-You are a STEM coach assistant. Return STRICT JSON ONLY.
+You are a STEM coach assistant. Return STRICT JSON ONLY (no markdown, no commentary). Do not wrap in backticks. Do not include explanations outside JSON.
 Required Schema:
 {
   "engagement": string,
@@ -65,19 +73,25 @@ Required Schema:
   "improvement": string,
   "skills": string[],
   "exportReady": string,
-  "coverage": number,
-  "punctuality": number
+  "coverage": number | null,
+  "punctuality": number | null
 }
 
 Context:
 - Session: ${body.sessionTitle || 'STEM Session'}
 - Stats: total=${stats.total || 0}, present=${stats.present || 0}, late=${stats.late || 0}, coverage=${stats.coverage || 0}%
 - Evidence Notes: ${notes || "No specific notes provided."}
+- Punctuality definition:
+  punctuality = round(((present) / (present + absent)) * 100)
+  If denominator is 0, punctuality = null
+
 
 Rules:
-- Keep the tone professional for school reports.
-- 'exportReady' should be a 2-3 sentence summary.
-- If data is missing, provide a reasonable educational estimate.
+- Use ONLY the supplied stats.
+- NEVER estimate or guess numbers.
+- If required numeric inputs are missing, output null for those numeric fields and explain briefly in "exportReady".
+- Keep tone professional for school reports.
+- 'exportReady' should be 2-3 sentences.
 `.trim();
 
         // 4. Responses API URL (2026 Preview)

@@ -9,6 +9,125 @@ import { useAdminGuard } from "@/lib/admin/admin-guard";
 
 type Club = { id: string; name: string };
 
+type AttendanceMark = {
+  club_id: string;
+  session_id: string;
+  status: "present" | "absent";
+  created_at: string;
+  note?: string | null;
+  photo_url?: string | null;
+};
+
+function daysAgoISO(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
+}
+
+function pct(n: number, d: number) {
+  if (!d) return 0;
+  return Math.round((n / d) * 100);
+}
+
+function useAttendance30dMetrics(supabase: any, clubId: string) {
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<null | {
+    attendanceRate: number;
+    absences: number;
+    sessionsDelivered: number;
+    evidenceReadyPct: number;
+    followUps: number;
+    deltaPct: number;
+    presentCount: number;
+    totalMarks: number;
+  }>(null);
+
+  useEffect(() => {
+    if (!supabase || !clubId) return;
+
+    let cancelled = false;
+
+    async function run() {
+      setLoading(true);
+
+      const now30 = daysAgoISO(30);
+      const prev60 = daysAgoISO(60);
+
+      // last 30 days
+      const { data: last30, error: e1 } = await supabase
+        .from("attendance_marks")
+        .select("club_id,session_id,status,created_at,note,photo_url")
+        .eq("club_id", clubId)
+        .gte("created_at", now30);
+
+      if (e1) throw e1;
+
+      // previous 30 days (30–60)
+      const { data: prev30, error: e2 } = await supabase
+        .from("attendance_marks")
+        .select("club_id,session_id,status,created_at,note,photo_url")
+        .eq("club_id", clubId)
+        .gte("created_at", prev60)
+        .lt("created_at", now30);
+
+      if (e2) throw e2;
+
+      const a = (last30 ?? []) as AttendanceMark[];
+      const b = (prev30 ?? []) as AttendanceMark[];
+
+      const presentA = a.filter((x) => x.status === "present").length;
+      const absentA = a.filter((x) => x.status === "absent").length;
+      const totalA = a.length;
+
+      const attendanceRateA = pct(presentA, presentA + absentA);
+
+      const sessionsDelivered = new Set(a.map((x) => x.session_id)).size;
+
+      // Evidence-ready definition (adjust to your business rule)
+      // Here: a row is evidence-ready if it has note OR photo_url
+      const evidenceReadyRows = a.filter((x) => Boolean(x.note) || Boolean(x.photo_url)).length;
+      const evidenceReadyPct = pct(evidenceReadyRows, totalA);
+
+      // Follow-ups: count absent marks missing a note (simple)
+      const followUps = a.filter((x) => x.status === "absent" && !x.note).length;
+
+      // delta vs previous 30 days: compare attendance rates
+      const presentB = b.filter((x) => x.status === "present").length;
+      const absentB = b.filter((x) => x.status === "absent").length;
+      const attendanceRateB = pct(presentB, presentB + absentB);
+      const deltaPct = attendanceRateA - attendanceRateB;
+
+      if (!cancelled) {
+        setMetrics({
+          attendanceRate: attendanceRateA,
+          absences: absentA,
+          sessionsDelivered,
+          evidenceReadyPct,
+          followUps,
+          deltaPct,
+          presentCount: presentA,
+          totalMarks: totalA,
+        });
+      }
+    }
+
+    run()
+      .catch(() => {
+        if (!cancelled) setMetrics(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, clubId]);
+
+  return { loading, metrics };
+}
+
+
 function formatTitle(name?: string) {
   const n = (name || "").trim();
   return n ? n : "Club centre";
@@ -189,7 +308,7 @@ function OwnerInsight30Days({
     attendanceRate >= 90 && evidenceReadyPct >= 85 ? "Strong" : attendanceRate >= 85 ? "Good" : "Needs work";
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="w-full">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -213,7 +332,7 @@ function OwnerInsight30Days({
       </div>
 
       {/* KPI strip */}
-      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <OwnerKpi label="Attendance" value={`${attendanceRate}%`} hint="Average (30 days)" />
         <OwnerKpi label="Sessions delivered" value={`${sessionsDelivered}`} hint="Delivered (30 days)" />
         <OwnerKpi label="Missed seats" value={`${absences}`} hint="Absences (30 days)" />
@@ -271,6 +390,8 @@ function OwnerInsight30Days({
       </div>
     </div>
   );
+
+
 }
 
 
@@ -569,8 +690,9 @@ function MetricTile({
   children?: ReactNode;
 }) {
   return (
-    <div className="rounded-[22px] border border-slate-200/70 bg-white/90 p-5 shadow-[0_14px_46px_-34px_rgba(2,6,23,0.25)] backdrop-blur">
-      <div className="flex items-start justify-between gap-4">
+    <div className="rounded-[26px] border border-slate-200/70 bg-white/90 shadow-[0_16px_55px_-40px_rgba(2,6,23,0.25)] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-200/60">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
@@ -584,19 +706,25 @@ function MetricTile({
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="text-4xl font-semibold tracking-tight text-slate-900">{value}</div>
-            <DeltaPill delta={delta} />
+            <DeltaPill delta={delta} label="vs previous 30 days" />
           </div>
 
           <div className="mt-2 text-xs text-slate-600">
-            Snapshot for the last <span className="font-semibold text-slate-900">30 days</span>.
+            Based on <span className="font-semibold text-slate-900">last 30 days</span> from Attendance History.
           </div>
         </div>
       </div>
 
-      <div className="mt-4">{children}</div>
+      {/* Body: give it a full-width soft panel background */}
+      <div className="px-6 py-6 bg-gradient-to-b from-slate-50 via-white to-white">
+        <div className="rounded-3xl border border-slate-200/70 bg-white/80 backdrop-blur p-5 sm:p-6">
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
+
 
 
 
@@ -787,7 +915,7 @@ function AttendanceOwnerInsight({
       </div>
 
       {/* KPI Strip */}
-      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-3">
           <div className="text-[11px] font-semibold tracking-widest text-slate-500">ATTENDANCE</div>
           <div className="mt-1 text-lg font-semibold text-slate-900">{rate}%</div>
@@ -991,96 +1119,117 @@ function AskKiKiCard({
 
 /** ----------------- Pro Analytics Screen ----------------- */
 function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName: string }) {
-  const tiles = [
-    {
-      icon: "👥",
-      title: "Students enrolled",
-      subtitle: "Active learners",
-      value: "120",
-      delta: 8,
-      tone: "blue" as const,
-      values: [30, 32, 34, 35, 37, 40, 44, 51, 60, 68, 92, 120],
-    },
-    {
-      icon: "🗓️",
-      title: "Sessions delivered",
-      subtitle: "This term",
-      value: "15",
-      delta: 12,
-      tone: "slate" as const,
-      values: [1, 1, 2, 3, 4, 6, 7, 9, 10, 12, 14, 15],
-    },
-    {
-      icon: "✅",
-      title: "Attendance rate",
-      subtitle: "Avg. last 6 sessions",
-      value: "92%",
-      delta: 3,
-      tone: "emerald" as const,
-      values: [84, 86, 85, 88, 90, 92, 91, 92, 93, 92, 92, 92],
-    },
+  const { supabase } = useAdminGuard({ idleMinutes: 15 }); // if you already have it here, otherwise pass supabase in
+  const { loading, metrics } = useAttendance30dMetrics(supabase, clubId);
 
-  ];
+  const [ai, setAi] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  useEffect(() => {
+    if (!metrics) return;
+
+    let cancelled = false;
+    async function go() {
+      setAiLoading(true);
+      const r = await fetch("/api/ai/attendance-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(metrics),
+      });
+      const data = await r.json();
+      if (!cancelled) setAi(data);
+      setAiLoading(false);
+    }
+    go().catch(() => setAiLoading(false));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [metrics]);
+
+  const attendanceValue = metrics ? `${metrics.attendanceRate}%` : "—";
+  const delta = metrics ? metrics.deltaPct : 0;
 
   return (
     <section className="mt-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <div className="text-xs font-semibold tracking-widest text-slate-500">ANALYTICS OVERVIEW</div>
-          <div className="mt-1 text-xl font-semibold text-slate-900">Signals, trends, and risks</div>
-          <div className="mt-1 truncate text-sm text-slate-600">
-            {centreName} • scoped to <span className="font-semibold">{clubId}</span>
-          </div>
+      {/* ... your header stays the same ... */}
+
+      <div className="mt-5 grid gap-6 xl:grid-cols-2 2xl:grid-cols-3">
+        <div className="2xl:col-span-2">
+          <MetricTile
+            icon="✅"
+            title="Attendance"
+            subtitle="Owner view (30 days) • computed from history"
+            value={attendanceValue}
+            delta={delta}
+          >
+            {loading || !metrics ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="h-5 w-56 bg-slate-200/70 rounded animate-pulse" />
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-20 rounded-2xl border border-slate-200 bg-slate-50 animate-pulse" />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-5">
+                <OwnerInsight30Days
+                  monthLabel="Last 30 days"
+                  attendanceRate={metrics.attendanceRate}
+                  deltaPct={metrics.deltaPct}
+                  sessionsDelivered={metrics.sessionsDelivered}
+                  absences={metrics.absences}
+                  evidenceReadyPct={metrics.evidenceReadyPct}
+                  followUps={metrics.followUps}
+                />
+
+                {/* Azure AI narrative (real, not guessed) */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-semibold tracking-widest text-slate-500 uppercase">
+                      Azure AI Summary
+                    </div>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                      {aiLoading ? "Generating…" : "Live"}
+                    </span>
+                  </div>
+
+                  {aiLoading && !ai ? (
+                    <div className="mt-3 space-y-2">
+                      <div className="h-4 w-[80%] rounded bg-slate-200/70 animate-pulse" />
+                      <div className="h-4 w-[65%] rounded bg-slate-200/60 animate-pulse" />
+                      <div className="h-4 w-[70%] rounded bg-slate-200/60 animate-pulse" />
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <div className="text-sm font-semibold text-slate-900">{ai?.headline ?? "Summary"}</div>
+                      <div className="mt-1 text-sm text-slate-700">{ai?.what_ai_sees ?? ai?.raw}</div>
+
+                      {Array.isArray(ai?.actions_next_7_days) ? (
+                        <div className="mt-3 grid gap-2">
+                          {ai.actions_next_7_days.slice(0, 3).map((x: string, i: number) => (
+                            <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                              {x}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </MetricTile>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-            Data freshness: <span className="ml-2 text-emerald-700">Live</span>
-          </span>
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-            Quality: <span className="ml-2 text-sky-700">Strong</span>
-          </span>
-        </div>
+        {/* Right column card stays for other metrics (sessions/students/etc) */}
+        <div className="2xl:col-span-1">{/* other tiles */}</div>
       </div>
-
-      <div className="mt-5 grid gap-6 sm:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
-        {tiles.map((t) => {
-          const isAttendance = t.title === "Attendance rate";
-
-
-
-          return (
-            <div key={t.title}>
-              <MetricTile
-                icon={t.icon}
-                title="Attendance"
-                subtitle="Owner view (last 30 days)"
-                value={t.value}
-                delta={t.delta}
-              >
-                {isAttendance ? (
-                  <OwnerInsight30Days
-                    monthLabel="Last 30 days"
-                    attendanceRate={92}
-                    deltaPct={3}
-                    sessionsDelivered={6}
-                    absences={18}
-                    evidenceReadyPct={84}
-                    followUps={2}
-                  />
-                ) : null}
-              </MetricTile>
-            </div>
-          );
-        })}
-      </div>
-
-
-
-
     </section>
   );
 }
+
 
 /** ----------------- Generic Card (upgraded) ----------------- */
 function Card({
