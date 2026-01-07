@@ -13,10 +13,10 @@ type AttendanceMark = {
   club_id: string;
   session_id: string;
   status: "present" | "absent";
-  created_at: string;
+  updated_at: string | null; // or saved_at
   note?: string | null;
-  photo_url?: string | null;
 };
+
 
 function daysAgoISO(days: number) {
   const d = new Date();
@@ -53,24 +53,26 @@ function useAttendance30dMetrics(supabase: any, clubId: string) {
       const now30 = daysAgoISO(30);
       const prev60 = daysAgoISO(60);
 
-      // last 30 days
+     
+      // last 30 days (attendance)
       const { data: last30, error: e1 } = await supabase
-        .from("attendance_marks")
-        .select("club_id,session_id,status,created_at,note,photo_url")
+        .from("attendance")
+        .select("club_id,session_id,status,updated_at,note")
         .eq("club_id", clubId)
-        .gte("created_at", now30);
+        .gte("updated_at", now30);
 
       if (e1) throw e1;
 
-      // previous 30 days (30–60)
+      // previous 30 days
       const { data: prev30, error: e2 } = await supabase
-        .from("attendance_marks")
-        .select("club_id,session_id,status,created_at,note,photo_url")
+        .from("attendance")
+        .select("club_id,session_id,status,updated_at,note")
         .eq("club_id", clubId)
-        .gte("created_at", prev60)
-        .lt("created_at", now30);
+        .gte("updated_at", prev60)
+        .lt("updated_at", now30);
 
       if (e2) throw e2;
+
 
       const a = (last30 ?? []) as AttendanceMark[];
       const b = (prev30 ?? []) as AttendanceMark[];
@@ -85,7 +87,7 @@ function useAttendance30dMetrics(supabase: any, clubId: string) {
 
       // Evidence-ready definition (adjust to your business rule)
       // Here: a row is evidence-ready if it has note OR photo_url
-      const evidenceReadyRows = a.filter((x) => Boolean(x.note) || Boolean(x.photo_url)).length;
+      const evidenceReadyRows = a.filter((x) => Boolean(x.note)).length;
       const evidenceReadyPct = pct(evidenceReadyRows, totalA);
 
       // Follow-ups: count absent marks missing a note (simple)
@@ -112,7 +114,8 @@ function useAttendance30dMetrics(supabase: any, clubId: string) {
     }
 
     run()
-      .catch(() => {
+      .catch((err) => {
+        console.error("Attendance metrics error:", err);
         if (!cancelled) setMetrics(null);
       })
       .finally(() => {
