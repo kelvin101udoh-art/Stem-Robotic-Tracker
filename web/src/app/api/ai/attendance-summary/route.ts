@@ -1,5 +1,4 @@
 // web/src/app/api/ai/attendance-summary/route.ts
-
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -27,42 +26,51 @@ type Body = {
 };
 
 function requireEnv(name: string) {
-    const apiKey = requireEnv("AZURE_OPENAI_API_KEY");
-    const deployment = requireEnv("AZURE_OPENAI_DEPLOYMENT");
-
     const v = process.env[name];
     if (!v) throw new Error(`Missing env var: ${name}`);
     return v;
+}
+
+function normalizeEndpoint(raw: string) {
+    let endpoint = (raw || "").trim();
+    if (!endpoint.startsWith("http")) endpoint = `https://${endpoint}`;
+    return endpoint.replace(/\/+$/, "");
+}
+
+function extractOutputText(payload: any): string {
+    try {
+        const output = payload?.output;
+        if (!Array.isArray(output)) return "";
+        for (const item of output) {
+            const content = item?.content;
+            if (!Array.isArray(content)) continue;
+            for (const c of content) {
+                if (c?.type === "output_text" && typeof c?.text === "string") return c.text;
+            }
+        }
+        return "";
+    } catch {
+        return "";
+    }
 }
 
 export async function GET() {
     return NextResponse.json({ ok: true, route: "attendance-summary" });
 }
 
-
 export async function POST(req: Request) {
     try {
-        // 1. Fix URL & Config
-        let endpoint = (process.env.AZURE_OPENAI_ENDPOINT || "").trim();
-        if (!endpoint.startsWith("http")) endpoint = `https://${endpoint}`;
-        endpoint = endpoint.replace(/\/+$/, "");
+        // ✅ Env (fixed: use your dedicated attendance deployment var)
+        const endpoint = normalizeEndpoint(requireEnv("AZURE_OPENAI_ENDPOINT"));
+        const apiKey = requireEnv("AZURE_OPENAI_API_KEY");
+        const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2025-04-01-preview";
+        const deployment = requireEnv("AZURE_DEPLOYMENT_ATTENDANCE"); // ✅ attendance-ai
 
-        const apiKey = process.env.AZURE_OPENAI_API_KEY;
-        const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+        // ✅ Parse body
+        const body = (await req.json()) as Body;
 
-        // 2. Parse Body
-        const rawBody = await req.text();
-        if (!rawBody) return NextResponse.json({ error: "Empty body" }, { status: 400 });
-        const body = JSON.parse(rawBody);
-
-        // 3. ENHANCED PROMPT: This ensures the AI follows your STEM schema
         const stats = body.stats || {};
         const notes = (body.notes || []).join(" | ");
-
-        const total = Number(stats.total ?? 0);
-        const present = Number(stats.present ?? 0);
-        const absent = Number(stats.absent ?? 0);
-        const coverage = stats.coverage ?? null;
 
         const fullPrompt = `
 You are a STEM coach assistant. Return STRICT JSON ONLY (no markdown, no commentary). Do not wrap in backticks. Do not include explanations outside JSON.
@@ -78,13 +86,12 @@ Required Schema:
 }
 
 Context:
-- Session: ${body.sessionTitle || 'STEM Session'}
+- Session: ${body.sessionTitle || "STEM Session"}
 - Stats: total=${stats.total || 0}, present=${stats.present || 0}, late=${stats.late || 0}, coverage=${stats.coverage || 0}%
 - Evidence Notes: ${notes || "No specific notes provided."}
 - Punctuality definition:
   punctuality = round(((present) / (present + absent)) * 100)
   If denominator is 0, punctuality = null
-
 
 Rules:
 - Use ONLY the supplied stats.
@@ -94,72 +101,86 @@ Rules:
 - 'exportReady' should be 2-3 sentences.
 `.trim();
 
-        // 4. Responses API URL (2026 Preview)
-        const url = `${endpoint}/openai/responses?api-version=2025-04-01-preview`;
+        // ✅ Responses API URL (deployment-targeted)
+        // The 2026 Responses API targets the deployment via the 'model' body field, not the URL path
+        const url = `${endpoint}/openai/responses?api-version=${encodeURIComponent(apiVersion)}`;
+
+
+        // ✅ Responses body (Azure): no "model" field needed here
+
+
 
         const res = await fetch(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "api-key": apiKey!,
+                "api-key": apiKey,
             },
             body: JSON.stringify({
                 model: deployment,
                 input: [
                     {
                         role: "user",
-                        content: [
-                            {
-                                type: "input_text",
-                                text: fullPrompt // Send the FULL prompt here
-                            }
-                        ],
+                        content: [{ type: "input_text", text: fullPrompt }],
                     },
                 ],
+                // ✅ 1. Increase this to 4000+ so there is room for reasoning + the JSON result
+                max_output_tokens: 4000,
+
+                // ✅ 2. Set effort to 'low' for faster, cheaper analytics
                 reasoning: {
-                    effort: "medium"
+                    effort: "low"
+                },
+
+                // ✅ 3. Ensure the model knows we want a text-based JSON response
+                text: {
+                    format: { type: "text" },
+                    verbosity: "medium"
                 }
             }),
         });
 
+
+        const raw = await res.text();
+
         if (!res.ok) {
-            const errText = await res.text();
-            return NextResponse.json({ error: "Azure API Error", details: errText }, { status: res.status });
+            return NextResponse.json(
+                { error: "Azure API Error", status: res.status, details: raw.slice(0, 2000) },
+                { status: res.status }
+            );
         }
 
-        const data = await res.json();
-
-        // 5. EXTRACTION: Locate the assistant message in the output array
-        const messageOutput = data.output?.find((o: any) => o.type === "message");
-        const textOut = messageOutput?.content?.find((c: any) => c.type === "output_text")?.text || "";
+        const payload = JSON.parse(raw);
+        const textOut = extractOutputText(payload);
 
         if (!textOut) {
-            console.error("No text in response:", JSON.stringify(data, null, 2));
-            throw new Error("No response text from AI");
+            return NextResponse.json(
+                { error: "No response text from AI", raw: payload },
+                { status: 502 }
+            );
         }
 
-        // 6. JSON CLEANUP & PARSE
+        // ✅ parse STRICT JSON output
         let cleanJson = textOut.replace(/```json|```/g, "").trim();
 
         try {
             return NextResponse.json(JSON.parse(cleanJson));
-        } catch (firstErr) {
-            console.warn("Standard parse failed, attempting regex fix...");
+        } catch {
+            // small safety net if model slightly malformed
             try {
                 const fixedJson = cleanJson
                     .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
                     .replace(/'/g, '"');
                 return NextResponse.json(JSON.parse(fixedJson));
-            } catch (secondErr) {
-                return NextResponse.json({
-                    error: "Invalid JSON format from AI",
-                    raw: textOut
-                }, { status: 500 });
+            } catch {
+                return NextResponse.json(
+                    { error: "Invalid JSON format from AI", raw: textOut },
+                    { status: 502 }
+                );
             }
         }
-
     } catch (err: any) {
-        console.error("Server Error:", err.message);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error("attendance-summary error:", err);
+        return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
     }
 }

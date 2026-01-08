@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAdminGuard } from "@/lib/admin/admin-guard";
 
@@ -53,7 +53,7 @@ function useAttendance30dMetrics(supabase: any, clubId: string) {
       const now30 = daysAgoISO(30);
       const prev60 = daysAgoISO(60);
 
-     
+
       // last 30 days (attendance)
       const { data: last30, error: e1 } = await supabase
         .from("attendance")
@@ -991,132 +991,236 @@ function AttendanceOwnerInsight({
 
 
 
-function AskKiKiCard({
-  centreName,
-}: {
-  centreName: string;
-}) {
+// ✅ Replace AskKiKiCard with this: AskKiKiBanner
+function AskKiKiBanner({ centreName }: { centreName: string }) {
+  const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const [messages, setMessages] = useState<Array<{ role: "user" | "kiki"; text: string }>>([
+  const [sending, setSending] = useState(false);
+
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const [messages, setMessages] = useState<
+    Array<{ role: "user" | "kiki"; text: string }>
+  >([
     {
       role: "kiki",
       text: `Hi 👋 I’m KiKi. Ask me anything about your dashboard analytics (attendance, sessions, students, parents, teachers).`,
     },
   ]);
 
+  // ✅ UI-only fallback replies (keeps your demo working even before real AI wiring)
   function reply(prompt: string) {
     const p = prompt.toLowerCase();
 
-    // lightweight “smart” replies (UI only, wire to Azure later)
     if (p.includes("attendance")) {
-      return "Attendance rate summarises Present vs Absent across the selected month. If evidence-ready is low, focus on capturing one photo + one sentence per session to improve report quality.";
+      return "Attendance rate summarises Present vs Absent across the selected period. If evidence-ready is low, aim for 1 photo + 1 sentence per learner per session to improve report quality.";
     }
-    if (p.includes("why") || p.includes("explain")) {
-      return "Tell me which metric you’re looking at (e.g., Attendance rate, Sessions delivered, Students enrolled) and the month. I’ll explain what it means and what action to take.";
+    if (p.includes("evidence") || p.includes("evidence-ready")) {
+      return "Evidence-ready means your session records are strong enough to show parents (and funders) real progress. It improves trust, renewals, and reduces churn because parents can SEE learning outcomes.";
     }
-    if (p.includes("business") || p.includes("improve")) {
-      return "From a business angle: use stable attendance + strong evidence-ready % to support parent retention, renewals, and funding reports. If absences rise, trigger follow-up workflows early.";
+    if (p.includes("retention") || p.includes("renewal")) {
+      return "Retention improves when you combine consistent attendance + visible portfolios. Quick wins: parent follow-ups after absences, weekly highlight photos, and a simple progress note per learner.";
     }
-    return "Got it. Ask me what metric you want explained (and what month), and I’ll translate it into plain English + an action plan.";
+    if (p.includes("risk")) {
+      return "Key risks to watch: rising absences, low evidence-ready %, missing parent links, and gaps in session consistency. If any of these trend up, trigger follow-ups early.";
+    }
+    return "Tell me which metric you want explained (and the month/period). I’ll translate it into plain English + the next best action.";
   }
 
+  // ✅ Single send function to prevent duplicates (fixes your repeating bug)
+  // ✅ Single send function (no duplicates + no undefined variable)
+  async function send(textRaw: string) {
+    const text = textRaw.trim();
+    if (!text || sending) return;
+
+    setSending(true);
+
+    // add user message immediately
+    setMessages((prev) => [...prev, { role: "user", text }]);
+    setQ("");
+
+    try {
+      // ---- OPTION A (UI-only demo for now) ----
+      const kikiText = reply(text);
+
+      // add KiKi response (ONLY once)
+      setMessages((prev) => [...prev, { role: "kiki", text: kikiText }]);
+
+      // ---- OPTION B (Real API call) ----
+      // When you wire a backend later, do NOT reuse `messages` directly here
+      // without constructing the next array inside the setter/ref.
+    } finally {
+      setSending(false);
+    }
+  }
+
+
+  // focus input when opened
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
+  const suggestions = [
+    "Explain the attendance rate for this month",
+    "Why is evidence-ready important?",
+    "Give me actions to improve parent retention",
+    "Summarise risks from this dashboard",
+  ];
+
   return (
-    <div className="mt-6 rounded-[22px] border border-slate-200/70 bg-white shadow-[0_16px_50px_-40px_rgba(2,6,23,0.25)] overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 sm:px-6">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
-            🤖
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-base font-semibold text-slate-900">
-              Ask KiKi
+    <div className="fixed bottom-4 left-1/2 z-[70] w-[min(1100px,calc(100vw-24px))] -translate-x-1/2">
+      {/* EXPANDED PANEL (dropdown above banner) */}
+      <div
+        className={[
+          "overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_24px_80px_-55px_rgba(2,6,23,0.35)] backdrop-blur",
+          "transition-all duration-300",
+          open ? "max-h-[520px] opacity-100 mb-3" : "max-h-0 opacity-0 mb-0 pointer-events-none",
+        ].join(" ")}
+        aria-hidden={!open}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
+              🤖
             </div>
-            <div className="truncate text-xs text-slate-500">
-              AI helper for analytics + business insights • {centreName}
-            </div>
-          </div>
-        </div>
-
-        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-          Azure AI: planned
-        </span>
-      </div>
-
-      <div className="px-5 py-4 sm:px-6">
-        {/* Suggestions */}
-        <div className="flex flex-wrap gap-2">
-          {[
-            "Explain the attendance rate for this month",
-            "Why is evidence-ready important?",
-            "Give me actions to improve parent retention",
-            "Summarise risks from this dashboard",
-          ].map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setQ(s)}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        {/* Chat log */}
-        <div className="mt-4 max-h-[260px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
-          <div className="space-y-2">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={[
-                  "rounded-2xl px-3 py-2 text-sm",
-                  m.role === "kiki"
-                    ? "bg-white border border-slate-200 text-slate-800"
-                    : "bg-slate-900 text-white ml-auto",
-                ].join(" ")}
-              >
-                <div className="text-[11px] font-semibold opacity-70">
-                  {m.role === "kiki" ? "KiKi" : "You"}
-                </div>
-                <div className="mt-0.5">{m.text}</div>
+            <div className="min-w-0">
+              <div className="truncate text-base font-semibold text-slate-900">
+                Ask KiKi
               </div>
+              <div className="truncate text-xs text-slate-500">
+                Analytics + business insights • {centreName}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Suggestions */}
+        <div className="px-5 pt-4">
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  setQ(s);
+                  inputRef.current?.focus();
+                }}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {s}
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Input */}
-        <div className="mt-3 flex gap-2">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder='Ask KiKi... e.g. "Explain attendance rate"'
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              const text = q.trim();
-              if (!text) return;
+        {/* Chat */}
+        <div className="px-5 py-4">
+          <div className="max-h-[260px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <div className="space-y-2">
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={[
+                    "max-w-[90%] rounded-2xl px-3 py-2 text-sm",
+                    m.role === "kiki"
+                      ? "bg-white border border-slate-200 text-slate-800"
+                      : "bg-slate-900 text-white ml-auto",
+                  ].join(" ")}
+                >
+                  <div className="text-[11px] font-semibold opacity-70">
+                    {m.role === "kiki" ? "KiKi" : "You"}
+                  </div>
+                  <div className="mt-0.5">{m.text}</div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-              setMessages((prev) => [...prev, { role: "user", text }]);
-              setQ("");
+          {/* Input */}
+          <div className="mt-3 flex gap-2">
+            <input
+              ref={inputRef}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") send(q);
+              }}
+              placeholder='Ask KiKi... e.g. "Explain attendance rate"'
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+            />
+            <button
+              type="button"
+              disabled={sending}
+              onClick={() => send(q)}
+              className={[
+                "shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold text-white",
+                sending ? "bg-slate-400 cursor-not-allowed" : "bg-slate-900 hover:bg-slate-800",
+              ].join(" ")}
+            >
+              {sending ? "Sending…" : "Send"}
+            </button>
+          </div>
 
-              const kiki = reply(text);
-              setMessages((prev) => [...prev, { role: "user", text }, { role: "kiki", text: kiki }]);
-            }}
-            className="shrink-0 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            Send
-          </button>
-        </div>
-
-        <div className="mt-2 text-xs text-slate-500">
-          KiKi is UI-only for now. Later you can connect Azure OpenAI + your monthly analytics payload.
+          <div className="mt-2 text-xs text-slate-500">
+            KiKi is running in UI-demo mode right now. You can wire a real provider behind{" "}
+            <span className="font-semibold text-slate-700">/api/kiki/chat</span>.
+          </div>
         </div>
       </div>
+
+      {/* STICKY BANNER (always visible, minimal space) */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="group relative w-full overflow-hidden rounded-3xl border border-slate-200/70 bg-white px-4 py-3 shadow-[0_14px_50px_-40px_rgba(2,6,23,0.28)]"
+      >
+        {/* “moving banner” shimmer */}
+        <div className="pointer-events-none absolute inset-0 opacity-[0.18]">
+          <div className="absolute inset-0 animate-[pulse_3.2s_ease-in-out_infinite] bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.25),transparent_40%),radial-gradient(circle_at_70%_120%,rgba(16,185,129,0.22),transparent_45%),radial-gradient(circle_at_120%_40%,rgba(99,102,241,0.18),transparent_40%)]" />
+        </div>
+
+        <div className="relative flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
+              🤖
+            </div>
+
+            <div className="min-w-0 text-left">
+              <div className="flex items-center gap-2">
+                <div className="truncate text-sm font-semibold text-slate-900">
+                  Ask KiKi
+                </div>
+                <span className="hidden sm:inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
+                  Demo
+                </span>
+              </div>
+              <div className="truncate text-xs text-slate-600">
+                Click to get analytics + business insights
+              </div>
+            </div>
+          </div>
+
+          <div className="shrink-0 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 group-hover:bg-slate-50">
+            {open ? "Close" : "Open"} <span className="text-slate-400">▾</span>
+          </div>
+        </div>
+      </button>
     </div>
   );
 }
+
 
 
 
@@ -1191,7 +1295,7 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-center justify-between">
                     <div className="text-[11px] font-semibold tracking-widest text-slate-500 uppercase">
-                      Azure AI Summary
+                      Real-Time Summary from KiKi AI
                     </div>
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
                       {aiLoading ? "Generating…" : "Live"}
@@ -1897,7 +2001,7 @@ export default function ClubCentreDashboardPage() {
               <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
 
               {/* ✅ KiKi lives here (dashboard-level helper) */}
-              <AskKiKiCard centreName={centreName} />
+              <AskKiKiBanner centreName={centreName} />
 
               <OverviewRow clubId={clubId} upcoming={upcoming} wide />
             </div>
