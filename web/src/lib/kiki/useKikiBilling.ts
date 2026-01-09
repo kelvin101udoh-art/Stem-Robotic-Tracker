@@ -9,7 +9,6 @@ export type BillingStats = {
 };
 
 const DAILY_CHAT_LIMIT = 40; // ✅ pilot limit (chat only)
-
 function startOfTodayISO() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
