@@ -1,11 +1,8 @@
 // web/src/lib/supabase/client.ts
-
-
 "use client";
 
 import { useMemo } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 function requiredEnv(name: string) {
   const v = process.env[name];
@@ -13,10 +10,7 @@ function requiredEnv(name: string) {
   return v;
 }
 
-/**
- * Browser Supabase client (App Router / Client Components)
- */
-export function createBrowserSupabaseClient(): SupabaseClient {
+export function createClient() {
   return createBrowserClient(
     requiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
     requiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
@@ -29,17 +23,8 @@ export function createBrowserSupabaseClient(): SupabaseClient {
   );
 }
 
-/**
- * React hook for browser Supabase client
- */
 export function useSupabaseBrowser() {
-  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  return supabase;
+  return useMemo(() => createClient(), []);
 }
 
-export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
+
