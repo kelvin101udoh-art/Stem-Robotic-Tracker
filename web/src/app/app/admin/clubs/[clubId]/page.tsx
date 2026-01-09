@@ -1,6 +1,9 @@
 // web/src/app/app/admin/clubs/[clubId]/page.tsx
 "use client";
 
+
+import Image from "next/image";
+
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -990,8 +993,7 @@ function AttendanceOwnerInsight({
 }
 
 
-
-// ✅ Replace AskKiKiCard with this: AskKiKiBanner
+// ✅ Replace AskKiKiCard with this: AskKiKiBanner (compact + avatar)
 function AskKiKiBanner({ centreName }: { centreName: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -1004,95 +1006,100 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
   >([
     {
       role: "kiki",
-      text: `Hi 👋 I’m KiKi. Ask me anything about your dashboard analytics (attendance, sessions, students, parents, teachers).`,
+      text: `Hi 👋 I’m KiKi. Ask me anything about your dashboard (attendance, sessions, parents, teachers, progress).`,
     },
   ]);
 
-  // ✅ UI-only fallback replies (keeps your demo working even before real AI wiring)
+  // ✅ UI-only fallback replies (demo)
   function reply(prompt: string) {
     const p = prompt.toLowerCase();
 
     if (p.includes("attendance")) {
-      return "Attendance rate summarises Present vs Absent across the selected period. If evidence-ready is low, aim for 1 photo + 1 sentence per learner per session to improve report quality.";
+      return "Attendance rate summarises Present vs Absent across the selected period. Quick win: message recurring absences and capture 1 photo + 1 sentence per learner per session.";
     }
-    if (p.includes("evidence") || p.includes("evidence-ready")) {
-      return "Evidence-ready means your session records are strong enough to show parents (and funders) real progress. It improves trust, renewals, and reduces churn because parents can SEE learning outcomes.";
+    if (p.includes("evidence") || p.includes("portfolio")) {
+      return "Evidence-ready means records are strong enough for parents/funders to SEE learning. It improves trust + renewals. Aim for 90%+ coverage.";
     }
     if (p.includes("retention") || p.includes("renewal")) {
-      return "Retention improves when you combine consistent attendance + visible portfolios. Quick wins: parent follow-ups after absences, weekly highlight photos, and a simple progress note per learner.";
+      return "Retention improves when you combine consistent attendance + visible portfolios. Quick wins: follow-ups after absences, weekly highlight photos, and a simple progress note per learner.";
     }
     if (p.includes("risk")) {
-      return "Key risks to watch: rising absences, low evidence-ready %, missing parent links, and gaps in session consistency. If any of these trend up, trigger follow-ups early.";
+      return "Risks: rising absences, low evidence-ready %, missing parent links, and gaps in session consistency. Trigger follow-ups early when trends change.";
     }
-    return "Tell me which metric you want explained (and the month/period). I’ll translate it into plain English + the next best action.";
+    return "Tell me which metric you want explained (and the period). I’ll translate it into plain English + the next best action.";
   }
 
-  // ✅ Single send function to prevent duplicates (fixes your repeating bug)
-  // ✅ Single send function (no duplicates + no undefined variable)
   async function send(textRaw: string) {
     const text = textRaw.trim();
     if (!text || sending) return;
 
     setSending(true);
-
-    // add user message immediately
     setMessages((prev) => [...prev, { role: "user", text }]);
     setQ("");
 
     try {
-      // ---- OPTION A (UI-only demo for now) ----
       const kikiText = reply(text);
-
-      // add KiKi response (ONLY once)
       setMessages((prev) => [...prev, { role: "kiki", text: kikiText }]);
-
-      // ---- OPTION B (Real API call) ----
-      // When you wire a backend later, do NOT reuse `messages` directly here
-      // without constructing the next array inside the setter/ref.
     } finally {
       setSending(false);
     }
   }
 
-
-  // focus input when opened
   useEffect(() => {
     if (open) {
-      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      const t = setTimeout(() => inputRef.current?.focus(), 60);
       return () => clearTimeout(t);
     }
   }, [open]);
 
   const suggestions = [
-    "Explain the attendance rate for this month",
+    "Summarise my dashboard in plain English",
+    "How do I improve attendance this week?",
     "Why is evidence-ready important?",
-    "Give me actions to improve parent retention",
-    "Summarise risks from this dashboard",
+    "Give me retention actions",
   ];
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-[70] w-[min(1100px,calc(100vw-24px))] -translate-x-1/2">
-      {/* EXPANDED PANEL (dropdown above banner) */}
+    <div
+      className={[
+        // ✅ Mobile: centered + near full width
+        "fixed bottom-4 left-1/2 z-[70] w-[min(560px,calc(100vw-24px))] -translate-x-1/2",
+        // ✅ Desktop+: bottom-right compact
+        "sm:left-auto sm:right-4 sm:translate-x-0 sm:w-[420px]",
+      ].join(" ")}
+    >
+      {/* EXPANDED PANEL */}
       <div
         className={[
           "overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_24px_80px_-55px_rgba(2,6,23,0.35)] backdrop-blur",
           "transition-all duration-300",
-          open ? "max-h-[520px] opacity-100 mb-3" : "max-h-0 opacity-0 mb-0 pointer-events-none",
+          open
+            ? "max-h-[520px] opacity-100 mb-3"
+            : "max-h-0 opacity-0 mb-0 pointer-events-none",
         ].join(" ")}
         aria-hidden={!open}
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
-              🤖
+            {/* ✅ Avatar image */}
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+              <Image
+                src="/kiki-avatar.png"
+                alt="KiKi"
+                fill
+                className="object-cover"
+                sizes="40px"
+                priority={false}
+              />
             </div>
+
             <div className="min-w-0">
               <div className="truncate text-base font-semibold text-slate-900">
-                Ask KiKi
+                KiKi Assistant
               </div>
               <div className="truncate text-xs text-slate-500">
-                Analytics + business insights • {centreName}
+                Business insights • {centreName}
               </div>
             </div>
           </div>
@@ -1133,7 +1140,7 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
                 <div
                   key={i}
                   className={[
-                    "max-w-[90%] rounded-2xl px-3 py-2 text-sm",
+                    "max-w-[92%] rounded-2xl px-3 py-2 text-sm",
                     m.role === "kiki"
                       ? "bg-white border border-slate-200 text-slate-800"
                       : "bg-slate-900 text-white ml-auto",
@@ -1157,7 +1164,7 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") send(q);
               }}
-              placeholder='Ask KiKi... e.g. "Explain attendance rate"'
+              placeholder='Ask KiKi… e.g. "Summarise attendance"'
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
             />
             <button
@@ -1166,48 +1173,51 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
               onClick={() => send(q)}
               className={[
                 "shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold text-white",
-                sending ? "bg-slate-400 cursor-not-allowed" : "bg-slate-900 hover:bg-slate-800",
+                sending
+                  ? "bg-slate-400 cursor-not-allowed"
+                  : "bg-slate-900 hover:bg-slate-800",
               ].join(" ")}
             >
-              {sending ? "Sending…" : "Send"}
+              {sending ? "…" : "Send"}
             </button>
           </div>
 
           <div className="mt-2 text-xs text-slate-500">
-            KiKi is running in UI-demo mode right now. You can wire a real provider behind{" "}
-            <span className="font-semibold text-slate-700">/api/kiki/chat</span>.
+            KiKi is in UI-demo mode. Wire to <span className="font-semibold text-slate-700">/api/ai/kiki</span> when ready.
           </div>
         </div>
       </div>
 
-      {/* STICKY BANNER (always visible, minimal space) */}
+      {/* STICKY BUTTON (compact pill, not wide) */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="group relative w-full overflow-hidden rounded-3xl border border-slate-200/70 bg-white px-4 py-3 shadow-[0_14px_50px_-40px_rgba(2,6,23,0.28)]"
       >
-        {/* “moving banner” shimmer */}
-        <div className="pointer-events-none absolute inset-0 opacity-[0.18]">
-          <div className="absolute inset-0 animate-[pulse_3.2s_ease-in-out_infinite] bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.25),transparent_40%),radial-gradient(circle_at_70%_120%,rgba(16,185,129,0.22),transparent_45%),radial-gradient(circle_at_120%_40%,rgba(99,102,241,0.18),transparent_40%)]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.14]">
+          <div className="absolute inset-0 animate-[pulse_3.2s_ease-in-out_infinite] bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.25),transparent_40%),radial-gradient(circle_at_70%_120%,rgba(16,185,129,0.22),transparent_45%)]" />
         </div>
 
         <div className="relative flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-xl">
-              🤖
+            {/* ✅ Avatar image */}
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+              <Image
+                src="/kiki-avatar.png"
+                alt="KiKi"
+                fill
+                className="object-cover"
+                sizes="40px"
+                priority={false}
+              />
             </div>
 
             <div className="min-w-0 text-left">
-              <div className="flex items-center gap-2">
-                <div className="truncate text-sm font-semibold text-slate-900">
-                  Ask KiKi
-                </div>
-                <span className="hidden sm:inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
-                  Demo
-                </span>
+              <div className="truncate text-sm font-semibold text-slate-900">
+                KiKi Assistant
               </div>
               <div className="truncate text-xs text-slate-600">
-                Click to get analytics + business insights
+                Tap for insights & actions
               </div>
             </div>
           </div>
@@ -1220,6 +1230,7 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
     </div>
   );
 }
+
 
 
 
