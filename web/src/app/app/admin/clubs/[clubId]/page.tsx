@@ -12,6 +12,22 @@ import { useAdminGuard } from "@/lib/admin/admin-guard";
 
 type Club = { id: string; name: string };
 
+
+type AttendanceMetrics = {
+  attendanceRate: number;
+  absences: number;
+  sessionsDelivered: number;
+  evidenceReadyPct: number;
+  followUps: number;
+  deltaPct: number;
+  presentCount: number;
+  totalMarks: number;
+};
+
+
+
+
+
 type AttendanceMark = {
   club_id: string;
   session_id: string;
@@ -34,16 +50,8 @@ function pct(n: number, d: number) {
 
 function useAttendance30dMetrics(supabase: any, clubId: string) {
   const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState<null | {
-    attendanceRate: number;
-    absences: number;
-    sessionsDelivered: number;
-    evidenceReadyPct: number;
-    followUps: number;
-    deltaPct: number;
-    presentCount: number;
-    totalMarks: number;
-  }>(null);
+  const [metrics, setMetrics] = useState<AttendanceMetrics | null>(null);
+
 
   useEffect(() => {
     if (!supabase || !clubId) return;
@@ -994,10 +1002,19 @@ function AttendanceOwnerInsight({
 
 
 // ✅ Replace AskKiKiCard with this: AskKiKiBanner (compact + avatar)
-function AskKiKiBanner({ centreName }: { centreName: string }) {
+function AskKiKiBanner({
+  centreName,
+  clubId,
+  dashboardContext,
+}: {
+  centreName: string;
+  clubId: string;
+  dashboardContext?: Partial<AttendanceMetrics>;
+}) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1010,36 +1027,77 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
     },
   ]);
 
-  // ✅ UI-only fallback replies (demo)
-  function reply(prompt: string) {
-    const p = prompt.toLowerCase();
-
-    if (p.includes("attendance")) {
-      return "Attendance rate summarises Present vs Absent across the selected period. Quick win: message recurring absences and capture 1 photo + 1 sentence per learner per session.";
-    }
-    if (p.includes("evidence") || p.includes("portfolio")) {
-      return "Evidence-ready means records are strong enough for parents/funders to SEE learning. It improves trust + renewals. Aim for 90%+ coverage.";
-    }
-    if (p.includes("retention") || p.includes("renewal")) {
-      return "Retention improves when you combine consistent attendance + visible portfolios. Quick wins: follow-ups after absences, weekly highlight photos, and a simple progress note per learner.";
-    }
-    if (p.includes("risk")) {
-      return "Risks: rising absences, low evidence-ready %, missing parent links, and gaps in session consistency. Trigger follow-ups early when trends change.";
-    }
-    return "Tell me which metric you want explained (and the period). I’ll translate it into plain English + the next best action.";
-  }
-
   async function send(textRaw: string) {
     const text = textRaw.trim();
     if (!text || sending) return;
 
     setSending(true);
+    setError(null);
+
+    // add user message immediately
     setMessages((prev) => [...prev, { role: "user", text }]);
     setQ("");
 
     try {
-      const kikiText = reply(text);
-      setMessages((prev) => [...prev, { role: "kiki", text: kikiText }]);
+      // map UI messages to API shape
+      const apiMessages = [...messages, { role: "user" as const, text }].map((m) => ({
+        role: m.role === "kiki" ? ("assistant" as const) : ("user" as const),
+        text: m.text,
+      }));
+
+      const r = await fetch("/api/ai/kiki", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "chat",
+          clubId,
+          centreName,
+          messages: apiMessages,
+          dashboardContext: dashboardContext ?? undefined,
+        }),
+      });
+
+      const data = await r.json();
+
+      if (!r.ok) {
+        const msg =
+          data?.errorText ||
+          data?.details ||
+          data?.message ||
+          "KiKi failed to respond (server error).";
+        setError(String(msg));
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "kiki",
+            text:
+              "I couldn’t reach the AI service just now. Please try again in a moment — or ask me to summarise attendance and I’ll try again.",
+          },
+        ]);
+        return;
+      }
+
+      const reply = String(data?.text || "").trim();
+      if (!reply) {
+        setError("Empty response from KiKi.");
+        setMessages((prev) => [
+          ...prev,
+          { role: "kiki", text: "I didn’t receive any text back. Try again." },
+        ]);
+        return;
+      }
+
+      setMessages((prev) => [...prev, { role: "kiki", text: reply }]);
+    } catch (e: any) {
+      setError(e?.message || "Network error.");
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "kiki",
+          text:
+            "Network issue while contacting KiKi. Check your connection and try again.",
+        },
+      ]);
     } finally {
       setSending(false);
     }
@@ -1062,9 +1120,7 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
   return (
     <div
       className={[
-        // ✅ Mobile: centered + near full width
         "fixed bottom-4 left-1/2 z-[70] w-[min(560px,calc(100vw-24px))] -translate-x-1/2",
-        // ✅ Desktop+: bottom-right compact
         "sm:left-auto sm:right-4 sm:translate-x-0 sm:w-[420px]",
       ].join(" ")}
     >
@@ -1074,7 +1130,7 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
           "overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_24px_80px_-55px_rgba(2,6,23,0.35)] backdrop-blur",
           "transition-all duration-300",
           open
-            ? "max-h-[520px] opacity-100 mb-3"
+            ? "max-h-[560px] opacity-100 mb-3"
             : "max-h-0 opacity-0 mb-0 pointer-events-none",
         ].join(" ")}
         aria-hidden={!open}
@@ -1082,7 +1138,6 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
         {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4">
           <div className="flex items-center gap-3 min-w-0">
-            {/* ✅ Avatar image */}
             <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
               <Image
                 src="/kiki-avatar.png"
@@ -1099,7 +1154,7 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
                 KiKi Assistant
               </div>
               <div className="truncate text-xs text-slate-500">
-                Business insights • {centreName}
+                Live insights • {centreName}
               </div>
             </div>
           </div>
@@ -1132,9 +1187,18 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
           </div>
         </div>
 
+        {/* Error */}
+        {error ? (
+          <div className="px-5 pt-3">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              {error}
+            </div>
+          </div>
+        ) : null}
+
         {/* Chat */}
         <div className="px-5 py-4">
-          <div className="max-h-[260px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div className="max-h-[280px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <div className="space-y-2">
               {messages.map((m, i) => (
                 <div
@@ -1149,7 +1213,7 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
                   <div className="text-[11px] font-semibold opacity-70">
                     {m.role === "kiki" ? "KiKi" : "You"}
                   </div>
-                  <div className="mt-0.5">{m.text}</div>
+                  <div className="mt-0.5 whitespace-pre-wrap">{m.text}</div>
                 </div>
               ))}
             </div>
@@ -1183,12 +1247,12 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
           </div>
 
           <div className="mt-2 text-xs text-slate-500">
-            KiKi is in UI-demo mode. Wire to <span className="font-semibold text-slate-700">/api/ai/kiki</span> when ready.
+            Connected to <span className="font-semibold text-slate-700">/api/ai/kiki</span>
           </div>
         </div>
       </div>
 
-      {/* STICKY BUTTON (compact pill, not wide) */}
+      {/* STICKY BUTTON */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -1200,7 +1264,6 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
 
         <div className="relative flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {/* ✅ Avatar image */}
             <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
               <Image
                 src="/kiki-avatar.png"
@@ -1235,10 +1298,23 @@ function AskKiKiBanner({ centreName }: { centreName: string }) {
 
 
 
+
 /** ----------------- Pro Analytics Screen ----------------- */
-function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName: string }) {
-  const { supabase } = useAdminGuard({ idleMinutes: 15 }); // if you already have it here, otherwise pass supabase in
-  const { loading, metrics } = useAttendance30dMetrics(supabase, clubId);
+function ProAnalyticsScreen({
+  clubId,
+  centreName,
+  metrics,
+  loading,
+}: {
+  clubId: string;
+  centreName: string;
+  metrics: AttendanceMetrics | null;
+  loading: boolean;
+}) {
+  // remove useAdminGuard + remove useAttendance30dMetrics here
+
+
+
 
   const [ai, setAi] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -1249,11 +1325,17 @@ function ProAnalyticsScreen({ clubId, centreName }: { clubId: string; centreName
     let cancelled = false;
     async function go() {
       setAiLoading(true);
-      const r = await fetch("/api/ai/attendance-summary", {
+      const r = await fetch("/api/ai/kiki", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(metrics),
+        body: JSON.stringify({
+          mode: "attendance-summary",
+          clubId,
+          centreName,
+          metrics,
+        }),
       });
+
       const data = await r.json();
       if (!cancelled) setAi(data);
       setAiLoading(false);
@@ -1891,11 +1973,17 @@ export default function ClubCentreDashboardPage() {
   const params = useParams<{ clubId: string }>();
   const clubId = params.clubId;
 
+
   const { checking, supabase, logout } = useAdminGuard({ idleMinutes: 15 });
+
+
 
   const [loading, setLoading] = useState(true);
   const [club, setClub] = useState<Club | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { loading: metricsLoading, metrics } = useAttendance30dMetrics(supabase, clubId);
+
 
   useEffect(() => {
     if (checking) return;
@@ -2009,13 +2097,25 @@ export default function ClubCentreDashboardPage() {
         <div className="w-full px-4 py-6 lg:px-8">
           <div className="mx-auto w-full max-w-[1400px]">
             <div className="min-w-0 pb-10">
-              <ProAnalyticsScreen clubId={clubId} centreName={centreName} />
+              <ProAnalyticsScreen
+                clubId={clubId}
+                centreName={centreName}
+                metrics={metrics}
+                loading={metricsLoading}
+              />
+
 
               {/* ✅ KiKi lives here (dashboard-level helper) */}
-              <AskKiKiBanner centreName={centreName} />
+              <AskKiKiBanner
+                centreName={centreName}
+                clubId={clubId}
+                dashboardContext={metrics ?? undefined}
+              />
+
 
               <OverviewRow clubId={clubId} upcoming={upcoming} wide />
             </div>
+
           </div>
         </div>
       </div>

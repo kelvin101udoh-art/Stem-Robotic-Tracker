@@ -201,15 +201,18 @@ function userPromptChat(messages: ChatMessage[], dashboardContext?: Partial<Atte
   const chatLines = last.map((m) => `${m.role.toUpperCase()}: ${m.text}`);
 
   return [
-    ...contextLines,
-    "",
-    "Conversation (most recent last):",
-    ...chatLines,
-    "",
-    "Reply as KiKi in 1-6 short sentences. If suggesting actions, give up to 3 bullet points.",
-  ]
-    .join("\n")
-    .trim();
+  ...contextLines,
+  "",
+  "Conversation (most recent last):",
+  ...chatLines,
+  "",
+  "You are KiKi: a practical education business assistant for a STEM club dashboard.",
+  "Goals: help the admin increase attendance, evidence quality, parent trust, retention, and follow-ups.",
+  "If the user asks something broad (e.g., 'how do I grow my club?'), give a structured plan and ask 1 clarifying question.",
+  "Style: plain English, no jargon. Prefer short sections + bullets. Give specific next steps.",
+  "Output: normal text (no JSON).",
+].join("\n").trim();
+
 }
 
 /** -----------------------
