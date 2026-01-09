@@ -2139,7 +2139,7 @@ export default function ClubCentreDashboardPage() {
               <AskKiKiBanner
                 centreName={centreName}
                 clubId={clubId}
-                dashboardContext={metrics ?? undefined}
+                dashboardContext={metrics || {}}
               />
 
 
