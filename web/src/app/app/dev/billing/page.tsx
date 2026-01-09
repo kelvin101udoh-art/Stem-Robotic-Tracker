@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useAdminGuard } from "@/lib/admin/admin-guard";
+import { useSupabaseBrowser } from "@/lib/supabase/client";
 import { useKiKiBillingStats } from "@/lib/kiki/useKikiBilling";
 
 export default function DevBillingPage() {
-  const { supabase } = useAdminGuard({ idleMinutes: 15 });
+  const supabase = useSupabaseBrowser();
 
-  // ✅ global (no clubId) — your hook must accept clubId?: string
+  // ✅ global (no clubId)
   const { loading, stats } = useKiKiBillingStats(supabase);
 
   return (
@@ -15,7 +15,9 @@ export default function DevBillingPage() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-6">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Dev · KiKi Billing</h1>
+            <h1 className="text-xl font-semibold tracking-tight">
+              Dev · KiKi Billing
+            </h1>
             <p className="mt-1 text-sm text-slate-600">
               Internal usage panel (pilot cost control).
             </p>

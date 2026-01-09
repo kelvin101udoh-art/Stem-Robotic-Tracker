@@ -6,8 +6,9 @@ export type BillingStats = {
   chatsUsedToday: number;
   chatsRemaining: number;
   tokensThisWeek: number;
-  dailyLimit: number;
 };
+
+const DAILY_CHAT_LIMIT = 40; // ✅ pilot limit (chat only)
 
 function startOfTodayISO() {
   const d = new Date();
@@ -16,11 +17,10 @@ function startOfTodayISO() {
 }
 
 function startOfWeekISO() {
-  // Monday-start week (good for UK). If you prefer Sunday, adjust.
   const d = new Date();
-  const day = d.getDay(); // 0 Sun ... 6 Sat
-  const diff = (day === 0 ? -6 : 1) - day; // move to Monday
-  d.setDate(d.getDate() + diff);
+  const day = d.getDay(); // 0 Sun .. 6 Sat
+  const diff = (day + 6) % 7; // Monday as week start
+  d.setDate(d.getDate() - diff);
   d.setHours(0, 0, 0, 0);
   return d.toISOString();
 }
@@ -37,50 +37,43 @@ export function useKiKiBillingStats(supabase: any, clubId?: string) {
     async function run() {
       setLoading(true);
 
-      const dailyLimit = Number(process.env.NEXT_PUBLIC_KIKI_DAILY_CHAT_LIMIT ?? 30);
-
       const today = startOfTodayISO();
       const week = startOfWeekISO();
 
-      // ---- Chats used today (mode='chat' only) ----
-      let q1 = supabase
+      // ✅ CHAT ONLY
+      let qToday = supabase
         .from("kiki_usage")
         .select("id", { count: "exact", head: true })
         .eq("mode", "chat")
         .gte("created_at", today);
 
-      if (clubId) q1 = q1.eq("club_id", clubId);
-
-      const { count: chatsUsedToday, error: e1 } = await q1;
-      if (e1) throw e1;
-
-      // ---- Tokens this week (mode='chat' only) ----
-      let q2 = supabase
+      let qTokens = supabase
         .from("kiki_usage")
-        .select("token_cost")
+        .select("token_cost, created_at")
         .eq("mode", "chat")
         .gte("created_at", week);
 
-      if (clubId) q2 = q2.eq("club_id", clubId);
+      if (clubId) {
+        qToday = qToday.eq("club_id", clubId);
+        qTokens = qTokens.eq("club_id", clubId);
+      }
 
-      const { data: rows, error: e2 } = await q2;
+      const [{ count: usedToday, error: e1 }, { data: tokenRows, error: e2 }] =
+        await Promise.all([qToday, qTokens]);
+
+      if (e1) throw e1;
       if (e2) throw e2;
 
-      const tokensThisWeek = (rows ?? []).reduce(
-        (sum: number, r: any) => sum + (Number(r?.token_cost) || 0),
+      const tokensThisWeek = (tokenRows ?? []).reduce(
+        (sum: number, r: any) => sum + (Number(r.token_cost) || 0),
         0
       );
 
-      const used = chatsUsedToday ?? 0;
-      const remaining = Math.max(0, dailyLimit - used);
+      const chatsUsedToday = usedToday ?? 0;
+      const chatsRemaining = Math.max(0, DAILY_CHAT_LIMIT - chatsUsedToday);
 
       if (!cancelled) {
-        setStats({
-          chatsUsedToday: used,
-          chatsRemaining: remaining,
-          tokensThisWeek,
-          dailyLimit,
-        });
+        setStats({ chatsUsedToday, chatsRemaining, tokensThisWeek });
       }
     }
 
