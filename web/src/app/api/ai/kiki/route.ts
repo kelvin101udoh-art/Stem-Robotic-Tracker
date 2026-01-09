@@ -1,7 +1,9 @@
-//  web/src/app/api/ai/kiki/route.ts
-
+// web/src/app/api/ai/kiki/route.ts
 
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+export const runtime = "nodejs";
 
 /**
  * ✅ Azure OpenAI (Responses API) unified KiKi endpoint
@@ -11,14 +13,17 @@ import { NextResponse } from "next/server";
  *   2) chat: takes chat messages and returns assistant reply (optionally grounded with dashboard context)
  *
  * Requires env vars:
- * - AZURE_OPENAI_ENDPOINT (e.g. https://YOUR-RESOURCE.openai.azure.com)
+ * - AZURE_OPENAI_ENDPOINT
  * - AZURE_OPENAI_API_KEY
- * - AZURE_OPENAI_DEPLOYMENT (e.g. kiki-gpt5)
- * - AZURE_OPENAI_API_VERSION (e.g. 2025-04-01-preview)
+ * - AZURE_DEPLOYMENT_KIKI
+ * - AZURE_OPENAI_API_VERSION (optional)
+ *
+ * Supabase (for pilot limit + usage logging):
+ * - NEXT_PUBLIC_SUPABASE_URL
+ * - SUPABASE_SERVICE_ROLE_KEY   ✅ server-only (do NOT expose to client)
  */
 
-export const runtime = "nodejs"; // keep node runtime for stable fetch + env
-
+// -------------------- Types --------------------
 type AttendanceMetrics = {
   attendanceRate: number;
   absences: number;
@@ -44,38 +49,36 @@ type KiKiRequest =
       clubId?: string;
       centreName?: string;
       messages: ChatMessage[];
-      // optional lightweight grounding to keep chat relevant:
       dashboardContext?: Partial<AttendanceMetrics>;
     };
 
+// -------------------- Utils --------------------
 function requiredEnv(name: string) {
   const v = process.env[name];
   if (!v) throw new Error(`Missing env var: ${name}`);
   return v;
 }
 
-/** -----------------------
- * ✅ Pilot usage limits (starter)
- * Replace with DB-based counter later (Supabase table, KV, etc.)
- * ----------------------*/
-async function checkAndConsumePilotLimit(args: {
-  // you can pass userId/adminId when you have it
-  clubId?: string;
-  mode: "attendance-summary" | "chat";
-}) {
-  // ✅ MVP default: allow; no cost-control enforced here yet
-  // Replace with real logic, e.g.:
-  // - lookup usage counter per admin/day
-  // - increment if under limit
-  // - return { allowed: false, remaining: 0 } if exceeded
-  return { allowed: true, remaining: 9999 };
-}
-
-/** -----------------------
- * ✅ Response helpers
- * ----------------------*/
 function json(data: any, init?: ResponseInit) {
   return NextResponse.json(data, init);
+}
+
+function safeJsonParse<T>(text: string): T | null {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function daysAgoISO(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
 }
 
 /**
@@ -83,7 +86,8 @@ function json(data: any, init?: ResponseInit) {
  * {
  *   output: [
  *     { content: [ { type: "output_text", text: "..." } ] }
- *   ]
+ *   ],
+ *   usage: { total_tokens: ... }
  * }
  */
 function extractOutputText(payload: any): string {
@@ -107,21 +111,88 @@ function extractOutputText(payload: any): string {
   }
 }
 
-function safeJsonParse<T>(text: string): T | null {
+// -------------------- Supabase (server) --------------------
+const supabaseUrl = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
+const supabaseServiceKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+// ✅ service client for backend inserts/selects (bypasses RLS)
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false },
+});
+
+// -------------------- Pilot Limit + Logging --------------------
+/**
+ * ✅ Only limits mode: "chat"
+ * - attendance-summary: unlimited (pilot friendly)
+ * - chat: daily limit per club to control spend
+ */
+const DAILY_CHAT_LIMIT = 20; // <-- change anytime
+
+async function getTodayChatUsageCount(clubId: string) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const { count, error } = await supabaseAdmin
+    .from("kiki_usage")
+    .select("id", { count: "exact", head: true })
+    .eq("club_id", clubId)
+    .eq("mode", "chat")
+    .gte("created_at", start.toISOString());
+
+  if (error) {
+    console.error("Supabase usage count error:", error.message);
+    // Fail-open: don’t block pilots if DB temporarily fails
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
+async function logKiKiUsage(args: {
+  clubId?: string;
+  mode: "attendance-summary" | "chat";
+  tokenCost: number;
+  success: boolean;
+  httpStatus?: number;
+  errorText?: string;
+}) {
+  // If no clubId, still allow the feature, but skip logging
+  if (!args.clubId) return;
+
   try {
-    return JSON.parse(text) as T;
-  } catch {
-    return null;
+    await supabaseAdmin.from("kiki_usage").insert({
+      club_id: args.clubId,
+      mode: args.mode,
+      token_cost: args.tokenCost,
+      success: args.success,
+      http_status: args.httpStatus ?? null,
+      error_text: args.errorText ?? null,
+    });
+  } catch (e: any) {
+    console.error("Supabase usage insert error:", e?.message || e);
+    // Never block user response due to logging failure
   }
 }
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
+/**
+ * ✅ Check limit BEFORE calling AI (only for chat)
+ */
+async function checkPilotLimit(args: { clubId?: string; mode: "attendance-summary" | "chat" }) {
+  if (args.mode !== "chat") {
+    return { allowed: true, remaining: 9999, dailyLimit: null as number | null };
+  }
+  if (!args.clubId) {
+    // no club id -> don’t block (pilot friendly)
+    return { allowed: true, remaining: DAILY_CHAT_LIMIT, dailyLimit: DAILY_CHAT_LIMIT };
+  }
+
+  const used = await getTodayChatUsageCount(args.clubId);
+  const remaining = Math.max(0, DAILY_CHAT_LIMIT - used);
+
+  return { allowed: used < DAILY_CHAT_LIMIT, remaining, dailyLimit: DAILY_CHAT_LIMIT };
 }
 
-/** -----------------------
- * ✅ Prompt builders
- * ----------------------*/
+// -------------------- Prompt builders --------------------
 function systemPromptBase(centreName?: string) {
   const name = (centreName ?? "").trim();
   return [
@@ -147,7 +218,6 @@ function userPromptAttendanceSummary(metrics: AttendanceMetrics) {
     totalMarks,
   } = metrics;
 
-  // A little guardrail so model doesn't hallucinate beyond what you provide
   const ar = clamp(attendanceRate, 0, 100);
   const er = clamp(evidenceReadyPct, 0, 100);
 
@@ -201,43 +271,48 @@ function userPromptChat(messages: ChatMessage[], dashboardContext?: Partial<Atte
   const chatLines = last.map((m) => `${m.role.toUpperCase()}: ${m.text}`);
 
   return [
-  ...contextLines,
-  "",
-  "Conversation (most recent last):",
-  ...chatLines,
-  "",
-  "You are KiKi: a practical education business assistant for a STEM club dashboard.",
-  "Goals: help the admin increase attendance, evidence quality, parent trust, retention, and follow-ups.",
-  "If the user asks something broad (e.g., 'how do I grow my club?'), give a structured plan and ask 1 clarifying question.",
-  "Style: plain English, no jargon. Prefer short sections + bullets. Give specific next steps.",
-  "Output: normal text (no JSON).",
-].join("\n").trim();
-
+    ...contextLines,
+    "",
+    "Conversation (most recent last):",
+    ...chatLines,
+    "",
+    "You are KiKi: a practical education business assistant for a STEM club dashboard.",
+    "Goals: help the admin increase attendance, evidence quality, parent trust, retention, and follow-ups.",
+    "If the user asks something broad (e.g., 'how do I grow my club?'), give a structured plan and ask 1 clarifying question.",
+    "Style: plain English, no jargon. Prefer short sections + bullets. Give specific next steps.",
+    "Output: normal text (no JSON).",
+  ]
+    .join("\n")
+    .trim();
 }
 
-/** -----------------------
- * ✅ Call Azure OpenAI (Responses API)
- * ----------------------*/
-
-async function callAzureResponses(args: { system: string; user: string }) {
+// -------------------- Azure Responses call --------------------
+async function callAzureResponses(args: {
+  system: string;
+  user: string;
+  // ✅ keep spend low for chat pilots
+  mode: "attendance-summary" | "chat";
+}) {
   const endpoint = requiredEnv("AZURE_OPENAI_ENDPOINT").replace(/\/+$/, "");
   const apiKey = requiredEnv("AZURE_OPENAI_API_KEY");
-
-  // ✅ FIX: use your Foundry deployment name for KiKi
-  const deployment = requiredEnv("AZURE_DEPLOYMENT_KIKI"); // "KiKi"
-
+  const deployment = requiredEnv("AZURE_DEPLOYMENT_KIKI");
   const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2025-04-01-preview";
 
   const url = `${endpoint}/openai/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
+  // ✅ Pilot cost control:
+  // - chat gets fewer max tokens
+  // - attendance-summary can be higher (structured JSON + actions)
+  const maxTokens = args.mode === "chat" ? 320 : 900;
+
   const body = {
-    model: deployment, // ✅ Pass deployment here
+    model: deployment,
     input: [
       { role: "system", content: [{ type: "input_text", text: args.system }] },
       { role: "user", content: [{ type: "input_text", text: args.user }] },
     ],
-    max_output_tokens: 4000, // ✅ Higher tokens for reasoning
-    reasoning: { effort: "medium" }
+    max_output_tokens: maxTokens,
+    reasoning: { effort: "medium" },
   };
 
   const res = await fetch(url, {
@@ -255,44 +330,48 @@ async function callAzureResponses(args: { system: string; user: string }) {
     return {
       ok: false as const,
       status: res.status,
+      raw,
       errorText: raw.slice(0, 1200),
+      payload: null,
+      text: "",
+      tokensUsed: 0,
     };
   }
 
   const payload = safeJsonParse<any>(raw);
+  const text = extractOutputText(payload);
+  const tokensUsed = Number(payload?.usage?.total_tokens ?? 0) || 0;
+
   return {
     ok: true as const,
+    status: res.status,
+    raw,
     payload,
-    text: extractOutputText(payload),
+    text,
+    tokensUsed,
   };
 }
 
-
-/** -----------------------
- * ✅ Route
- * ----------------------*/
+// -------------------- Route --------------------
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as KiKiRequest;
 
-    // Basic shape checks
     if (!body || typeof body !== "object" || !("mode" in body)) {
       return json({ error: "Invalid request body" }, { status: 400 });
     }
 
-    // ✅ pilot limiter hook
-    const limit = await checkAndConsumePilotLimit({
-      clubId: body.clubId,
-      mode: body.mode,
-    });
+    // ✅ 1) Limit check (ONLY for chat)
+    const limit = await checkPilotLimit({ clubId: body.clubId, mode: body.mode });
 
     if (!limit.allowed) {
       return json(
         {
           limitExceeded: true,
-          message:
-            "KiKi pilot limit reached. Upgrade to continue using advanced analytics.",
+          mode: body.mode,
+          dailyLimit: limit.dailyLimit,
           remaining: limit.remaining,
+          message: `Daily chat limit reached (${limit.dailyLimit}/day). Please try tomorrow or upgrade.`,
         },
         { status: 429 }
       );
@@ -308,17 +387,33 @@ export async function POST(req: Request) {
 
       const user = userPromptAttendanceSummary(body.metrics);
 
-      const r = await callAzureResponses({ system, user });
+      const r = await callAzureResponses({ system, user, mode: "attendance-summary" });
+
       if (!r.ok) {
+        // optional: log failed call (tokenCost unknown -> 0)
+        await logKiKiUsage({
+          clubId: body.clubId,
+          mode: "attendance-summary",
+          tokenCost: 0,
+          success: false,
+          httpStatus: r.status,
+          errorText: r.errorText,
+        });
+
         return json(
-          {
-            error: "Azure OpenAI request failed",
-            status: r.status,
-            details: r.errorText,
-          },
+          { error: "Azure OpenAI request failed", status: r.status, details: r.errorText },
           { status: 502 }
         );
       }
+
+      // ✅ log successful usage
+      await logKiKiUsage({
+        clubId: body.clubId,
+        mode: "attendance-summary",
+        tokenCost: r.tokensUsed,
+        success: true,
+        httpStatus: r.status,
+      });
 
       // We requested STRICT JSON; still validate
       const parsed = safeJsonParse<{
@@ -329,13 +424,7 @@ export async function POST(req: Request) {
       }>(r.text);
 
       if (!parsed) {
-        return json(
-          {
-            error: "Model returned non-JSON output",
-            raw: r.text,
-          },
-          { status: 502 }
-        );
+        return json({ error: "Model returned non-JSON output", raw: r.text }, { status: 502 });
       }
 
       return json({
@@ -354,26 +443,56 @@ export async function POST(req: Request) {
 
       const user = userPromptChat(msgs, body.dashboardContext);
 
-      const r = await callAzureResponses({ system, user });
+      const r = await callAzureResponses({ system, user, mode: "chat" });
+
       if (!r.ok) {
+        await logKiKiUsage({
+          clubId: body.clubId,
+          mode: "chat",
+          tokenCost: 0,
+          success: false,
+          httpStatus: r.status,
+          errorText: r.errorText,
+        });
+
         return json(
-          {
-            error: "Azure OpenAI request failed",
-            status: r.status,
-            details: r.errorText,
-          },
+          { error: "Azure OpenAI request failed", status: r.status, details: r.errorText },
           { status: 502 }
         );
       }
 
       const reply = (r.text || "").trim();
       if (!reply) {
+        // log as failed (no tokens known reliably)
+        await logKiKiUsage({
+          clubId: body.clubId,
+          mode: "chat",
+          tokenCost: r.tokensUsed,
+          success: false,
+          httpStatus: 502,
+          errorText: "Empty model response",
+        });
         return json({ error: "Empty model response" }, { status: 502 });
       }
 
+      // ✅ log successful chat usage with real tokens
+      await logKiKiUsage({
+        clubId: body.clubId,
+        mode: "chat",
+        tokenCost: r.tokensUsed,
+        success: true,
+        httpStatus: r.status,
+      });
+
+      // ✅ recompute remaining after logging (accurate UI)
+      // (only for chat; attendance-summary unlimited)
+      const usedNow = body.clubId ? await getTodayChatUsageCount(body.clubId) : 0;
+      const remainingNow = body.clubId ? Math.max(0, DAILY_CHAT_LIMIT - usedNow) : limit.remaining;
+
       return json({
         mode: "chat",
-        remaining: limit.remaining,
+        dailyLimit: DAILY_CHAT_LIMIT,
+        remaining: remainingNow,
         text: reply,
       });
     }
@@ -381,9 +500,6 @@ export async function POST(req: Request) {
     return json({ error: "Unsupported mode" }, { status: 400 });
   } catch (err: any) {
     console.error("/api/ai/kiki error:", err);
-    return json(
-      { error: "Server error", message: err?.message || "Unknown error" },
-      { status: 500 }
-    );
+    return json({ error: "Server error", message: err?.message || "Unknown error" }, { status: 500 });
   }
 }
