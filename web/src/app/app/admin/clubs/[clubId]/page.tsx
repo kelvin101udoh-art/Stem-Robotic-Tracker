@@ -1131,10 +1131,7 @@ function AskKiKiBanner({
   }, [open]);
 
   const suggestions = [
-    "Summarise my dashboard in plain English",
-    "How do I improve attendance this week?",
-    "Why is evidence-ready important?",
-    "Give me retention actions",
+    "Summarise my dashboard"
   ];
 
   return (
