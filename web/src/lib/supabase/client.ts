@@ -33,3 +33,7 @@ export function useSupabaseBrowser() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   return supabase;
 }
+
+export function createClient() {
+  return createBrowserSupabaseClient();
+}

@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 type UserRole = "club_admin" | "teacher" | "student" | "parent";
 
@@ -25,7 +25,7 @@ function routeForRole(role: UserRole) {
 
 export function useAdminGuard(opts?: { idleMinutes?: number }) {
   const router = useRouter();
-  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const supabase = useMemo(() => createClient(), []);
 
   const idleMinutes = opts?.idleMinutes ?? 15;
   const IDLE_TIMEOUT_MS = idleMinutes * 60 * 1000;
