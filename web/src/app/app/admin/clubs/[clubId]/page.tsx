@@ -1027,6 +1027,12 @@ function AskKiKiBanner({
     },
   ]);
 
+  // ✅ always-current copy (fixes stale closure issues)
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   async function send(textRaw: string) {
     const text = textRaw.trim();
     if (!text || sending) return;
@@ -1034,13 +1040,14 @@ function AskKiKiBanner({
     setSending(true);
     setError(null);
 
-    // add user message immediately
+    // ✅ optimistic UI add
     setMessages((prev) => [...prev, { role: "user", text }]);
     setQ("");
 
     try {
-      // map UI messages to API shape
-      const apiMessages = [...messages, { role: "user" as const, text }].map((m) => ({
+      // ✅ build payload from ref (always up to date)
+      const base = messagesRef.current;
+      const apiMessages = [...base, { role: "user" as const, text }].map((m) => ({
         role: m.role === "kiki" ? ("assistant" as const) : ("user" as const),
         text: m.text,
       }));
@@ -1048,6 +1055,7 @@ function AskKiKiBanner({
       const r = await fetch("/api/ai/kiki", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        cache: "no-store",
         body: JSON.stringify({
           mode: "chat",
           clubId,
@@ -1057,14 +1065,24 @@ function AskKiKiBanner({
         }),
       });
 
-      const data = await r.json();
+      // ✅ handle non-JSON responses safely
+      let data: any = null;
+      const raw = await r.text();
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = { message: raw };
+      }
 
       if (!r.ok) {
+        console.error("KiKi API error:", r.status, data);
+
         const msg =
           data?.errorText ||
           data?.details ||
           data?.message ||
-          "KiKi failed to respond (server error).";
+          `KiKi failed to respond (HTTP ${r.status}).`;
+
         setError(String(msg));
         setMessages((prev) => [
           ...prev,
@@ -1089,6 +1107,7 @@ function AskKiKiBanner({
 
       setMessages((prev) => [...prev, { role: "kiki", text: reply }]);
     } catch (e: any) {
+      console.error("KiKi fetch error:", e);
       setError(e?.message || "Network error.");
       setMessages((prev) => [
         ...prev,
@@ -1102,6 +1121,7 @@ function AskKiKiBanner({
       setSending(false);
     }
   }
+
 
   useEffect(() => {
     if (open) {
@@ -1336,8 +1356,18 @@ function ProAnalyticsScreen({
         }),
       });
 
-      const data = await r.json();
+      const raw = await r.text();
+      const data = raw ? safeJsonParse<any>(raw) : null;
+
+      if (!r.ok) {
+        console.error("KiKi summary error:", r.status, data);
+        if (!cancelled) setAi({ error: true, ...data, status: r.status });
+        setAiLoading(false);
+        return;
+      }
+
       if (!cancelled) setAi(data);
+
       setAiLoading(false);
     }
     go().catch(() => setAiLoading(false));
@@ -2125,6 +2155,16 @@ export default function ClubCentreDashboardPage() {
 
     </main>
   );
+}
+
+
+
+function safeJsonParse<T>(value: any): T | null {
+  try {
+    return typeof value === "string" ? JSON.parse(value) : value;
+  } catch {
+    return null;
+  }
 }
 
 /*
