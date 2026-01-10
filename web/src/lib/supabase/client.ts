@@ -1,4 +1,4 @@
-// lib/supabase/client.ts
+// web/src/lib/supabase/client.ts
 
 "use client";
 // Fix the typo here and rename the import to something local like 'createBrowserClientOriginal'
