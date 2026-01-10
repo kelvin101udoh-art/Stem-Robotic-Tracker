@@ -1,20 +1,23 @@
-"use client";
+// lib/supabase/client.ts
 
-import { createBrowserClient } from "@supabase/ssr";
+"use client";
+// Fix the typo here and rename the import to something local like 'createBrowserClientOriginal'
+import { createBrowserClient as createBrowserClientOriginal } from "@supabase/ssr"; 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// Export the function using the name 'createClient' to match your other files
 export function createClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // ✅ Never throw at build time
   if (!url || !anon) {
-    // This will only happen if env vars are missing in runtime.
-    // Returning a "dummy" client would break, so we throw at runtime instead.
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    );
   }
-
-  return createBrowserClient(url, anon, {
+  
+  // Use the correctly imported name here
+  return createBrowserClientOriginal(url, anon, { 
     auth: {
       persistSession: true,
       autoRefreshToken: true,
