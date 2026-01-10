@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { createClient } from "@/lib/supabase/client";
 
 type UserRole = "club_admin" | "teacher" | "student" | "parent";
 
@@ -24,7 +24,7 @@ function routeForRole(role: UserRole) {
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const supabase = useMemo(() => createClient(), []);
 
   const [ready, setReady] = useState(false);
   const [hasRecoverySession, setHasRecoverySession] = useState(false);
