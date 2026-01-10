@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 type Mode = "register" | "login";
 
@@ -151,7 +151,7 @@ function AppModal({
 
 export default function GetStartedPage() {
     const router = useRouter();
-    const supabase = createClient();
+    const supabase = createBrowserSupabaseClient();
 
     // ✅ Global modal (for both register + login updates/errors)
     const [modalOpen, setModalOpen] = useState(false);

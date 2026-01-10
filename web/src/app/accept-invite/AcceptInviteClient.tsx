@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 type InviteRole = "teacher" | "student" | "parent";
 type UserRole = "club_admin" | "teacher" | "student" | "parent";
@@ -40,7 +40,7 @@ function isExpired(expiresAtISO: string) {
 export default function AcceptInviteClient() {
   const router = useRouter();
   const params = useSearchParams();
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const token = params.get("token")?.trim() || "";
 

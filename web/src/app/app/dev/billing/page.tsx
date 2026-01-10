@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useSupabaseBrowser } from "@/lib/supabase/client";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { useKiKiBillingStats } from "@/lib/kiki/useKikiBilling";
 
 export default function DevBillingPage() {
-  const supabase = useSupabaseBrowser();
+  const supabase = createServerSupabaseClient();
 
   // ✅ global (no clubId)
   const { loading, stats } = useKiKiBillingStats(supabase);

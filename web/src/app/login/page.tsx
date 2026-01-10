@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 function loginVariantFromNext(nextPath?: string | null) {
   const n = (nextPath || "").toLowerCase();
@@ -24,7 +24,7 @@ export default function LoginPage() {
   const nextPath = sp.get("next") || "/app";
   const variant = useMemo(() => loginVariantFromNext(nextPath), [nextPath]);
 
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
