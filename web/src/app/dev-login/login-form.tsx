@@ -1,33 +1,14 @@
 // web/src/app/dev-login/login-form.tsx
-
-
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-function loginVariantFromNext(nextPath?: string | null) {
-  // ... (keep this function as is)
-  const n = (nextPath || "").toLowerCase();
-
-  if (n.startsWith("/app/dev")) return "dev";
-  if (n.startsWith("/app/admin")) return "admin";
-  if (n.startsWith("/app/teacher")) return "teacher";
-  if (n.startsWith("/app/student")) return "student";
-  if (n.startsWith("/app/parent")) return "parent";
-
-  return "teacher";
-}
-
-// Rename the main function to LoginForm
-export default function LoginForm() { 
+export default function DevLoginForm() {
   const sp = useSearchParams();
   const router = useRouter();
-  // ... (keep the rest of your logic and return statement exactly as you had it)
-
-  const nextPath = sp.get("next") || "/app";
-  const variant = useMemo(() => loginVariantFromNext(nextPath), [nextPath]);
+  const nextPath = sp.get("next") || "/app/dev/billing";
 
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState("");
@@ -53,25 +34,11 @@ export default function LoginForm() {
     router.replace(nextPath);
   }
 
-  const title =
-    variant === "dev"
-      ? "Developer Login"
-      : variant === "admin"
-      ? "Admin Login"
-      : "Teacher Login";
-
-  const subtitle =
-    variant === "dev"
-      ? "Internal developer access only."
-      : variant === "admin"
-      ? "Club admin access."
-      : "Teacher access.";
-
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-md px-4 py-10">
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
+        <h1 className="text-2xl font-semibold">Developer Login</h1>
+        <p className="mt-1 text-sm text-slate-600">Internal developer access only.</p>
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
           <label className="block text-sm font-semibold">Email</label>
@@ -106,8 +73,7 @@ export default function LoginForm() {
           </button>
 
           <div className="mt-3 text-xs text-slate-500">
-            Redirect after login:{" "}
-            <span className="font-semibold text-slate-700">{nextPath}</span>
+            Redirect after login: <span className="font-semibold text-slate-700">{nextPath}</span>
           </div>
         </div>
       </div>

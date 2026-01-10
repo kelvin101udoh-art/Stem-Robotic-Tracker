@@ -1,3 +1,4 @@
+// web/src/middleware.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
@@ -25,51 +26,52 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Prepare a response we can attach cookie changes to
   let res = NextResponse.next();
 
-  // Create Supabase SSR client (reads session from cookies)
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          res.cookies.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          res.cookies.set({ name, value: "", ...options });
-        },
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+  const supabase = createServerClient(url, anon, {
+    cookies: {
+      get(name: string) {
+        return req.cookies.get(name)?.value;
       },
-    }
-  );
+      set(name: string, value: string, options: any) {
+        res.cookies.set({ name, value, ...options });
+      },
+      remove(name: string, options: any) {
+        res.cookies.set({ name, value: "", ...options });
+      },
+    },
+  });
 
-  const { data } = await supabase.auth.getUser();
-  const email = data?.user?.email ?? null;
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData?.user;
 
-  // ✅ Not logged in → send to login
-  if (!email) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login"; // change if your login route differs
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+  // ✅ Not logged in → redirect to /dev-login
+  if (!user) {
+    const u = req.nextUrl.clone();
+    u.pathname = "/dev-login";
+    u.searchParams.set("next", pathname);
+    return NextResponse.redirect(u);
   }
 
-  // ✅ Logged in but NOT developer → pretend it doesn't exist (best)
-  if (!isDevEmail(email)) {
-    // Option 1: show 404
+  // ✅ Strong check: profiles.is_dev must be true
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("is_dev")
+    .eq("id", user.id)
+    .single();
+
+  const isDevFlag = !error && profile?.is_dev === true;
+
+  // ✅ Fallback check: email allowlist
+  const isDev = isDevFlag || isDevEmail(user.email);
+
+  if (!isDev) {
     return NextResponse.rewrite(new URL("/404", req.url));
-
-    // Option 2 (alternative): redirect to admin home
-    // const url = req.nextUrl.clone();
-    // url.pathname = "/app/admin";
-    // return NextResponse.redirect(url);
   }
 
-  // ✅ Developer allowed
   return res;
 }
 

@@ -1,70 +1,15 @@
+// app/dev/billing/page.tsx
+
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useKiKiBillingStats } from "@/lib/kiki/useKikiBilling";
 
-function isDevEmail(email?: string | null) {
-  if (!email) return false;
-
-  const allowlist = (process.env.NEXT_PUBLIC_DEV_EMAILS || "")
-    .split(",")
-    .map((x) => x.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (allowlist.length && allowlist.includes(email.toLowerCase())) return true;
-
-  const domain = (process.env.NEXT_PUBLIC_DEV_EMAIL_DOMAIN || "").trim().toLowerCase();
-  if (domain && email.toLowerCase().endsWith("@" + domain)) return true;
-
-  return false;
-}
-
 export default function DevBillingPage() {
-  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-  const [allowed, setAllowed] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      const { data } = await supabase.auth.getUser();
-      const email = data.user?.email ?? null;
-
-      if (!email) {
-        router.replace("/get-started?next=/app/dev/billing");
-        return;
-      }
-
-      if (!isDevEmail(email)) {
-        router.replace("/404");
-        return;
-      }
-
-      if (!cancelled) setAllowed(true);
-    }
-
-    run().catch(() => router.replace("/404"));
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router, supabase]);
-
   const { loading, stats } = useKiKiBillingStats(supabase);
-
-  if (allowed === null) {
-    return (
-      <main className="min-h-screen bg-slate-50 p-6">
-        <div className="mx-auto max-w-3xl rounded-2xl border bg-white p-5">
-          Checking access…
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">

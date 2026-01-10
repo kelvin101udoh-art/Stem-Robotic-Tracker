@@ -2,15 +2,13 @@
 
 // Remove "use client";
 
-import { Suspense } from 'react';
-import LoginForm from './login-form'; // Import the new component
+import { Suspense } from "react";
+import DevLoginForm from "./login-form";
 
-// The main page is now a Server Component
-export default function LoginPage() {
+export default function DevLoginPage() {
   return (
-    // Wrap the client component in a Suspense boundary
-    <Suspense fallback={<div>Loading login form...</div>}>
-      <LoginForm />
+    <Suspense fallback={<div className="p-6">Loading…</div>}>
+      <DevLoginForm />
     </Suspense>
   );
 }
