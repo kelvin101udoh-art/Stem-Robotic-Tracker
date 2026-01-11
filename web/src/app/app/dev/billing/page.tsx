@@ -8,7 +8,7 @@ import { useKiKiBillingStats } from "@/lib/kiki/useKikiBilling";
 
 export default function DevBillingPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { loading, stats } = useKiKiBillingStats(supabase);
+  const { loading, stats } = useKiKiBillingStats();
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
