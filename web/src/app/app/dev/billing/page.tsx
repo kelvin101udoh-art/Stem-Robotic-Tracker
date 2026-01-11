@@ -2,7 +2,6 @@
 
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useKiKiBillingStats } from "@/lib/kiki/useKikiBilling";
@@ -17,15 +16,17 @@ export default function DevBillingPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-6">
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Dev · KiKi Billing</h1>
-            <p className="mt-1 text-sm text-slate-600">Internal usage panel (pilot cost control).</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Internal usage panel (pilot cost control).
+            </p>
           </div>
 
-          <Link
-            href="/app/admin"
+          <button
+            onClick={() => supabase.auth.signOut().then(() => (window.location.href = "/dev-login"))}
             className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
           >
-            ← Back to Admin
-          </Link>
+            Sign out
+          </button>
         </div>
       </header>
 
