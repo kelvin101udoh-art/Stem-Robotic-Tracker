@@ -1,4 +1,4 @@
-// app/dev/billing/page.tsx
+// web/src/app/app/dev/billing/page.tsx
 
 "use client";
 
@@ -17,9 +17,7 @@ export default function DevBillingPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-6">
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Dev · KiKi Billing</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Internal usage panel (pilot cost control).
-            </p>
+            <p className="mt-1 text-sm text-slate-600">Internal usage panel (pilot cost control).</p>
           </div>
 
           <Link
@@ -65,12 +63,6 @@ export default function DevBillingPage() {
                 </div>
               </div>
             </div>
-
-            {stats.chatsRemaining === 0 && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                Daily pilot limit reached for chat. Increase limit or upgrade plan.
-              </div>
-            )}
           </div>
         )}
       </section>
