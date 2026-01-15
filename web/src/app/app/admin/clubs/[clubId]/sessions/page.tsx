@@ -50,6 +50,22 @@ type EvidenceRow = {
   created_by: string | null;
 };
 
+type ActivityType = "build" | "challenge" | "demo" | "teamwork";
+
+type ActivityRow = {
+  id: string;
+  club_id: string;
+  session_id: string;
+  title: string;
+  description: string | null;
+  activity_type: ActivityType;
+  expected_outcome: string | null;
+  sort_order: number;
+  is_completed: boolean;
+  completed_at: string | null;
+  created_at: string;
+};
+
 function cx(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
 }
@@ -74,7 +90,6 @@ function statusChip(s?: SessionStatus | null) {
 }
 
 function safeFileName(name: string) {
-  // keep it URL/storage-safe
   return name
     .trim()
     .replace(/\s+/g, "-")
@@ -96,7 +111,6 @@ export default function SessionsMvpPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
-
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
 
   // Create form
@@ -113,6 +127,14 @@ export default function SessionsMvpPage() {
   const [noteText, setNoteText] = useState("");
   const [uploading, setUploading] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({}); // path -> signedUrl
+
+  // Activities MVP
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [actTitle, setActTitle] = useState("");
+  const [actType, setActType] = useState<ActivityType>("build");
+  const [actDesc, setActDesc] = useState("");
+  const [actOutcome, setActOutcome] = useState("");
 
   const selectedSession = useMemo(
     () => sessions.find((s) => s.id === selectedSessionId) ?? null,
@@ -218,7 +240,6 @@ export default function SessionsMvpPage() {
       const rows = (res.data ?? []) as EvidenceRow[];
       setEvidence(rows);
 
-      // Prefetch signed urls for images
       const images = rows.filter((r) => r.type === "image" && r.content);
       const missing = images.filter((r) => r.content && !signedUrls[r.content]);
 
@@ -238,6 +259,32 @@ export default function SessionsMvpPage() {
     }
   }
 
+  async function loadActivities(sessionId: string) {
+    if (!sessionId) {
+      setActivities([]);
+      return;
+    }
+
+    setActivitiesLoading(true);
+    try {
+      const res = await supabase
+        .from("session_activities")
+        .select("id, club_id, session_id, title, description, activity_type, expected_outcome, sort_order, is_completed, completed_at, created_at")
+        .eq("club_id", clubId)
+        .eq("session_id", sessionId)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(200);
+
+      if (res.error) throw res.error;
+      setActivities((res.data ?? []) as ActivityRow[]);
+    } catch (e: any) {
+      flash(e?.message ? `Activities load failed: ${e.message}` : "Activities load failed.", 2200);
+    } finally {
+      setActivitiesLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (checking) return;
     loadAll();
@@ -247,6 +294,7 @@ export default function SessionsMvpPage() {
   useEffect(() => {
     if (checking) return;
     if (!selectedSessionId) return;
+    loadActivities(selectedSessionId);
     loadEvidence(selectedSessionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checking, selectedSessionId]);
@@ -280,6 +328,7 @@ export default function SessionsMvpPage() {
       flash("Session created (planned) ✓");
       setSelectedSessionId(res.data.id);
       await loadAll();
+      await loadActivities(res.data.id);
       await loadEvidence(res.data.id);
     } catch (e: any) {
       flash(e?.message ? `Create failed: ${e.message}` : "Create failed (check RLS).", 2200);
@@ -377,6 +426,96 @@ export default function SessionsMvpPage() {
     }
   }
 
+  async function addActivity() {
+    if (!selectedSession) return;
+
+    const t = actTitle.trim();
+    if (!t) {
+      flash("Enter an activity title.");
+      return;
+    }
+
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const userId = u.user?.id ?? null;
+
+      // small sort helper: put new items at the end
+      const maxSort = activities.reduce((m, a) => Math.max(m, a.sort_order ?? 0), 0);
+      const nextSort = (maxSort || 0) + 10;
+
+      const res = await supabase.from("session_activities").insert({
+        club_id: clubId,
+        session_id: selectedSession.id,
+        title: t,
+        description: actDesc.trim() || null,
+        activity_type: actType,
+        expected_outcome: actOutcome.trim() || null,
+        sort_order: nextSort,
+        created_by: userId,
+      } as any);
+
+      if (res.error) throw res.error;
+
+      setActTitle("");
+      setActDesc("");
+      setActOutcome("");
+      setActType("build");
+      flash("Activity added ✓");
+      await loadActivities(selectedSession.id);
+    } catch (e: any) {
+      flash(e?.message ? `Add activity failed: ${e.message}` : "Add activity failed.", 2400);
+    }
+  }
+
+  async function toggleActivityComplete(row: ActivityRow) {
+    if (!selectedSession) return;
+
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const userId = u.user?.id ?? null;
+
+      const now = new Date().toISOString();
+      const nextDone = !row.is_completed;
+
+      const res = await supabase
+        .from("session_activities")
+        .update({
+          is_completed: nextDone,
+          completed_at: nextDone ? now : null,
+          completed_by: nextDone ? userId : null,
+        } as any)
+        .eq("id", row.id)
+        .eq("club_id", clubId);
+
+      if (res.error) throw res.error;
+
+      await loadActivities(selectedSession.id);
+    } catch (e: any) {
+      flash(e?.message ? `Update failed: ${e.message}` : "Update failed.", 2400);
+    }
+  }
+
+  async function deleteActivity(row: ActivityRow) {
+    if (!selectedSession) return;
+    const ok = window.confirm("Delete this activity?");
+    if (!ok) return;
+
+    try {
+      const res = await supabase
+        .from("session_activities")
+        .delete()
+        .eq("id", row.id)
+        .eq("club_id", clubId);
+
+      if (res.error) throw res.error;
+
+      flash("Activity deleted ✓");
+      await loadActivities(selectedSession.id);
+    } catch (e: any) {
+      flash(e?.message ? `Delete failed: ${e.message}` : "Delete failed.", 2400);
+    }
+  }
+
   async function addNoteEvidence() {
     if (!selectedSession) return;
 
@@ -399,9 +538,7 @@ export default function SessionsMvpPage() {
           content: text,
           meta: { source: "admin-ui" },
           created_by: userId,
-        } as any)
-        .select("id, club_id, session_id, type, content, meta, created_at, created_by")
-        .single();
+        } as any);
 
       if (res.error) throw res.error;
 
@@ -409,7 +546,7 @@ export default function SessionsMvpPage() {
       flash("Note added ✓");
       await loadEvidence(selectedSession.id);
     } catch (e: any) {
-      flash(e?.message ? `Note failed: ${e.message}` : "Note failed (check RLS).", 2400);
+      flash(e?.message ? `Note failed: ${e.message}` : "Note failed.", 2400);
     }
   }
 
@@ -422,8 +559,6 @@ export default function SessionsMvpPage() {
       const clean = safeFileName(file.name || `image.${ext}`);
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 
-      // path format expected by your (future) storage policy design:
-      // club/{clubId}/session/{sessionId}/...
       const path = `club/${clubId}/session/${selectedSession.id}/${stamp}-${clean}`;
 
       const up = await supabase.storage.from("session-evidence").upload(path, file, {
@@ -464,14 +599,9 @@ export default function SessionsMvpPage() {
     if (!ok) return;
 
     try {
-      // If image, attempt to delete the storage object first (best-effort)
       if (row.type === "image" && row.content) {
         const del = await supabase.storage.from("session-evidence").remove([row.content]);
-        // ignore storage delete errors for MVP; DB delete still matters
-        if (del.error) {
-          // keep soft warning in console only
-          console.warn("Storage delete failed:", del.error.message);
-        }
+        if (del.error) console.warn("Storage delete failed:", del.error.message);
       }
 
       const res = await supabase
@@ -507,6 +637,8 @@ export default function SessionsMvpPage() {
   const selectedStatus = (selectedSession?.status ?? "planned") as SessionStatus;
   const participantCount = participantIdsForSelected.size;
 
+  const completedCount = activities.filter((a) => a.is_completed).length;
+
   return (
     <main className="relative min-h-screen w-full overflow-x-clip text-slate-900">
       {/* Background */}
@@ -523,7 +655,7 @@ export default function SessionsMvpPage() {
           <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">Sessions</div>
-            <div className="text-xs text-slate-600">Plan → Participants → Open → Close (+ Evidence)</div>
+            <div className="text-xs text-slate-600">Plan → Participants → Open → Close (+ Activities + Evidence)</div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -593,12 +725,7 @@ export default function SessionsMvpPage() {
                           </div>
 
                           <div className="flex flex-col items-end gap-2">
-                            <span
-                              className={cx(
-                                "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                                statusChip(st)
-                              )}
-                            >
+                            <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", statusChip(st))}>
                               {st.toUpperCase()}
                             </span>
                             {selected ? (
@@ -669,8 +796,7 @@ export default function SessionsMvpPage() {
                   </button>
 
                   <div className="text-xs text-slate-600">
-                    Term selected:{" "}
-                    <span className="font-semibold text-slate-900">{selectedTermId ? "OK" : "None"}</span>
+                    Term selected: <span className="font-semibold text-slate-900">{selectedTermId ? "OK" : "None"}</span>
                   </div>
                 </div>
               </div>
@@ -686,11 +812,7 @@ export default function SessionsMvpPage() {
                       {selectedSession?.title || (sessions.length ? "Untitled session" : "No session selected")}
                     </div>
                     <div className="mt-1 text-sm text-slate-600">
-                      {selectedSession
-                        ? `Starts: ${fmtDateTime(selectedSession.starts_at)} • Duration: ${
-                            selectedSession.duration_minutes ?? 90
-                          } mins`
-                        : "—"}
+                      {selectedSession ? `Starts: ${fmtDateTime(selectedSession.starts_at)} • Duration: ${selectedSession.duration_minutes ?? 90} mins` : "—"}
                     </div>
 
                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -699,6 +821,9 @@ export default function SessionsMvpPage() {
                       </span>
                       <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                         Participants: <span className="ml-2 text-slate-900">{participantCount}</span>
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                        Checklist: <span className="ml-2 text-slate-900">{completedCount}/{activities.length}</span>
                       </span>
                     </div>
                   </div>
@@ -732,7 +857,7 @@ export default function SessionsMvpPage() {
                 </div>
               </div>
 
-              {/* Participant picker (only when planned) */}
+              {/* Participant picker */}
               <div className="px-5 py-5 sm:px-6">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -783,13 +908,9 @@ export default function SessionsMvpPage() {
 
                           <div className="col-span-3 flex items-center">
                             {inSession ? (
-                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-900">
-                                Attached
-                              </span>
+                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-900">Attached</span>
                             ) : (
-                              <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                Not yet
-                              </span>
+                              <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">Not yet</span>
                             )}
                           </div>
 
@@ -823,6 +944,165 @@ export default function SessionsMvpPage() {
               </div>
             </div>
 
+            {/* Activities MVP */}
+            <div className="mt-6 rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">Session activities (coach checklist)</div>
+                    <div className="mt-0.5 text-xs text-slate-600">
+                      Add activities while <span className="font-semibold">planned</span>. Mark complete during <span className="font-semibold">open</span>.
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => selectedSessionId && loadActivities(selectedSessionId)}
+                    className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
+                  >
+                    Refresh checklist
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-5 py-5 sm:px-6">
+                {!selectedSession ? (
+                  <div className="text-sm text-slate-600">Select a session to manage activities.</div>
+                ) : (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-12">
+                      <div className="sm:col-span-7">
+                        <label className="text-xs font-semibold text-slate-600">Activity title</label>
+                        <input
+                          value={actTitle}
+                          onChange={(e) => setActTitle(e.target.value)}
+                          placeholder="e.g., Build the chassis + test the wheels"
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-5">
+                        <label className="text-xs font-semibold text-slate-600">Type</label>
+                        <select
+                          value={actType}
+                          onChange={(e) => setActType(e.target.value as ActivityType)}
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                        >
+                          <option value="build">Build</option>
+                          <option value="challenge">Challenge</option>
+                          <option value="demo">Demo</option>
+                          <option value="teamwork">Teamwork</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-12">
+                        <label className="text-xs font-semibold text-slate-600">Description (optional)</label>
+                        <input
+                          value={actDesc}
+                          onChange={(e) => setActDesc(e.target.value)}
+                          placeholder="Short guidance for the coach (optional)"
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-12">
+                        <label className="text-xs font-semibold text-slate-600">Expected outcome (optional)</label>
+                        <input
+                          value={actOutcome}
+                          onChange={(e) => setActOutcome(e.target.value)}
+                          placeholder="What does success look like?"
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={addActivity}
+                        className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                      >
+                        Add activity
+                      </button>
+
+                      <div className="text-xs text-slate-600">
+                        {activitiesLoading ? "Loading…" : `Checklist: ${completedCount}/${activities.length} completed`}
+                      </div>
+                    </div>
+
+                    <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+                      <div className="grid grid-cols-12 gap-2 bg-slate-50 px-4 py-2 text-[11px] font-semibold tracking-widest text-slate-500">
+                        <div className="col-span-7">ACTIVITY</div>
+                        <div className="col-span-3">TYPE</div>
+                        <div className="col-span-2 text-right">DONE</div>
+                      </div>
+
+                      <div className="divide-y divide-slate-200">
+                        {!activities.length ? (
+                          <div className="px-4 py-8 text-center text-sm text-slate-600">
+                            No activities yet. Add your first checklist item.
+                          </div>
+                        ) : (
+                          activities.map((a) => {
+                            return (
+                              <div key={a.id} className="px-4 py-4 hover:bg-indigo-50/20">
+                                <div className="grid grid-cols-12 gap-2 items-start">
+                                  <div className="col-span-7 min-w-0">
+                                    <div className={cx("text-sm font-semibold", a.is_completed ? "text-slate-500 line-through" : "text-slate-900")}>
+                                      {a.title}
+                                    </div>
+                                    {a.description ? (
+                                      <div className="mt-1 text-xs text-slate-600">{a.description}</div>
+                                    ) : null}
+                                    {a.expected_outcome ? (
+                                      <div className="mt-1 text-xs text-slate-500">
+                                        Outcome: <span className="text-slate-700">{a.expected_outcome}</span>
+                                      </div>
+                                    ) : null}
+                                  </div>
+
+                                  <div className="col-span-3 flex items-center">
+                                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                      {a.activity_type.toUpperCase()}
+                                    </span>
+                                  </div>
+
+                                  <div className="col-span-2 flex items-center justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleActivityComplete(a)}
+                                      className={cx(
+                                        "cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition",
+                                        a.is_completed ? "bg-emerald-600 text-white hover:bg-emerald-700" : "border border-slate-200 bg-white text-slate-900 hover:bg-indigo-50/60"
+                                      )}
+                                    >
+                                      {a.is_completed ? "Done ✓" : "Mark"}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteActivity(a)}
+                                      className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-rose-50"
+                                    >
+                                      Del
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 text-xs text-slate-600">
+                      Server rules: add/edit/delete only in <span className="font-semibold">planned</span>, mark complete in <span className="font-semibold">open</span>, locked in <span className="font-semibold">closed</span>.
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
             {/* Evidence MVP */}
             <div className="mt-6 rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
               <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
@@ -847,7 +1127,6 @@ export default function SessionsMvpPage() {
                 ) : (
                   <>
                     <div className="grid gap-4 lg:grid-cols-12">
-                      {/* Add note */}
                       <div className="lg:col-span-7">
                         <label className="text-xs font-semibold text-slate-600">Add a note</label>
                         <textarea
@@ -864,13 +1143,9 @@ export default function SessionsMvpPage() {
                           >
                             Save note
                           </button>
-                          <div className="text-xs text-slate-600">
-                            Notes work in planned/open/closed (MVP). You can restrict later if you want.
-                          </div>
                         </div>
                       </div>
 
-                      {/* Upload image */}
                       <div className="lg:col-span-5">
                         <label className="text-xs font-semibold text-slate-600">Upload an image</label>
                         <div className="mt-1 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -902,15 +1177,12 @@ export default function SessionsMvpPage() {
                       </div>
                     </div>
 
-                    {/* Evidence list */}
                     <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
                       <div className="flex items-center justify-between bg-slate-50 px-4 py-2">
                         <div className="text-[11px] font-semibold tracking-widest text-slate-500">
                           EVIDENCE ({evidence.length})
                         </div>
-                        {evidenceLoading ? (
-                          <div className="text-xs text-slate-600">Loading…</div>
-                        ) : null}
+                        {evidenceLoading ? <div className="text-xs text-slate-600">Loading…</div> : null}
                       </div>
 
                       <div className="divide-y divide-slate-200">
@@ -936,9 +1208,7 @@ export default function SessionsMvpPage() {
                                     </div>
 
                                     {r.type === "note" ? (
-                                      <div className="mt-2 whitespace-pre-wrap text-sm text-slate-900">
-                                        {r.content}
-                                      </div>
+                                      <div className="mt-2 whitespace-pre-wrap text-sm text-slate-900">{r.content}</div>
                                     ) : null}
 
                                     {isImage ? (
@@ -955,9 +1225,7 @@ export default function SessionsMvpPage() {
                                             Image ready. Click refresh evidence if preview doesn’t load yet.
                                           </div>
                                         )}
-                                        <div className="mt-2 font-mono text-[11px] text-slate-500 break-all">
-                                          {path}
-                                        </div>
+                                        <div className="mt-2 font-mono text-[11px] text-slate-500 break-all">{path}</div>
                                       </div>
                                     ) : null}
                                   </div>
@@ -987,10 +1255,8 @@ export default function SessionsMvpPage() {
               </div>
             </div>
 
-            {/* Navigation hint */}
             <div className="mt-6 rounded-[18px] border border-slate-200 bg-white/70 p-4 text-sm text-slate-700">
-              Next: we’ll add <span className="font-semibold text-slate-900">session_activities</span> (coach checklist per session) and then optional{" "}
-              <span className="font-semibold text-slate-900">auto-open/auto-close</span> logic.
+              Next: we can implement <span className="font-semibold text-slate-900">Auto open/close</span> (option B) using a Supabase cron job + SQL function.
             </div>
           </div>
         </div>
