@@ -1,4 +1,4 @@
-// web/src/app/app/admin/clubs/[clubId]/sessions/page.tsx
+//  web/src/app/app/admin/clubs/[clubId]/sessions/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -44,8 +44,8 @@ type EvidenceRow = {
   club_id: string;
   session_id: string;
   type: EvidenceType;
-  content: string | null; // note text OR storage path
-  meta?: any | null;
+  content: string | null; // note text or storage path
+  meta: any | null;
   created_at: string;
   created_by: string | null;
 };
@@ -73,8 +73,13 @@ function statusChip(s?: SessionStatus | null) {
   return "border-indigo-200 bg-indigo-50 text-indigo-900";
 }
 
-function safeName(name: string) {
-  return name.replace(/[^\w.\-]+/g, "_");
+function safeFileName(name: string) {
+  // keep it URL/storage-safe
+  return name
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9.\-_]/g, "")
+    .slice(0, 120);
 }
 
 export default function SessionsMvpPage() {
@@ -134,7 +139,7 @@ export default function SessionsMvpPage() {
     return students.filter((s) => s.full_name.toLowerCase().includes(q));
   }, [students, studentQuery]);
 
-  function flash(text: string, ms = 1200) {
+  function flash(text: string, ms = 1400) {
     setMsg(text);
     window.setTimeout(() => setMsg(""), ms);
   }
@@ -169,7 +174,7 @@ export default function SessionsMvpPage() {
         .from("session_participants")
         .select("session_id, student_id")
         .eq("club_id", clubId)
-        .limit(2000);
+        .limit(5000);
 
       if (tRes.error) throw tRes.error;
       if (sRes.error) throw sRes.error;
@@ -213,24 +218,21 @@ export default function SessionsMvpPage() {
       const rows = (res.data ?? []) as EvidenceRow[];
       setEvidence(rows);
 
-      // Prefetch signed URLs for image evidence
-      const imageRows = rows.filter((r) => r.type === "image" && r.content);
-      const missing = imageRows.filter((r) => r.content && !signedUrls[r.content]);
+      // Prefetch signed urls for images
+      const images = rows.filter((r) => r.type === "image" && r.content);
+      const missing = images.filter((r) => r.content && !signedUrls[r.content]);
 
       if (missing.length) {
         const next: Record<string, string> = {};
         for (const r of missing) {
           const path = r.content!;
-          const { data, error } = await supabase.storage
-            .from("session-evidence")
-            .createSignedUrl(path, 60 * 30);
-
+          const { data, error } = await supabase.storage.from("session-evidence").createSignedUrl(path, 60 * 30);
           if (!error && data?.signedUrl) next[path] = data.signedUrl;
         }
         if (Object.keys(next).length) setSignedUrls((p) => ({ ...p, ...next }));
       }
     } catch (e: any) {
-      flash(e?.message ? `Evidence load failed: ${e.message}` : "Evidence load failed.", 1800);
+      flash(e?.message ? `Evidence load failed: ${e.message}` : "Evidence load failed.", 2200);
     } finally {
       setEvidenceLoading(false);
     }
@@ -243,10 +245,11 @@ export default function SessionsMvpPage() {
   }, [checking, clubId]);
 
   useEffect(() => {
+    if (checking) return;
     if (!selectedSessionId) return;
     loadEvidence(selectedSessionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSessionId]);
+  }, [checking, selectedSessionId]);
 
   async function createPlannedSession() {
     if (!selectedTermId) {
@@ -277,8 +280,9 @@ export default function SessionsMvpPage() {
       flash("Session created (planned) ✓");
       setSelectedSessionId(res.data.id);
       await loadAll();
+      await loadEvidence(res.data.id);
     } catch (e: any) {
-      flash(e?.message ? `Create failed: ${e.message}` : "Create failed (check RLS).", 1800);
+      flash(e?.message ? `Create failed: ${e.message}` : "Create failed (check RLS).", 2200);
     }
   }
 
@@ -314,7 +318,7 @@ export default function SessionsMvpPage() {
       setSelectedStudentIds({});
       await loadAll();
     } catch (e: any) {
-      flash(e?.message ? `Add failed: ${e.message}` : "Add failed (check RLS/lock).", 1800);
+      flash(e?.message ? `Add failed: ${e.message}` : "Add failed (check RLS/lock).", 2200);
     }
   }
 
@@ -344,7 +348,7 @@ export default function SessionsMvpPage() {
       flash("Session opened ✓");
       await loadAll();
     } catch (e: any) {
-      flash(e?.message ? `Open failed: ${e.message}` : "Open failed (check RLS).", 1800);
+      flash(e?.message ? `Open failed: ${e.message}` : "Open failed (check RLS).", 2200);
     }
   }
 
@@ -369,21 +373,22 @@ export default function SessionsMvpPage() {
       flash("Session closed ✓");
       await loadAll();
     } catch (e: any) {
-      flash(e?.message ? `Close failed: ${e.message}` : "Close failed (check RLS).", 1800);
+      flash(e?.message ? `Close failed: ${e.message}` : "Close failed (check RLS).", 2200);
     }
   }
 
-  async function addNote() {
+  async function addNoteEvidence() {
     if (!selectedSession) return;
+
     const text = noteText.trim();
     if (!text) {
-      flash("Type a note first.");
+      flash("Write a short note first.");
       return;
     }
 
     try {
       const { data: u } = await supabase.auth.getUser();
-      const createdBy = u.user?.id ?? null;
+      const userId = u.user?.id ?? null;
 
       const res = await supabase
         .from("session_evidence")
@@ -392,8 +397,8 @@ export default function SessionsMvpPage() {
           session_id: selectedSession.id,
           type: "note",
           content: text,
-          meta: null,
-          created_by: createdBy,
+          meta: { source: "admin-ui" },
+          created_by: userId,
         } as any)
         .select("id, club_id, session_id, type, content, meta, created_at, created_by")
         .single();
@@ -401,102 +406,86 @@ export default function SessionsMvpPage() {
       if (res.error) throw res.error;
 
       setNoteText("");
-      flash("Note saved ✓");
-      setEvidence((prev) => [res.data as EvidenceRow, ...prev]);
+      flash("Note added ✓");
+      await loadEvidence(selectedSession.id);
     } catch (e: any) {
-      flash(e?.message ? `Save note failed: ${e.message}` : "Save note failed.", 1800);
+      flash(e?.message ? `Note failed: ${e.message}` : "Note failed (check RLS).", 2400);
     }
   }
 
-  async function uploadImages(files: FileList | null) {
+  async function uploadImageEvidence(file: File) {
     if (!selectedSession) return;
-    if (!files || files.length === 0) return;
 
     setUploading(true);
     try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const clean = safeFileName(file.name || `image.${ext}`);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+      // path format expected by your (future) storage policy design:
+      // club/{clubId}/session/{sessionId}/...
+      const path = `club/${clubId}/session/${selectedSession.id}/${stamp}-${clean}`;
+
+      const up = await supabase.storage.from("session-evidence").upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type || "image/*",
+      });
+
+      if (up.error) throw up.error;
+
       const { data: u } = await supabase.auth.getUser();
-      const createdBy = u.user?.id ?? null;
+      const userId = u.user?.id ?? null;
 
-      const max = Math.min(files.length, 5);
-      const created: EvidenceRow[] = [];
+      const ins = await supabase.from("session_evidence").insert({
+        club_id: clubId,
+        session_id: selectedSession.id,
+        type: "image",
+        content: path,
+        meta: { file_name: file.name, mime: file.type, size: file.size },
+        created_by: userId,
+      } as any);
 
-      for (let i = 0; i < max; i++) {
-        const file = files[i];
-        if (!file.type.startsWith("image/")) continue;
+      if (ins.error) throw ins.error;
 
-        // 1) create evidence row (get ID)
-        const ins = await supabase
-          .from("session_evidence")
-          .insert({
-            club_id: clubId,
-            session_id: selectedSession.id,
-            type: "image",
-            content: null,
-            meta: { fileName: file.name, size: file.size, mime: file.type },
-            created_by: createdBy,
-          } as any)
-          .select("id, club_id, session_id, type, content, meta, created_at, created_by")
-          .single();
-
-        if (ins.error) throw ins.error;
-
-        const evidenceId = ins.data.id as string;
-        const path = `club/${clubId}/session/${selectedSession.id}/${evidenceId}/${safeName(file.name)}`;
-
-        // 2) upload
-        const up = await supabase.storage.from("session-evidence").upload(path, file, {
-          upsert: false,
-          contentType: file.type,
-        });
-        if (up.error) throw up.error;
-
-        // 3) update row with storage path
-        const upd = await supabase
-          .from("session_evidence")
-          .update({ content: path } as any)
-          .eq("id", evidenceId)
-          .eq("club_id", clubId)
-          .select("id, club_id, session_id, type, content, meta, created_at, created_by")
-          .single();
-
-        if (upd.error) throw upd.error;
-
-        // 4) signed url for display
-        const { data: signed, error: sErr } = await supabase.storage
-          .from("session-evidence")
-          .createSignedUrl(path, 60 * 30);
-
-        if (!sErr && signed?.signedUrl) setSignedUrls((p) => ({ ...p, [path]: signed.signedUrl }));
-
-        created.push(upd.data as EvidenceRow);
-      }
-
-      if (created.length) {
-        flash("Images uploaded ✓");
-        setEvidence((prev) => [...created.reverse(), ...prev]);
-      } else {
-        flash("No valid images selected.");
-      }
+      flash("Image uploaded ✓");
+      await loadEvidence(selectedSession.id);
     } catch (e: any) {
-      flash(e?.message ? `Upload failed: ${e.message}` : "Upload failed.", 2000);
+      flash(e?.message ? `Upload failed: ${e.message}` : "Upload failed.", 2600);
     } finally {
       setUploading(false);
     }
   }
 
   async function deleteEvidence(row: EvidenceRow) {
+    if (!selectedSession) return;
+
+    const ok = window.confirm("Delete this evidence?");
+    if (!ok) return;
+
     try {
+      // If image, attempt to delete the storage object first (best-effort)
       if (row.type === "image" && row.content) {
-        await supabase.storage.from("session-evidence").remove([row.content]);
+        const del = await supabase.storage.from("session-evidence").remove([row.content]);
+        // ignore storage delete errors for MVP; DB delete still matters
+        if (del.error) {
+          // keep soft warning in console only
+          console.warn("Storage delete failed:", del.error.message);
+        }
       }
 
-      const res = await supabase.from("session_evidence").delete().eq("id", row.id).eq("club_id", clubId);
+      const res = await supabase
+        .from("session_evidence")
+        .delete()
+        .eq("id", row.id)
+        .eq("club_id", clubId);
+
       if (res.error) throw res.error;
 
-      flash("Deleted ✓");
-      setEvidence((prev) => prev.filter((x) => x.id !== row.id));
+      flash("Evidence deleted ✓");
+      await loadEvidence(selectedSession.id);
     } catch (e: any) {
-      flash(e?.message ? `Delete failed: ${e.message}` : "Delete failed.", 1800);
+      flash(e?.message ? `Delete failed: ${e.message}` : "Delete failed.", 2400);
     }
   }
 
@@ -534,7 +523,7 @@ export default function SessionsMvpPage() {
           <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">Sessions</div>
-            <div className="text-xs text-slate-600">Plan → Participants → Open → Close</div>
+            <div className="text-xs text-slate-600">Plan → Participants → Open → Close (+ Evidence)</div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -565,7 +554,9 @@ export default function SessionsMvpPage() {
 
       <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
         {msg ? (
-          <div className="mb-4 rounded-[18px] border border-slate-200 bg-white/70 p-3 text-sm text-slate-700">{msg}</div>
+          <div className="mb-4 rounded-[18px] border border-slate-200 bg-white/70 p-3 text-sm text-slate-700">
+            {msg}
+          </div>
         ) : null}
 
         <div className="grid gap-6 lg:grid-cols-12">
@@ -595,12 +586,19 @@ export default function SessionsMvpPage() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-slate-900">{s.title || "Untitled session"}</div>
+                            <div className="truncate text-sm font-semibold text-slate-900">
+                              {s.title || "Untitled session"}
+                            </div>
                             <div className="mt-0.5 text-xs text-slate-600">{fmtDateTime(s.starts_at)}</div>
                           </div>
 
                           <div className="flex flex-col items-end gap-2">
-                            <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", statusChip(st))}>
+                            <span
+                              className={cx(
+                                "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                                statusChip(st)
+                              )}
+                            >
                               {st.toUpperCase()}
                             </span>
                             {selected ? (
@@ -625,7 +623,7 @@ export default function SessionsMvpPage() {
             </div>
           </div>
 
-          {/* RIGHT: create + manage */}
+          {/* RIGHT */}
           <div className="lg:col-span-8">
             {/* Create planned session */}
             <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
@@ -671,7 +669,8 @@ export default function SessionsMvpPage() {
                   </button>
 
                   <div className="text-xs text-slate-600">
-                    Term selected: <span className="font-semibold text-slate-900">{selectedTermId ? "OK" : "None"}</span>
+                    Term selected:{" "}
+                    <span className="font-semibold text-slate-900">{selectedTermId ? "OK" : "None"}</span>
                   </div>
                 </div>
               </div>
@@ -688,7 +687,9 @@ export default function SessionsMvpPage() {
                     </div>
                     <div className="mt-1 text-sm text-slate-600">
                       {selectedSession
-                        ? `Starts: ${fmtDateTime(selectedSession.starts_at)} • Duration: ${selectedSession.duration_minutes ?? 90} mins`
+                        ? `Starts: ${fmtDateTime(selectedSession.starts_at)} • Duration: ${
+                            selectedSession.duration_minutes ?? 90
+                          } mins`
                         : "—"}
                     </div>
 
@@ -810,7 +811,9 @@ export default function SessionsMvpPage() {
                       );
                     })}
 
-                    {!filteredStudents.length ? <div className="px-4 py-8 text-center text-sm text-slate-600">No students found.</div> : null}
+                    {!filteredStudents.length ? (
+                      <div className="px-4 py-8 text-center text-sm text-slate-600">No students found.</div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -823,16 +826,15 @@ export default function SessionsMvpPage() {
             {/* Evidence MVP */}
             <div className="mt-6 rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
               <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-slate-900">Session Evidence</div>
-                    <div className="mt-0.5 text-xs text-slate-600">Notes + photos for proof, reporting and parent visibility.</div>
+                    <div className="text-sm font-semibold text-slate-900">Session evidence (MVP)</div>
+                    <div className="mt-0.5 text-xs text-slate-600">Add notes + upload images to build a session portfolio.</div>
                   </div>
-
                   <button
                     type="button"
                     onClick={() => selectedSessionId && loadEvidence(selectedSessionId)}
-                    className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-indigo-50/60"
+                    className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
                   >
                     Refresh evidence
                   </button>
@@ -841,122 +843,144 @@ export default function SessionsMvpPage() {
 
               <div className="px-5 py-5 sm:px-6">
                 {!selectedSession ? (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">Select a session to attach evidence.</div>
+                  <div className="text-sm text-slate-600">Select a session to manage evidence.</div>
                 ) : (
                   <>
-                    <div className="grid gap-3 lg:grid-cols-12">
-                      <div className="lg:col-span-8">
-                        <label className="text-xs font-semibold text-slate-600">Quick note</label>
+                    <div className="grid gap-4 lg:grid-cols-12">
+                      {/* Add note */}
+                      <div className="lg:col-span-7">
+                        <label className="text-xs font-semibold text-slate-600">Add a note</label>
                         <textarea
                           value={noteText}
                           onChange={(e) => setNoteText(e.target.value)}
-                          rows={3}
-                          placeholder="e.g., Learners completed the gear-train build; teamwork improved; 2 students led the demo…"
-                          className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                          placeholder="What happened in this session? (quick summary, highlights, progress, challenges...)"
+                          className="mt-1 min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                         />
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <div className="mt-2 flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={addNote}
-                            disabled={!noteText.trim()}
-                            className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                            onClick={addNoteEvidence}
+                            className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                           >
                             Save note
                           </button>
                           <div className="text-xs text-slate-600">
-                            {evidenceLoading ? "Loading…" : `Stored in session_evidence • ${evidence.length} item(s)`}
+                            Notes work in planned/open/closed (MVP). You can restrict later if you want.
                           </div>
                         </div>
                       </div>
 
-                      <div className="lg:col-span-4">
-                        <label className="text-xs font-semibold text-slate-600">Upload photos (max 5)</label>
-                        <div className="mt-1 rounded-xl border border-slate-200 bg-white p-3">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            disabled={uploading}
-                            onChange={(e) => uploadImages(e.target.files)}
-                            className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800 disabled:opacity-60"
-                          />
-                          <div className="mt-2 text-xs text-slate-500">
-                            Bucket: <span className="font-semibold">session-evidence</span> • Private
+                      {/* Upload image */}
+                      <div className="lg:col-span-5">
+                        <label className="text-xs font-semibold text-slate-600">Upload an image</label>
+                        <div className="mt-1 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="text-sm font-semibold text-slate-900">Session photo</div>
+                          <div className="mt-1 text-xs text-slate-600">
+                            Stored in bucket <span className="font-semibold">session-evidence</span> under:
+                            <div className="mt-1 rounded-lg bg-white px-2 py-1 font-mono text-[11px] text-slate-700">
+                              club/{clubId}/session/{selectedSession.id}/...
+                            </div>
                           </div>
-                          {uploading ? <div className="mt-2 text-xs font-semibold text-slate-700">Uploading…</div> : null}
+
+                          <div className="mt-3">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={uploading}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) uploadImageEvidence(f);
+                                e.currentTarget.value = "";
+                              }}
+                              className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800 disabled:opacity-60"
+                            />
+                            <div className="mt-2 text-xs text-slate-600">
+                              {uploading ? "Uploading..." : "Tip: take photos during builds, challenges, and demos."}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
-                      <div className="flex items-center justify-between gap-3 bg-slate-50 px-4 py-2">
-                        <div className="text-[11px] font-semibold tracking-widest text-slate-500">EVIDENCE FEED</div>
-                        <div className="text-xs text-slate-600">{evidenceLoading ? "Loading…" : `${evidence.length} item(s)`}</div>
+                    {/* Evidence list */}
+                    <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+                      <div className="flex items-center justify-between bg-slate-50 px-4 py-2">
+                        <div className="text-[11px] font-semibold tracking-widest text-slate-500">
+                          EVIDENCE ({evidence.length})
+                        </div>
+                        {evidenceLoading ? (
+                          <div className="text-xs text-slate-600">Loading…</div>
+                        ) : null}
                       </div>
 
                       <div className="divide-y divide-slate-200">
-                        {evidence.length ? (
-                          evidence.map((ev) => {
-                            const isImage = ev.type === "image" && ev.content;
-                            const imgUrl = isImage ? signedUrls[ev.content as string] : null;
+                        {!evidence.length ? (
+                          <div className="px-4 py-8 text-center text-sm text-slate-600">
+                            No evidence yet. Add a note or upload a photo.
+                          </div>
+                        ) : (
+                          evidence.map((r) => {
+                            const isImage = r.type === "image";
+                            const path = r.content || "";
+                            const url = isImage && path ? signedUrls[path] : "";
 
                             return (
-                              <div key={ev.id} className="px-4 py-4 hover:bg-indigo-50/20">
-                                <div className="flex items-start justify-between gap-3">
+                              <div key={r.id} className="px-4 py-4">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                   <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2">
                                       <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                        {ev.type.toUpperCase()}
+                                        {r.type.toUpperCase()}
                                       </span>
-                                      <span className="text-xs text-slate-500">{fmtDateTime(ev.created_at)}</span>
+                                      <span className="text-xs text-slate-600">{fmtDateTime(r.created_at)}</span>
                                     </div>
 
-                                    <div className="mt-2">
-                                      {ev.type === "note" ? (
-                                        <div className="text-sm text-slate-900 whitespace-pre-wrap">{ev.content}</div>
-                                      ) : isImage ? (
-                                        <div className="flex items-center gap-3">
-                                          <div className="h-16 w-24 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                                            {imgUrl ? (
-                                              // eslint-disable-next-line @next/next/no-img-element
-                                              <img src={imgUrl} alt="Session evidence" className="h-full w-full object-cover" />
-                                            ) : (
-                                              <div className="h-full w-full animate-pulse bg-slate-200" />
-                                            )}
+                                    {r.type === "note" ? (
+                                      <div className="mt-2 whitespace-pre-wrap text-sm text-slate-900">
+                                        {r.content}
+                                      </div>
+                                    ) : null}
+
+                                    {isImage ? (
+                                      <div className="mt-3">
+                                        {url ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img
+                                            src={url}
+                                            alt="Session evidence"
+                                            className="h-auto w-full max-w-[520px] rounded-2xl border border-slate-200"
+                                          />
+                                        ) : (
+                                          <div className="text-sm text-slate-600">
+                                            Image ready. Click refresh evidence if preview doesn’t load yet.
                                           </div>
-                                          <div className="min-w-0">
-                                            <div className="text-sm font-semibold text-slate-900 truncate">
-                                              {(ev.meta?.fileName as string) || "Photo"}
-                                            </div>
-                                            <div className="mt-0.5 text-xs text-slate-600 truncate">{ev.content}</div>
-                                          </div>
+                                        )}
+                                        <div className="mt-2 font-mono text-[11px] text-slate-500 break-all">
+                                          {path}
                                         </div>
-                                      ) : (
-                                        <div className="text-sm text-slate-700">{ev.content || "—"}</div>
-                                      )}
-                                    </div>
+                                      </div>
+                                    ) : null}
                                   </div>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteEvidence(ev)}
-                                    className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-rose-50"
-                                  >
-                                    Delete
-                                  </button>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteEvidence(r)}
+                                      className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-rose-50"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             );
                           })
-                        ) : (
-                          <div className="px-4 py-8 text-center text-sm text-slate-600">No evidence yet — add a note or upload a photo.</div>
                         )}
                       </div>
                     </div>
 
                     <div className="mt-3 text-xs text-slate-600">
-                      Paths are stored like{" "}
-                      <span className="font-semibold text-slate-900">club/{clubId}/session/{selectedSession.id}/…</span>
+                      Evidence is your “proof engine”: notes + photos become a portfolio for reporting, parents, and funders.
                     </div>
                   </>
                 )}
@@ -965,8 +989,8 @@ export default function SessionsMvpPage() {
 
             {/* Navigation hint */}
             <div className="mt-6 rounded-[18px] border border-slate-200 bg-white/70 p-4 text-sm text-slate-700">
-              Next: we’ll add <span className="font-semibold text-slate-900">session_activities</span> (planned checklist for the coach) and
-              later automate <span className="font-semibold text-slate-900">open → close</span>.
+              Next: we’ll add <span className="font-semibold text-slate-900">session_activities</span> (coach checklist per session) and then optional{" "}
+              <span className="font-semibold text-slate-900">auto-open/auto-close</span> logic.
             </div>
           </div>
         </div>
