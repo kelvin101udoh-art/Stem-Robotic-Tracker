@@ -1,4 +1,3 @@
-//  web/src/app/app/admin/clubs/[clubId]/sessions/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -141,6 +140,8 @@ export default function SessionsMvpPage() {
     [sessions, selectedSessionId]
   );
 
+  const selectedStatus = (selectedSession?.status ?? "planned") as SessionStatus;
+
   const selectedTermId = useMemo(() => {
     const active = terms.find((t) => t.is_active);
     return active?.id ?? terms[0]?.id ?? null;
@@ -160,6 +161,14 @@ export default function SessionsMvpPage() {
     if (!q) return students;
     return students.filter((s) => s.full_name.toLowerCase().includes(q));
   }, [students, studentQuery]);
+
+  const participantCount = participantIdsForSelected.size;
+  const completedCount = activities.filter((a) => a.is_completed).length;
+
+  const canEditParticipants = selectedStatus === "planned";
+  const canAddActivities = selectedStatus === "planned";
+  const canMarkComplete = selectedStatus === "open";
+  const canEditEvidence = selectedStatus !== "closed"; // MVP: allow notes/photos until closed (you can tighten later)
 
   function flash(text: string, ms = 1400) {
     setMsg(text);
@@ -247,7 +256,9 @@ export default function SessionsMvpPage() {
         const next: Record<string, string> = {};
         for (const r of missing) {
           const path = r.content!;
-          const { data, error } = await supabase.storage.from("session-evidence").createSignedUrl(path, 60 * 30);
+          const { data, error } = await supabase.storage
+            .from("session-evidence")
+            .createSignedUrl(path, 60 * 30);
           if (!error && data?.signedUrl) next[path] = data.signedUrl;
         }
         if (Object.keys(next).length) setSignedUrls((p) => ({ ...p, ...next }));
@@ -269,7 +280,9 @@ export default function SessionsMvpPage() {
     try {
       const res = await supabase
         .from("session_activities")
-        .select("id, club_id, session_id, title, description, activity_type, expected_outcome, sort_order, is_completed, completed_at, created_at")
+        .select(
+          "id, club_id, session_id, title, description, activity_type, expected_outcome, sort_order, is_completed, completed_at, created_at"
+        )
         .eq("club_id", clubId)
         .eq("session_id", sessionId)
         .order("sort_order", { ascending: true })
@@ -338,8 +351,7 @@ export default function SessionsMvpPage() {
   async function addParticipants() {
     if (!selectedSession) return;
 
-    const status = (selectedSession.status ?? "planned") as SessionStatus;
-    if (status !== "planned") {
+    if (!canEditParticipants) {
       flash("Participants can only be edited while session is planned.");
       return;
     }
@@ -373,9 +385,8 @@ export default function SessionsMvpPage() {
 
   async function openSession() {
     if (!selectedSession) return;
-    const status = (selectedSession.status ?? "planned") as SessionStatus;
 
-    if (status !== "planned") {
+    if (selectedStatus !== "planned") {
       flash("Only planned sessions can be opened.");
       return;
     }
@@ -403,9 +414,8 @@ export default function SessionsMvpPage() {
 
   async function closeSession() {
     if (!selectedSession) return;
-    const status = (selectedSession.status ?? "planned") as SessionStatus;
 
-    if (status !== "open") {
+    if (selectedStatus !== "open") {
       flash("Only open sessions can be closed.");
       return;
     }
@@ -429,6 +439,11 @@ export default function SessionsMvpPage() {
   async function addActivity() {
     if (!selectedSession) return;
 
+    if (!canAddActivities) {
+      flash("Activities can only be added while session is planned.");
+      return;
+    }
+
     const t = actTitle.trim();
     if (!t) {
       flash("Enter an activity title.");
@@ -439,7 +454,6 @@ export default function SessionsMvpPage() {
       const { data: u } = await supabase.auth.getUser();
       const userId = u.user?.id ?? null;
 
-      // small sort helper: put new items at the end
       const maxSort = activities.reduce((m, a) => Math.max(m, a.sort_order ?? 0), 0);
       const nextSort = (maxSort || 0) + 10;
 
@@ -470,18 +484,23 @@ export default function SessionsMvpPage() {
   async function toggleActivityComplete(row: ActivityRow) {
     if (!selectedSession) return;
 
+    if (!canMarkComplete) {
+      flash("You can only mark activities during an OPEN session.");
+      return;
+    }
+
     try {
       const { data: u } = await supabase.auth.getUser();
       const userId = u.user?.id ?? null;
 
-      const now = new Date().toISOString();
+      const nowIso = new Date().toISOString();
       const nextDone = !row.is_completed;
 
       const res = await supabase
         .from("session_activities")
         .update({
           is_completed: nextDone,
-          completed_at: nextDone ? now : null,
+          completed_at: nextDone ? nowIso : null,
           completed_by: nextDone ? userId : null,
         } as any)
         .eq("id", row.id)
@@ -497,6 +516,12 @@ export default function SessionsMvpPage() {
 
   async function deleteActivity(row: ActivityRow) {
     if (!selectedSession) return;
+
+    if (!canAddActivities) {
+      flash("Activities can only be deleted while session is planned.");
+      return;
+    }
+
     const ok = window.confirm("Delete this activity?");
     if (!ok) return;
 
@@ -519,6 +544,11 @@ export default function SessionsMvpPage() {
   async function addNoteEvidence() {
     if (!selectedSession) return;
 
+    if (!canEditEvidence) {
+      flash("Evidence is locked once the session is closed.");
+      return;
+    }
+
     const text = noteText.trim();
     if (!text) {
       flash("Write a short note first.");
@@ -529,16 +559,14 @@ export default function SessionsMvpPage() {
       const { data: u } = await supabase.auth.getUser();
       const userId = u.user?.id ?? null;
 
-      const res = await supabase
-        .from("session_evidence")
-        .insert({
-          club_id: clubId,
-          session_id: selectedSession.id,
-          type: "note",
-          content: text,
-          meta: { source: "admin-ui" },
-          created_by: userId,
-        } as any);
+      const res = await supabase.from("session_evidence").insert({
+        club_id: clubId,
+        session_id: selectedSession.id,
+        type: "note",
+        content: text,
+        meta: { source: "admin-ui" },
+        created_by: userId,
+      } as any);
 
       if (res.error) throw res.error;
 
@@ -552,6 +580,11 @@ export default function SessionsMvpPage() {
 
   async function uploadImageEvidence(file: File) {
     if (!selectedSession) return;
+
+    if (!canEditEvidence) {
+      flash("Evidence is locked once the session is closed.");
+      return;
+    }
 
     setUploading(true);
     try {
@@ -595,6 +628,11 @@ export default function SessionsMvpPage() {
   async function deleteEvidence(row: EvidenceRow) {
     if (!selectedSession) return;
 
+    if (!canEditEvidence) {
+      flash("Evidence is locked once the session is closed.");
+      return;
+    }
+
     const ok = window.confirm("Delete this evidence?");
     if (!ok) return;
 
@@ -633,13 +671,6 @@ export default function SessionsMvpPage() {
       </main>
     );
   }
-
-  const selectedStatus = (selectedSession?.status ?? "planned") as SessionStatus;
-  const participantCount = participantIdsForSelected.size;
-
-  const completedCount = activities.filter((a) => a.is_completed).length;
-
-
 
   return (
     <main className="relative min-h-screen w-full overflow-x-clip text-slate-900">
@@ -727,7 +758,12 @@ export default function SessionsMvpPage() {
                           </div>
 
                           <div className="flex flex-col items-end gap-2">
-                            <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", statusChip(st))}>
+                            <span
+                              className={cx(
+                                "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                                statusChip(st)
+                              )}
+                            >
                               {st.toUpperCase()}
                             </span>
                             {selected ? (
@@ -798,7 +834,8 @@ export default function SessionsMvpPage() {
                   </button>
 
                   <div className="text-xs text-slate-600">
-                    Term selected: <span className="font-semibold text-slate-900">{selectedTermId ? "OK" : "None"}</span>
+                    Term selected:{" "}
+                    <span className="font-semibold text-slate-900">{selectedTermId ? "OK" : "None"}</span>
                   </div>
                 </div>
               </div>
@@ -814,16 +851,22 @@ export default function SessionsMvpPage() {
                       {selectedSession?.title || (sessions.length ? "Untitled session" : "No session selected")}
                     </div>
                     <div className="mt-1 text-sm text-slate-600">
-                      {selectedSession ? `Starts: ${fmtDateTime(selectedSession.starts_at)} • Duration: ${selectedSession.duration_minutes ?? 90} mins` : "—"}
+                      {selectedSession
+                        ? `Starts: ${fmtDateTime(selectedSession.starts_at)} • Duration: ${
+                            selectedSession.duration_minutes ?? 90
+                          } mins`
+                        : "—"}
                     </div>
 
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className={cx("rounded-full border px-3 py-1 text-xs font-semibold", statusChip(selectedStatus))}>
                         {selectedStatus.toUpperCase()}
                       </span>
+
                       <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                         Participants: <span className="ml-2 text-slate-900">{participantCount}</span>
                       </span>
+
                       <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                         Checklist: <span className="ml-2 text-slate-900">{completedCount}/{activities.length}</span>
                       </span>
@@ -872,7 +915,7 @@ export default function SessionsMvpPage() {
                   <button
                     type="button"
                     onClick={addParticipants}
-                    disabled={!selectedSession || selectedStatus !== "planned"}
+                    disabled={!selectedSession || !canEditParticipants}
                     className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60 disabled:opacity-50"
                   >
                     Add selected learners
@@ -920,11 +963,11 @@ export default function SessionsMvpPage() {
                             <button
                               type="button"
                               onClick={() => togglePick(st.id)}
-                              disabled={!selectedSession || selectedStatus !== "planned" || inSession}
+                              disabled={!selectedSession || !canEditParticipants || inSession}
                               className={cx(
                                 "cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition",
                                 picked ? "bg-slate-900 text-white hover:bg-slate-800" : "border border-slate-200 bg-white text-slate-900 hover:bg-indigo-50/60",
-                                (!selectedSession || selectedStatus !== "planned" || inSession) && "opacity-50 cursor-not-allowed"
+                                (!selectedSession || !canEditParticipants || inSession) && "opacity-50 cursor-not-allowed"
                               )}
                             >
                               {inSession ? "Locked" : picked ? "Picked ✓" : "Pick"}
@@ -980,6 +1023,7 @@ export default function SessionsMvpPage() {
                           onChange={(e) => setActTitle(e.target.value)}
                           placeholder="e.g., Build the chassis + test the wheels"
                           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                          disabled={!canAddActivities}
                         />
                       </div>
 
@@ -989,6 +1033,7 @@ export default function SessionsMvpPage() {
                           value={actType}
                           onChange={(e) => setActType(e.target.value as ActivityType)}
                           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                          disabled={!canAddActivities}
                         >
                           <option value="build">Build</option>
                           <option value="challenge">Challenge</option>
@@ -1004,6 +1049,7 @@ export default function SessionsMvpPage() {
                           onChange={(e) => setActDesc(e.target.value)}
                           placeholder="Short guidance for the coach (optional)"
                           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                          disabled={!canAddActivities}
                         />
                       </div>
 
@@ -1014,6 +1060,7 @@ export default function SessionsMvpPage() {
                           onChange={(e) => setActOutcome(e.target.value)}
                           placeholder="What does success look like?"
                           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                          disabled={!canAddActivities}
                         />
                       </div>
                     </div>
@@ -1022,7 +1069,8 @@ export default function SessionsMvpPage() {
                       <button
                         type="button"
                         onClick={addActivity}
-                        className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                        disabled={!canAddActivities}
+                        className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                       >
                         Add activity
                       </button>
@@ -1030,6 +1078,10 @@ export default function SessionsMvpPage() {
                       <div className="text-xs text-slate-600">
                         {activitiesLoading ? "Loading…" : `Checklist: ${completedCount}/${activities.length} completed`}
                       </div>
+
+                      {!canAddActivities ? (
+                        <div className="text-xs text-slate-500">Locked (not planned).</div>
+                      ) : null}
                     </div>
 
                     <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
@@ -1046,18 +1098,16 @@ export default function SessionsMvpPage() {
                           </div>
                         ) : (
                           activities.map((a) => {
-
                             const done = !!a.is_completed;
+
                             return (
                               <div key={a.id} className="px-4 py-4 hover:bg-indigo-50/20">
                                 <div className="grid grid-cols-12 gap-2 items-start">
                                   <div className="col-span-7 min-w-0">
-                                    <div className={cx("text-sm font-semibold", a.is_completed ? "text-slate-500 line-through" : "text-slate-900")}>
+                                    <div className={cx("text-sm font-semibold", done ? "text-slate-500 line-through" : "text-slate-900")}>
                                       {a.title}
                                     </div>
-                                    {a.description ? (
-                                      <div className="mt-1 text-xs text-slate-600">{a.description}</div>
-                                    ) : null}
+                                    {a.description ? <div className="mt-1 text-xs text-slate-600">{a.description}</div> : null}
                                     {a.expected_outcome ? (
                                       <div className="mt-1 text-xs text-slate-500">
                                         Outcome: <span className="text-slate-700">{a.expected_outcome}</span>
@@ -1072,30 +1122,23 @@ export default function SessionsMvpPage() {
                                   </div>
 
                                   <div className="col-span-2 flex items-center justify-end gap-2">
-
-
-
-
-                                    <div className={cx("text-sm font-semibold", done ? "text-slate-500 line-through" : "text-slate-900")}>
-                                      {a.title}
-                                    </div>
-
                                     <button
                                       type="button"
                                       onClick={() => toggleActivityComplete(a)}
+                                      disabled={!canMarkComplete}
                                       className={cx(
-                                        "cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition",
+                                        "cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition disabled:opacity-50",
                                         done ? "bg-emerald-600 text-white hover:bg-emerald-700" : "border border-slate-200 bg-white text-slate-900 hover:bg-indigo-50/60"
                                       )}
                                     >
                                       {done ? "Done ✓" : "Mark"}
                                     </button>
 
-
                                     <button
                                       type="button"
                                       onClick={() => deleteActivity(a)}
-                                      className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-rose-50"
+                                      disabled={!canAddActivities}
+                                      className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-rose-50 disabled:opacity-50"
                                     >
                                       Del
                                     </button>
@@ -1109,7 +1152,8 @@ export default function SessionsMvpPage() {
                     </div>
 
                     <div className="mt-3 text-xs text-slate-600">
-                      Server rules: add/edit/delete only in <span className="font-semibold">planned</span>, mark complete in <span className="font-semibold">open</span>, locked in <span className="font-semibold">closed</span>.
+                      Rules: add/delete only in <span className="font-semibold">planned</span>, mark complete only in{" "}
+                      <span className="font-semibold">open</span>, locked in <span className="font-semibold">closed</span>.
                     </div>
                   </>
                 )}
@@ -1139,6 +1183,12 @@ export default function SessionsMvpPage() {
                   <div className="text-sm text-slate-600">Select a session to manage evidence.</div>
                 ) : (
                   <>
+                    {!canEditEvidence ? (
+                      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        Evidence is locked because the session is <span className="font-semibold">CLOSED</span>.
+                      </div>
+                    ) : null}
+
                     <div className="grid gap-4 lg:grid-cols-12">
                       <div className="lg:col-span-7">
                         <label className="text-xs font-semibold text-slate-600">Add a note</label>
@@ -1147,12 +1197,14 @@ export default function SessionsMvpPage() {
                           onChange={(e) => setNoteText(e.target.value)}
                           placeholder="What happened in this session? (quick summary, highlights, progress, challenges...)"
                           className="mt-1 min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                          disabled={!canEditEvidence}
                         />
                         <div className="mt-2 flex items-center gap-2">
                           <button
                             type="button"
                             onClick={addNoteEvidence}
-                            className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                            disabled={!canEditEvidence}
+                            className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                           >
                             Save note
                           </button>
@@ -1174,7 +1226,7 @@ export default function SessionsMvpPage() {
                             <input
                               type="file"
                               accept="image/*"
-                              disabled={uploading}
+                              disabled={uploading || !canEditEvidence}
                               onChange={(e) => {
                                 const f = e.target.files?.[0];
                                 if (f) uploadImageEvidence(f);
@@ -1247,7 +1299,8 @@ export default function SessionsMvpPage() {
                                     <button
                                       type="button"
                                       onClick={() => deleteEvidence(r)}
-                                      className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-rose-50"
+                                      disabled={!canEditEvidence}
+                                      className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-rose-50 disabled:opacity-50"
                                     >
                                       Delete
                                     </button>
@@ -1269,7 +1322,8 @@ export default function SessionsMvpPage() {
             </div>
 
             <div className="mt-6 rounded-[18px] border border-slate-200 bg-white/70 p-4 text-sm text-slate-700">
-              Next: we can implement <span className="font-semibold text-slate-900">Auto open/close</span> (option B) using a Supabase cron job + SQL function.
+              Next: if you want, we can implement <span className="font-semibold text-slate-900">teacher-facing session view</span>{" "}
+              (non-admin) that shows the checklist + evidence capture in a simpler “in-session” UI.
             </div>
           </div>
         </div>
