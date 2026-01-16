@@ -1,8 +1,10 @@
+// web/src/app/app/admin/clubs/[clubId]/sessions/page.tsx
+
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useAdminGuard } from "@/lib/admin/admin-guard";
 
 type SessionStatus = "planned" | "open" | "closed";
@@ -18,67 +20,43 @@ type SessionRow = {
   created_at?: string | null;
 };
 
-type TermRow = {
-  id: string;
-  club_id: string;
-  is_active?: boolean | null;
-  created_at?: string | null;
-};
-
-type StudentRow = {
-  id: string;
-  club_id: string;
-  full_name: string;
-};
-
 type ParticipantRow = {
   session_id: string;
   student_id: string;
 };
 
-type EvidenceType = "note" | "image" | "video" | "ai_summary";
-
 type EvidenceRow = {
   id: string;
   club_id: string;
   session_id: string;
-  type: EvidenceType;
-  content: string | null; // note text or storage path
-  meta: any | null;
+  type: "note" | "image" | "video" | "ai_summary";
   created_at: string;
-  created_by: string | null;
 };
-
-type ActivityType = "build" | "challenge" | "demo" | "teamwork";
 
 type ActivityRow = {
   id: string;
   club_id: string;
   session_id: string;
-  title: string;
-  description: string | null;
-  activity_type: ActivityType;
-  expected_outcome: string | null;
-  sort_order: number;
   is_completed: boolean;
-  completed_at: string | null;
-  created_at: string;
 };
 
 function cx(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
 }
 
-function fmtDateTime(iso?: string | null) {
+function fmtDate(iso?: string | null) {
   if (!iso) return "—";
   const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" });
+}
+
+function pct(n: number) {
+  if (!Number.isFinite(n)) return "0%";
+  return `${Math.round(n * 100)}%`;
+}
+
+function clamp01(x: number) {
+  return Math.max(0, Math.min(1, x));
 }
 
 function statusChip(s?: SessionStatus | null) {
@@ -88,16 +66,18 @@ function statusChip(s?: SessionStatus | null) {
   return "border-indigo-200 bg-indigo-50 text-indigo-900";
 }
 
-function safeFileName(name: string) {
-  return name
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-zA-Z0-9.\-_]/g, "")
-    .slice(0, 120);
-}
+type SessionAiInsight = {
+  id: string;
+  club_id: string;
+  period_start: string;
+  period_end: string;
+  source: "rules" | "azure";
+  summary: string;
+  recommendations: Array<{ title: string; why: string; action: string }>;
+  created_at: string;
+};
 
-export default function SessionsMvpPage() {
-  const router = useRouter();
+export default function SessionsAnalyticsHomePage() {
   const params = useParams<{ clubId: string }>();
   const clubId = params.clubId;
 
@@ -106,566 +86,242 @@ export default function SessionsMvpPage() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
 
-  const [terms, setTerms] = useState<TermRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [students, setStudents] = useState<StudentRow[]>([]);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<string>("");
-
-  // Create form
-  const [title, setTitle] = useState("Session MVP Test");
-  const [durationMinutes, setDurationMinutes] = useState<number>(60);
-
-  // Participant picker
-  const [studentQuery, setStudentQuery] = useState("");
-  const [selectedStudentIds, setSelectedStudentIds] = useState<Record<string, boolean>>({});
-
-  // Evidence MVP
-  const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidence, setEvidence] = useState<EvidenceRow[]>([]);
-  const [noteText, setNoteText] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({}); // path -> signedUrl
-
-  // Activities MVP
-  const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activities, setActivities] = useState<ActivityRow[]>([]);
-  const [actTitle, setActTitle] = useState("");
-  const [actType, setActType] = useState<ActivityType>("build");
-  const [actDesc, setActDesc] = useState("");
-  const [actOutcome, setActOutcome] = useState("");
+  const [latestAi, setLatestAi] = useState<SessionAiInsight | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
 
-  const selectedSession = useMemo(
-    () => sessions.find((s) => s.id === selectedSessionId) ?? null,
-    [sessions, selectedSessionId]
-  );
-
-  const selectedStatus = (selectedSession?.status ?? "planned") as SessionStatus;
-
-  const selectedTermId = useMemo(() => {
-    const active = terms.find((t) => t.is_active);
-    return active?.id ?? terms[0]?.id ?? null;
-  }, [terms]);
-
-  const participantIdsForSelected = useMemo(() => {
-    if (!selectedSessionId) return new Set<string>();
-    const set = new Set<string>();
-    participants.forEach((p) => {
-      if (p.session_id === selectedSessionId) set.add(p.student_id);
-    });
-    return set;
-  }, [participants, selectedSessionId]);
-
-  const filteredStudents = useMemo(() => {
-    const q = studentQuery.trim().toLowerCase();
-    if (!q) return students;
-    return students.filter((s) => s.full_name.toLowerCase().includes(q));
-  }, [students, studentQuery]);
-
-  const participantCount = participantIdsForSelected.size;
-  const completedCount = activities.filter((a) => a.is_completed).length;
-
-  const canEditParticipants = selectedStatus === "planned";
-  const canAddActivities = selectedStatus === "planned";
-  const canMarkComplete = selectedStatus === "open";
-  const canEditEvidence = selectedStatus !== "closed"; // MVP: allow notes/photos until closed (you can tighten later)
-
-  function flash(text: string, ms = 1400) {
+  function flash(text: string, ms = 1600) {
     setMsg(text);
     window.setTimeout(() => setMsg(""), ms);
   }
 
-  async function loadAll() {
+  async function loadAnalytics() {
     setLoading(true);
     setMsg("");
 
     try {
-      const tRes = await supabase
-        .from("terms")
-        .select("id, club_id, is_active, created_at")
-        .eq("club_id", clubId)
-        .order("created_at", { ascending: true })
-        .limit(50);
-
       const sRes = await supabase
         .from("sessions")
         .select("id, club_id, title, starts_at, duration_minutes, status, term_id, created_at")
         .eq("club_id", clubId)
         .order("starts_at", { ascending: false })
-        .limit(200);
-
-      const stRes = await supabase
-        .from("students")
-        .select("id, club_id, full_name")
-        .eq("club_id", clubId)
-        .order("full_name", { ascending: true })
-        .limit(500);
+        .limit(400);
 
       const pRes = await supabase
         .from("session_participants")
         .select("session_id, student_id")
         .eq("club_id", clubId)
-        .limit(5000);
+        .limit(8000);
 
-      if (tRes.error) throw tRes.error;
+      const eRes = await supabase
+        .from("session_evidence")
+        .select("id, club_id, session_id, type, created_at")
+        .eq("club_id", clubId)
+        .order("created_at", { ascending: false })
+        .limit(3000);
+
+      const aRes = await supabase
+        .from("session_activities")
+        .select("id, club_id, session_id, is_completed")
+        .eq("club_id", clubId)
+        .limit(6000);
+
+      // ✅ renamed table
+      const aiRes = await supabase
+        .from("session_ai_insights")
+        .select("id, club_id, period_start, period_end, source, summary, recommendations, created_at")
+        .eq("club_id", clubId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       if (sRes.error) throw sRes.error;
-      if (stRes.error) throw stRes.error;
       if (pRes.error) throw pRes.error;
+      if (eRes.error) throw eRes.error;
+      if (aRes.error) throw aRes.error;
 
-      setTerms((tRes.data ?? []) as TermRow[]);
-      const ss = (sRes.data ?? []) as SessionRow[];
-      setSessions(ss);
-      setStudents((stRes.data ?? []) as StudentRow[]);
+      setSessions((sRes.data ?? []) as SessionRow[]);
       setParticipants((pRes.data ?? []) as ParticipantRow[]);
-
-      const open = ss.find((x) => x.status === "open");
-      setSelectedSessionId((prev) => prev || open?.id || ss[0]?.id || "");
-      setSelectedStudentIds({});
+      setEvidence((eRes.data ?? []) as EvidenceRow[]);
+      setActivities((aRes.data ?? []) as ActivityRow[]);
+      setLatestAi((aiRes.data ?? null) as any);
     } catch (e: any) {
-      router.replace(`/app/admin/clubs/${clubId}`);
+      flash(e?.message ? `Load failed: ${e.message}` : "Load failed.", 2200);
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadEvidence(sessionId: string) {
-    if (!sessionId) {
-      setEvidence([]);
-      return;
-    }
-
-    setEvidenceLoading(true);
-    try {
-      const res = await supabase
-        .from("session_evidence")
-        .select("id, club_id, session_id, type, content, meta, created_at, created_by")
-        .eq("club_id", clubId)
-        .eq("session_id", sessionId)
-        .order("created_at", { ascending: false })
-        .limit(200);
-
-      if (res.error) throw res.error;
-
-      const rows = (res.data ?? []) as EvidenceRow[];
-      setEvidence(rows);
-
-      const images = rows.filter((r) => r.type === "image" && r.content);
-      const missing = images.filter((r) => r.content && !signedUrls[r.content]);
-
-      if (missing.length) {
-        const next: Record<string, string> = {};
-        for (const r of missing) {
-          const path = r.content!;
-          const { data, error } = await supabase.storage
-            .from("session-evidence")
-            .createSignedUrl(path, 60 * 30);
-          if (!error && data?.signedUrl) next[path] = data.signedUrl;
-        }
-        if (Object.keys(next).length) setSignedUrls((p) => ({ ...p, ...next }));
-      }
-    } catch (e: any) {
-      flash(e?.message ? `Evidence load failed: ${e.message}` : "Evidence load failed.", 2200);
-    } finally {
-      setEvidenceLoading(false);
-    }
-  }
-
-  async function loadActivities(sessionId: string) {
-    if (!sessionId) {
-      setActivities([]);
-      return;
-    }
-
-    setActivitiesLoading(true);
-    try {
-      const res = await supabase
-        .from("session_activities")
-        .select(
-          "id, club_id, session_id, title, description, activity_type, expected_outcome, sort_order, is_completed, completed_at, created_at"
-        )
-        .eq("club_id", clubId)
-        .eq("session_id", sessionId)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(200);
-
-      if (res.error) throw res.error;
-      setActivities((res.data ?? []) as ActivityRow[]);
-    } catch (e: any) {
-      flash(e?.message ? `Activities load failed: ${e.message}` : "Activities load failed.", 2200);
-    } finally {
-      setActivitiesLoading(false);
-    }
-  }
-
   useEffect(() => {
     if (checking) return;
-    loadAll();
+    loadAnalytics();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checking, clubId]);
 
-  useEffect(() => {
-    if (checking) return;
-    if (!selectedSessionId) return;
-    loadActivities(selectedSessionId);
-    loadEvidence(selectedSessionId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checking, selectedSessionId]);
+  // ---- Derived metrics ----
+  const totalSessions = sessions.length;
+  const openSessions = sessions.filter((s) => (s.status ?? "planned") === "open").length;
+  const plannedSessions = sessions.filter((s) => (s.status ?? "planned") === "planned").length;
+  const closedSessions = sessions.filter((s) => (s.status ?? "planned") === "closed").length;
 
-  async function createPlannedSession() {
-    if (!selectedTermId) {
-      flash("No term found. Create a term first.");
-      return;
+  const participantsBySession = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of participants) {
+      m.set(p.session_id, (m.get(p.session_id) ?? 0) + 1);
     }
+    return m;
+  }, [participants]);
+
+  const evidenceBySession = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of evidence) {
+      m.set(e.session_id, (m.get(e.session_id) ?? 0) + 1);
+    }
+    return m;
+  }, [evidence]);
+
+  const activitiesBySession = useMemo(() => {
+    const m = new Map<string, { total: number; done: number }>();
+    for (const a of activities) {
+      const cur = m.get(a.session_id) ?? { total: 0, done: 0 };
+      cur.total += 1;
+      if (a.is_completed) cur.done += 1;
+      m.set(a.session_id, cur);
+    }
+    return m;
+  }, [activities]);
+
+  const avgParticipants = totalSessions > 0 ? participants.length / totalSessions : 0;
+  const avgEvidence = totalSessions > 0 ? evidence.length / totalSessions : 0;
+
+  const totalActivities = activities.length;
+  const doneActivities = activities.filter((a) => a.is_completed).length;
+  const completionRate = totalActivities > 0 ? doneActivities / totalActivities : 0;
+
+  const sessionsWithMinEvidence = sessions.filter((s) => (evidenceBySession.get(s.id) ?? 0) >= 2).length;
+  const evidenceHealth = totalSessions > 0 ? sessionsWithMinEvidence / totalSessions : 0;
+
+  const scheduledRate = totalSessions > 0 ? sessions.filter((s) => !!s.starts_at).length / totalSessions : 0;
+
+  // ---- Rule-based Advice (AI feel now, Azure later) ----
+  const ruleAdvice = useMemo(() => {
+    const recs: Array<{ title: string; why: string; action: string }> = [];
+
+    if (avgParticipants < 6 && totalSessions >= 3) {
+      recs.push({
+        title: "Boost retention with a parent-facing showcase",
+        why: `Average attendance is ${avgParticipants.toFixed(1)} learners/session, which suggests weak word-of-mouth momentum.`,
+        action: "Add a 5-minute demo moment + take 3 photos per session. Post a weekly highlight to parents/WhatsApp.",
+      });
+    }
+
+    if (avgEvidence < 2) {
+      recs.push({
+        title: "Evidence is too light for ‘Proof Engine’ differentiation",
+        why: `You average ${avgEvidence.toFixed(1)} evidence items/session. Strong clubs typically capture 2–5.`,
+        action: "Make evidence routine: 1 photo during build + 1 photo during demo + 1 coach note at the end.",
+      });
+    }
+
+    if (completionRate < 0.7 && totalActivities >= 10) {
+      recs.push({
+        title: "Checklist overload detected",
+        why: `Activity completion is ${pct(completionRate)}. Too many checklist items can reduce delivery quality.`,
+        action: "Reduce checklist to 4–6 core outcomes. Move optional tasks to ‘stretch goals’.",
+      });
+    }
+
+    if (plannedSessions > 0 && scheduledRate < 0.9) {
+      recs.push({
+        title: "Scheduling discipline can improve operations",
+        why: "Some planned sessions don’t have a proper start time.",
+        action: "Require a start date/time for every planned session and auto-create reminders.",
+      });
+    }
+
+    if (!recs.length) {
+      recs.push({
+        title: "Delivery health looks strong",
+        why: "Your current KPIs don’t show obvious risk signals.",
+        action: "Next optimization: add AI summaries per session to convert evidence into parent-friendly stories.",
+      });
+    }
+
+    return recs;
+  }, [avgParticipants, avgEvidence, completionRate, plannedSessions, scheduledRate, totalActivities, totalSessions]);
+
+  async function saveRuleInsight() {
+    const now = new Date();
+    const end = now.toISOString();
+    const start = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 30).toISOString();
 
     try {
-      const { data: u } = await supabase.auth.getUser();
-      const createdBy = u.user?.id ?? null;
-
-      const res = await supabase
-        .from("sessions")
-        .insert({
-          club_id: clubId,
-          term_id: selectedTermId,
-          title: title.trim() || null,
-          starts_at: new Date().toISOString(),
-          duration_minutes: durationMinutes,
-          status: "planned",
-          created_by: createdBy,
-        } as any)
-        .select("id, club_id, title, starts_at, duration_minutes, status, term_id, created_at")
-        .single();
-
-      if (res.error) throw res.error;
-
-      flash("Session created (planned) ✓");
-      setSelectedSessionId(res.data.id);
-      await loadAll();
-      await loadActivities(res.data.id);
-      await loadEvidence(res.data.id);
-    } catch (e: any) {
-      flash(e?.message ? `Create failed: ${e.message}` : "Create failed (check RLS).", 2200);
-    }
-  }
-
-  async function addParticipants() {
-    if (!selectedSession) return;
-
-    if (!canEditParticipants) {
-      flash("Participants can only be edited while session is planned.");
-      return;
-    }
-
-    const picked = Object.entries(selectedStudentIds)
-      .filter(([, v]) => v)
-      .map(([id]) => id);
-
-    if (!picked.length) {
-      flash("Pick at least 1 learner.");
-      return;
-    }
-
-    try {
-      const payload = picked.map((student_id) => ({
+      const payload = {
         club_id: clubId,
-        session_id: selectedSession.id,
-        student_id,
-      }));
+        period_start: start,
+        period_end: end,
+        source: "rules",
+        summary: `Last 30 days snapshot: ${totalSessions} sessions, avg ${avgParticipants.toFixed(
+          1
+        )} learners/session, evidence health ${pct(evidenceHealth)}.`,
+        recommendations: ruleAdvice,
+        metrics: {
+          totalSessions,
+          openSessions,
+          plannedSessions,
+          closedSessions,
+          avgParticipants,
+          avgEvidence,
+          completionRate,
+          evidenceHealth,
+          scheduledRate,
+        },
+      };
 
-      const res = await supabase.from("session_participants").insert(payload as any);
+      // ✅ renamed table
+      const res = await supabase.from("session_ai_insights").insert(payload as any).select("*").single();
       if (res.error) throw res.error;
 
-      flash("Participants added ✓");
-      setSelectedStudentIds({});
-      await loadAll();
+      setLatestAi(res.data as any);
+      flash("AI advice saved ✓");
     } catch (e: any) {
-      flash(e?.message ? `Add failed: ${e.message}` : "Add failed (check RLS/lock).", 2200);
+      flash(e?.message ? `Save failed: ${e.message}` : "Save failed.", 2200);
     }
   }
 
-  async function openSession() {
-    if (!selectedSession) return;
-
-    if (selectedStatus !== "planned") {
-      flash("Only planned sessions can be opened.");
-      return;
-    }
-
-    if (participantIdsForSelected.size === 0) {
-      flash("Add participants first (register needs learners).");
-      return;
-    }
-
+  async function generateAzureAdvice() {
+    setAiBusy(true);
     try {
-      const res = await supabase
-        .from("sessions")
-        .update({ status: "open" } as any)
-        .eq("id", selectedSession.id)
-        .eq("club_id", clubId);
-
-      if (res.error) throw res.error;
-
-      flash("Session opened ✓");
-      await loadAll();
-    } catch (e: any) {
-      flash(e?.message ? `Open failed: ${e.message}` : "Open failed (check RLS).", 2200);
-    }
-  }
-
-  async function closeSession() {
-    if (!selectedSession) return;
-
-    if (selectedStatus !== "open") {
-      flash("Only open sessions can be closed.");
-      return;
-    }
-
-    try {
-      const res = await supabase
-        .from("sessions")
-        .update({ status: "closed" } as any)
-        .eq("id", selectedSession.id)
-        .eq("club_id", clubId);
-
-      if (res.error) throw res.error;
-
-      flash("Session closed ✓");
-      await loadAll();
-    } catch (e: any) {
-      flash(e?.message ? `Close failed: ${e.message}` : "Close failed (check RLS).", 2200);
-    }
-  }
-
-  async function addActivity() {
-    if (!selectedSession) return;
-
-    if (!canAddActivities) {
-      flash("Activities can only be added while session is planned.");
-      return;
-    }
-
-    const t = actTitle.trim();
-    if (!t) {
-      flash("Enter an activity title.");
-      return;
-    }
-
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      const userId = u.user?.id ?? null;
-
-      const maxSort = activities.reduce((m, a) => Math.max(m, a.sort_order ?? 0), 0);
-      const nextSort = (maxSort || 0) + 10;
-
-      const res = await supabase.from("session_activities").insert({
-        club_id: clubId,
-        session_id: selectedSession.id,
-        title: t,
-        description: actDesc.trim() || null,
-        activity_type: actType,
-        expected_outcome: actOutcome.trim() || null,
-        sort_order: nextSort,
-        created_by: userId,
-      } as any);
-
-      if (res.error) throw res.error;
-
-      setActTitle("");
-      setActDesc("");
-      setActOutcome("");
-      setActType("build");
-      flash("Activity added ✓");
-      await loadActivities(selectedSession.id);
-    } catch (e: any) {
-      flash(e?.message ? `Add activity failed: ${e.message}` : "Add activity failed.", 2400);
-    }
-  }
-
-  async function toggleActivityComplete(row: ActivityRow) {
-    if (!selectedSession) return;
-
-    if (!canMarkComplete) {
-      flash("You can only mark activities during an OPEN session.");
-      return;
-    }
-
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      const userId = u.user?.id ?? null;
-
-      const nowIso = new Date().toISOString();
-      const nextDone = !row.is_completed;
-
-      const res = await supabase
-        .from("session_activities")
-        .update({
-          is_completed: nextDone,
-          completed_at: nextDone ? nowIso : null,
-          completed_by: nextDone ? userId : null,
-        } as any)
-        .eq("id", row.id)
-        .eq("club_id", clubId);
-
-      if (res.error) throw res.error;
-
-      await loadActivities(selectedSession.id);
-    } catch (e: any) {
-      flash(e?.message ? `Update failed: ${e.message}` : "Update failed.", 2400);
-    }
-  }
-
-  async function deleteActivity(row: ActivityRow) {
-    if (!selectedSession) return;
-
-    if (!canAddActivities) {
-      flash("Activities can only be deleted while session is planned.");
-      return;
-    }
-
-    const ok = window.confirm("Delete this activity?");
-    if (!ok) return;
-
-    try {
-      const res = await supabase
-        .from("session_activities")
-        .delete()
-        .eq("id", row.id)
-        .eq("club_id", clubId);
-
-      if (res.error) throw res.error;
-
-      flash("Activity deleted ✓");
-      await loadActivities(selectedSession.id);
-    } catch (e: any) {
-      flash(e?.message ? `Delete failed: ${e.message}` : "Delete failed.", 2400);
-    }
-  }
-
-  async function addNoteEvidence() {
-    if (!selectedSession) return;
-
-    if (!canEditEvidence) {
-      flash("Evidence is locked once the session is closed.");
-      return;
-    }
-
-    const text = noteText.trim();
-    if (!text) {
-      flash("Write a short note first.");
-      return;
-    }
-
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      const userId = u.user?.id ?? null;
-
-      const res = await supabase.from("session_evidence").insert({
-        club_id: clubId,
-        session_id: selectedSession.id,
-        type: "note",
-        content: text,
-        meta: { source: "admin-ui" },
-        created_by: userId,
-      } as any);
-
-      if (res.error) throw res.error;
-
-      setNoteText("");
-      flash("Note added ✓");
-      await loadEvidence(selectedSession.id);
-    } catch (e: any) {
-      flash(e?.message ? `Note failed: ${e.message}` : "Note failed.", 2400);
-    }
-  }
-
-  async function uploadImageEvidence(file: File) {
-    if (!selectedSession) return;
-
-    if (!canEditEvidence) {
-      flash("Evidence is locked once the session is closed.");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const clean = safeFileName(file.name || `image.${ext}`);
-      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-
-      const path = `club/${clubId}/session/${selectedSession.id}/${stamp}-${clean}`;
-
-      const up = await supabase.storage.from("session-evidence").upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type || "image/*",
+      // ✅ renamed route
+      const res = await fetch(`/api/ai/session-advice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clubId,
+          windowDays: 30,
+        }),
       });
 
-      if (up.error) throw up.error;
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? "AI request failed.");
 
-      const { data: u } = await supabase.auth.getUser();
-      const userId = u.user?.id ?? null;
-
-      const ins = await supabase.from("session_evidence").insert({
-        club_id: clubId,
-        session_id: selectedSession.id,
-        type: "image",
-        content: path,
-        meta: { file_name: file.name, mime: file.type, size: file.size },
-        created_by: userId,
-      } as any);
-
-      if (ins.error) throw ins.error;
-
-      flash("Image uploaded ✓");
-      await loadEvidence(selectedSession.id);
+      setLatestAi(json.data as any);
+      flash("Azure AI advice generated ✓", 1800);
     } catch (e: any) {
-      flash(e?.message ? `Upload failed: ${e.message}` : "Upload failed.", 2600);
+      flash(e?.message ?? "Azure AI failed.", 2400);
     } finally {
-      setUploading(false);
+      setAiBusy(false);
     }
-  }
-
-  async function deleteEvidence(row: EvidenceRow) {
-    if (!selectedSession) return;
-
-    if (!canEditEvidence) {
-      flash("Evidence is locked once the session is closed.");
-      return;
-    }
-
-    const ok = window.confirm("Delete this evidence?");
-    if (!ok) return;
-
-    try {
-      if (row.type === "image" && row.content) {
-        const del = await supabase.storage.from("session-evidence").remove([row.content]);
-        if (del.error) console.warn("Storage delete failed:", del.error.message);
-      }
-
-      const res = await supabase
-        .from("session_evidence")
-        .delete()
-        .eq("id", row.id)
-        .eq("club_id", clubId);
-
-      if (res.error) throw res.error;
-
-      flash("Evidence deleted ✓");
-      await loadEvidence(selectedSession.id);
-    } catch (e: any) {
-      flash(e?.message ? `Delete failed: ${e.message}` : "Delete failed.", 2400);
-    }
-  }
-
-  function togglePick(studentId: string) {
-    setSelectedStudentIds((prev) => ({ ...prev, [studentId]: !prev[studentId] }));
   }
 
   if (checking || loading) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 via-indigo-50/40 to-slate-100">
         <div className="mx-auto max-w-[1200px] px-4 py-10">
-          <div className="h-10 w-72 rounded-2xl bg-slate-200 animate-pulse" />
+          <div className="h-10 w-80 rounded-2xl bg-slate-200 animate-pulse" />
           <div className="mt-6 h-[680px] rounded-3xl border border-slate-200 bg-white animate-pulse" />
         </div>
       </main>
@@ -687,8 +343,10 @@ export default function SessionsMvpPage() {
         <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 relative">
           <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-900">Sessions</div>
-            <div className="text-xs text-slate-600">Plan → Participants → Open → Close (+ Activities + Evidence)</div>
+            <div className="text-sm font-semibold text-slate-900">Sessions Analytics</div>
+            <div className="text-xs text-slate-600">
+              AI-powered delivery intelligence • Insights → Recommendations → Automation
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -700,15 +358,15 @@ export default function SessionsMvpPage() {
             </Link>
 
             <Link
-              href={`/app/admin/clubs/${clubId}/attendance/register`}
+              href={`/app/admin/clubs/${clubId}/sessions/plan`}
               className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
-              Go to Register
+              Plan sessions
             </Link>
 
             <button
               type="button"
-              onClick={loadAll}
+              onClick={loadAnalytics}
               className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
             >
               Refresh
@@ -724,610 +382,228 @@ export default function SessionsMvpPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-6 lg:grid-cols-12">
-          {/* LEFT: sessions list */}
-          <div className="lg:col-span-4">
-            <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)]">
+        <div className="grid gap-4 lg:grid-cols-12">
+          <div className="lg:col-span-8">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <KpiCard label="Total sessions" value={`${totalSessions}`} hint="All time" />
+              <KpiCard label="Open now" value={`${openSessions}`} hint="Live delivery" />
+              <KpiCard label="Avg learners/session" value={avgParticipants.toFixed(1)} hint="Attendance signal" />
+              <KpiCard label="Evidence/session" value={avgEvidence.toFixed(1)} hint="Proof Engine signal" />
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <MetricCard
+                title="Evidence Health"
+                value={pct(evidenceHealth)}
+                desc="% sessions with ≥ 2 evidence items"
+                score={evidenceHealth}
+              />
+              <MetricCard
+                title="Delivery Completion"
+                value={pct(completionRate)}
+                desc="Completed activities across sessions"
+                score={completionRate}
+              />
+            </div>
+
+            <div className="mt-4 rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
               <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                <div className="text-sm font-semibold text-slate-900">Sessions</div>
-                <div className="mt-0.5 text-xs text-slate-600">{sessions.length} total</div>
+                <div className="text-sm font-semibold text-slate-900">Recent sessions</div>
+                <div className="mt-0.5 text-xs text-slate-600">
+                  Quick pulse check (participants • evidence • checklist)
+                </div>
               </div>
 
-              <div className="max-h-[70vh] overflow-auto divide-y divide-slate-200">
-                {sessions.length ? (
-                  sessions.map((s) => {
-                    const selected = s.id === selectedSessionId;
-                    const st = (s.status ?? "planned") as SessionStatus;
+              <div className="divide-y divide-slate-200">
+                {sessions.slice(0, 8).map((s) => {
+                  const p = participantsBySession.get(s.id) ?? 0;
+                  const ev = evidenceBySession.get(s.id) ?? 0;
+                  const a = activitiesBySession.get(s.id) ?? { total: 0, done: 0 };
+                  const cr = a.total > 0 ? a.done / a.total : 0;
 
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setSelectedSessionId(s.id)}
-                        className={cx(
-                          "w-full px-5 py-4 text-left hover:bg-indigo-50/40 sm:px-6",
-                          selected && "bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50"
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-slate-900">
-                              {s.title || "Untitled session"}
-                            </div>
-                            <div className="mt-0.5 text-xs text-slate-600">{fmtDateTime(s.starts_at)}</div>
+                  return (
+                    <div key={s.id} className="px-5 py-4 sm:px-6">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-900">
+                            {s.title || "Untitled session"}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-600">
+                            {fmtDate(s.starts_at)} • {s.duration_minutes ?? 60} mins
                           </div>
 
-                          <div className="flex flex-col items-end gap-2">
-                            <span
-                              className={cx(
-                                "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                                statusChip(st)
-                              )}
-                            >
-                              {st.toUpperCase()}
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className={cx("rounded-full border px-3 py-1 text-xs font-semibold", statusChip(s.status))}>
+                              {(s.status ?? "planned").toUpperCase()}
                             </span>
-                            {selected ? (
-                              <span className="rounded-full border border-slate-900 bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">
-                                Selected
+
+                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                              Learners: <span className="ml-1 text-slate-900">{p}</span>
+                            </span>
+
+                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                              Evidence: <span className="ml-1 text-slate-900">{ev}</span>
+                            </span>
+
+                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                              Checklist:{" "}
+                              <span className="ml-1 text-slate-900">
+                                {a.done}/{a.total} ({pct(cr)})
                               </span>
-                            ) : (
-                              <span className="text-slate-400">›</span>
-                            )}
+                            </span>
                           </div>
                         </div>
-                      </button>
-                    );
-                  })
-                ) : (
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/app/admin/clubs/${clubId}/sessions/${s.id}/run`}
+                            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
+                          >
+                            Run
+                          </Link>
+                          <Link
+                            href={`/app/admin/clubs/${clubId}/sessions/${s.id}/evidence`}
+                            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
+                          >
+                            Evidence
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {!sessions.length ? (
                   <div className="px-6 py-10 text-center">
                     <div className="text-sm font-semibold text-slate-900">No sessions yet</div>
-                    <div className="mt-1 text-sm text-slate-600">Create your first planned session.</div>
+                    <div className="mt-1 text-sm text-slate-600">Create your first planned session in Plan.</div>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
 
-          {/* RIGHT */}
-          <div className="lg:col-span-8">
-            {/* Create planned session */}
+          <div className="lg:col-span-4">
             <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
               <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                <div className="text-sm font-semibold text-slate-900">Create planned session</div>
+                <div className="text-sm font-semibold text-slate-900">AI Advice & Automation</div>
                 <div className="mt-0.5 text-xs text-slate-600">
-                  Participants can be edited only while <span className="font-semibold">planned</span>.
+                  This is the differentiator: analytics → insight → action
                 </div>
               </div>
 
               <div className="px-5 py-5 sm:px-6">
-                <div className="grid gap-3 sm:grid-cols-12">
-                  <div className="sm:col-span-8">
-                    <label className="text-xs font-semibold text-slate-600">Title</label>
-                    <input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                      placeholder="e.g., Week 2 — Build & Challenge"
-                    />
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs font-semibold tracking-widest text-slate-500">RULE-BASED INSIGHTS (NOW)</div>
+                  <div className="mt-2 text-sm text-slate-800">
+                    These are generated from your real session data so the platform already “feels AI-powered”, even before Azure is connected.
                   </div>
 
-                  <div className="sm:col-span-4">
-                    <label className="text-xs font-semibold text-slate-600">Duration (mins)</label>
-                    <input
-                      type="number"
-                      value={durationMinutes}
-                      onChange={(e) => setDurationMinutes(Math.max(15, Number(e.target.value || 0)))}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                      min={15}
-                      step={5}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={createPlannedSession}
-                    className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
-                  >
-                    Create planned session
-                  </button>
-
-                  <div className="text-xs text-slate-600">
-                    Term selected:{" "}
-                    <span className="font-semibold text-slate-900">{selectedTermId ? "OK" : "None"}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Selected session control */}
-            <div className="mt-6 rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
-              <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold tracking-widest text-slate-500">SELECTED SESSION</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">
-                      {selectedSession?.title || (sessions.length ? "Untitled session" : "No session selected")}
-                    </div>
-                    <div className="mt-1 text-sm text-slate-600">
-                      {selectedSession
-                        ? `Starts: ${fmtDateTime(selectedSession.starts_at)} • Duration: ${
-                            selectedSession.duration_minutes ?? 90
-                          } mins`
-                        : "—"}
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className={cx("rounded-full border px-3 py-1 text-xs font-semibold", statusChip(selectedStatus))}>
-                        {selectedStatus.toUpperCase()}
-                      </span>
-
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                        Participants: <span className="ml-2 text-slate-900">{participantCount}</span>
-                      </span>
-
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                        Checklist: <span className="ml-2 text-slate-900">{completedCount}/{activities.length}</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={openSession}
-                      disabled={!selectedSession || selectedStatus !== "planned"}
-                      className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-                    >
-                      Open session
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={closeSession}
-                      disabled={!selectedSession || selectedStatus !== "open"}
-                      className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                    >
-                      Close session
-                    </button>
-
-                    <Link
-                      href={`/app/admin/clubs/${clubId}/attendance/register`}
-                      className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
-                    >
-                      Open register
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
-              {/* Participant picker */}
-              <div className="px-5 py-5 sm:px-6">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">Participants</div>
-                    <div className="mt-1 text-sm text-slate-600">
-                      {selectedStatus === "planned" ? "Pick learners to attach to this session." : "Locked (session is open/closed)."}
-                    </div>
+                  <div className="mt-3 grid gap-2">
+                    {ruleAdvice.slice(0, 3).map((r, idx) => (
+                      <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="text-sm font-semibold text-slate-900">{r.title}</div>
+                        <div className="mt-1 text-xs text-slate-600">{r.why}</div>
+                        <div className="mt-2 text-xs font-semibold text-slate-900">Action:</div>
+                        <div className="text-xs text-slate-700">{r.action}</div>
+                      </div>
+                    ))}
                   </div>
 
                   <button
                     type="button"
-                    onClick={addParticipants}
-                    disabled={!selectedSession || !canEditParticipants}
-                    className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60 disabled:opacity-50"
+                    onClick={saveRuleInsight}
+                    className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                   >
-                    Add selected learners
+                    Save advice to AI log
                   </button>
                 </div>
 
-                <div className="mt-4">
-                  <input
-                    value={studentQuery}
-                    onChange={(e) => setStudentQuery(e.target.value)}
-                    placeholder="Search student name…"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                  />
-                  <div className="mt-2 text-xs text-slate-500">Tip: add participants while planned, then open session to lock the list.</div>
-                </div>
-
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                  <div className="grid grid-cols-12 gap-2 bg-slate-50 px-4 py-2 text-[11px] font-semibold tracking-widest text-slate-500">
-                    <div className="col-span-7">LEARNER</div>
-                    <div className="col-span-3">IN SESSION</div>
-                    <div className="col-span-2 text-right">PICK</div>
+                <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                  <div className="text-xs font-semibold tracking-widest text-indigo-700">AZURE AI (NEXT)</div>
+                  <div className="mt-2 text-sm text-indigo-900">
+                    Generate a narrative insight (parent-friendly + admin business advice) using Azure OpenAI, and store it for reporting + automation triggers.
                   </div>
 
-                  <div className="divide-y divide-slate-200 max-h-[420px] overflow-auto">
-                    {filteredStudents.map((st) => {
-                      const inSession = participantIdsForSelected.has(st.id);
-                      const picked = !!selectedStudentIds[st.id];
+                  <button
+                    type="button"
+                    disabled={aiBusy}
+                    onClick={generateAzureAdvice}
+                    className="mt-3 w-full rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"
+                  >
+                    {aiBusy ? "Generating..." : "Generate Azure AI advice"}
+                  </button>
+                </div>
 
-                      return (
-                        <div key={st.id} className="grid grid-cols-12 gap-2 px-4 py-3 hover:bg-indigo-50/30">
-                          <div className="col-span-7 min-w-0">
-                            <div className="truncate text-sm font-semibold text-slate-900">{st.full_name}</div>
-                            <div className="mt-0.5 text-xs text-slate-500">ID: {st.id.slice(0, 8)}…</div>
-                          </div>
+                {latestAi ? (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs font-semibold tracking-widest text-slate-500">LATEST AI INSIGHT</div>
+                      <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                        {latestAi.source.toUpperCase()}
+                      </span>
+                    </div>
 
-                          <div className="col-span-3 flex items-center">
-                            {inSession ? (
-                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-900">Attached</span>
-                            ) : (
-                              <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">Not yet</span>
-                            )}
-                          </div>
+                    <div className="mt-2 text-sm font-semibold text-slate-900">{latestAi.summary}</div>
 
-                          <div className="col-span-2 flex items-center justify-end">
-                            <button
-                              type="button"
-                              onClick={() => togglePick(st.id)}
-                              disabled={!selectedSession || !canEditParticipants || inSession}
-                              className={cx(
-                                "cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition",
-                                picked ? "bg-slate-900 text-white hover:bg-slate-800" : "border border-slate-200 bg-white text-slate-900 hover:bg-indigo-50/60",
-                                (!selectedSession || !canEditParticipants || inSession) && "opacity-50 cursor-not-allowed"
-                              )}
-                            >
-                              {inSession ? "Locked" : picked ? "Picked ✓" : "Pick"}
-                            </button>
-                          </div>
+                    <div className="mt-3 grid gap-2">
+                      {(latestAi.recommendations ?? []).slice(0, 3).map((r, idx) => (
+                        <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <div className="text-sm font-semibold text-slate-900">{r.title}</div>
+                          <div className="mt-1 text-xs text-slate-600">{r.why}</div>
+                          <div className="mt-2 text-xs text-slate-700">{r.action}</div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
 
-                    {!filteredStudents.length ? (
-                      <div className="px-4 py-8 text-center text-sm text-slate-600">No students found.</div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mt-3 text-xs text-slate-600">
-                  Register UI uses <span className="font-semibold text-slate-900">session_participants</span> to display learners.
-                </div>
-              </div>
-            </div>
-
-            {/* Activities MVP */}
-            <div className="mt-6 rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
-              <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">Session activities (coach checklist)</div>
-                    <div className="mt-0.5 text-xs text-slate-600">
-                      Add activities while <span className="font-semibold">planned</span>. Mark complete during <span className="font-semibold">open</span>.
+                    <div className="mt-3 text-[11px] text-slate-500">
+                      Saved: {fmtDate(latestAi.created_at)} • Window: 30 days
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => selectedSessionId && loadActivities(selectedSessionId)}
-                    className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
-                  >
-                    Refresh checklist
-                  </button>
-                </div>
-              </div>
-
-              <div className="px-5 py-5 sm:px-6">
-                {!selectedSession ? (
-                  <div className="text-sm text-slate-600">Select a session to manage activities.</div>
                 ) : (
-                  <>
-                    <div className="grid gap-3 sm:grid-cols-12">
-                      <div className="sm:col-span-7">
-                        <label className="text-xs font-semibold text-slate-600">Activity title</label>
-                        <input
-                          value={actTitle}
-                          onChange={(e) => setActTitle(e.target.value)}
-                          placeholder="e.g., Build the chassis + test the wheels"
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                          disabled={!canAddActivities}
-                        />
-                      </div>
-
-                      <div className="sm:col-span-5">
-                        <label className="text-xs font-semibold text-slate-600">Type</label>
-                        <select
-                          value={actType}
-                          onChange={(e) => setActType(e.target.value as ActivityType)}
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                          disabled={!canAddActivities}
-                        >
-                          <option value="build">Build</option>
-                          <option value="challenge">Challenge</option>
-                          <option value="demo">Demo</option>
-                          <option value="teamwork">Teamwork</option>
-                        </select>
-                      </div>
-
-                      <div className="sm:col-span-12">
-                        <label className="text-xs font-semibold text-slate-600">Description (optional)</label>
-                        <input
-                          value={actDesc}
-                          onChange={(e) => setActDesc(e.target.value)}
-                          placeholder="Short guidance for the coach (optional)"
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                          disabled={!canAddActivities}
-                        />
-                      </div>
-
-                      <div className="sm:col-span-12">
-                        <label className="text-xs font-semibold text-slate-600">Expected outcome (optional)</label>
-                        <input
-                          value={actOutcome}
-                          onChange={(e) => setActOutcome(e.target.value)}
-                          placeholder="What does success look like?"
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                          disabled={!canAddActivities}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={addActivity}
-                        disabled={!canAddActivities}
-                        className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                      >
-                        Add activity
-                      </button>
-
-                      <div className="text-xs text-slate-600">
-                        {activitiesLoading ? "Loading…" : `Checklist: ${completedCount}/${activities.length} completed`}
-                      </div>
-
-                      {!canAddActivities ? (
-                        <div className="text-xs text-slate-500">Locked (not planned).</div>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
-                      <div className="grid grid-cols-12 gap-2 bg-slate-50 px-4 py-2 text-[11px] font-semibold tracking-widest text-slate-500">
-                        <div className="col-span-7">ACTIVITY</div>
-                        <div className="col-span-3">TYPE</div>
-                        <div className="col-span-2 text-right">DONE</div>
-                      </div>
-
-                      <div className="divide-y divide-slate-200">
-                        {!activities.length ? (
-                          <div className="px-4 py-8 text-center text-sm text-slate-600">
-                            No activities yet. Add your first checklist item.
-                          </div>
-                        ) : (
-                          activities.map((a) => {
-                            const done = !!a.is_completed;
-
-                            return (
-                              <div key={a.id} className="px-4 py-4 hover:bg-indigo-50/20">
-                                <div className="grid grid-cols-12 gap-2 items-start">
-                                  <div className="col-span-7 min-w-0">
-                                    <div className={cx("text-sm font-semibold", done ? "text-slate-500 line-through" : "text-slate-900")}>
-                                      {a.title}
-                                    </div>
-                                    {a.description ? <div className="mt-1 text-xs text-slate-600">{a.description}</div> : null}
-                                    {a.expected_outcome ? (
-                                      <div className="mt-1 text-xs text-slate-500">
-                                        Outcome: <span className="text-slate-700">{a.expected_outcome}</span>
-                                      </div>
-                                    ) : null}
-                                  </div>
-
-                                  <div className="col-span-3 flex items-center">
-                                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                      {a.activity_type.toUpperCase()}
-                                    </span>
-                                  </div>
-
-                                  <div className="col-span-2 flex items-center justify-end gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleActivityComplete(a)}
-                                      disabled={!canMarkComplete}
-                                      className={cx(
-                                        "cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition disabled:opacity-50",
-                                        done ? "bg-emerald-600 text-white hover:bg-emerald-700" : "border border-slate-200 bg-white text-slate-900 hover:bg-indigo-50/60"
-                                      )}
-                                    >
-                                      {done ? "Done ✓" : "Mark"}
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteActivity(a)}
-                                      disabled={!canAddActivities}
-                                      className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-rose-50 disabled:opacity-50"
-                                    >
-                                      Del
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-3 text-xs text-slate-600">
-                      Rules: add/delete only in <span className="font-semibold">planned</span>, mark complete only in{" "}
-                      <span className="font-semibold">open</span>, locked in <span className="font-semibold">closed</span>.
-                    </div>
-                  </>
+                  <div className="mt-4 text-xs text-slate-600">
+                    No AI insight saved yet. Save rule-based advice or generate Azure advice.
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Evidence MVP */}
-            <div className="mt-6 rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
-              <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">Session evidence (MVP)</div>
-                    <div className="mt-0.5 text-xs text-slate-600">Add notes + upload images to build a session portfolio.</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => selectedSessionId && loadEvidence(selectedSessionId)}
-                    className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
-                  >
-                    Refresh evidence
-                  </button>
-                </div>
-              </div>
-
-              <div className="px-5 py-5 sm:px-6">
-                {!selectedSession ? (
-                  <div className="text-sm text-slate-600">Select a session to manage evidence.</div>
-                ) : (
-                  <>
-                    {!canEditEvidence ? (
-                      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                        Evidence is locked because the session is <span className="font-semibold">CLOSED</span>.
-                      </div>
-                    ) : null}
-
-                    <div className="grid gap-4 lg:grid-cols-12">
-                      <div className="lg:col-span-7">
-                        <label className="text-xs font-semibold text-slate-600">Add a note</label>
-                        <textarea
-                          value={noteText}
-                          onChange={(e) => setNoteText(e.target.value)}
-                          placeholder="What happened in this session? (quick summary, highlights, progress, challenges...)"
-                          className="mt-1 min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                          disabled={!canEditEvidence}
-                        />
-                        <div className="mt-2 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={addNoteEvidence}
-                            disabled={!canEditEvidence}
-                            className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                          >
-                            Save note
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="lg:col-span-5">
-                        <label className="text-xs font-semibold text-slate-600">Upload an image</label>
-                        <div className="mt-1 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <div className="text-sm font-semibold text-slate-900">Session photo</div>
-                          <div className="mt-1 text-xs text-slate-600">
-                            Stored in bucket <span className="font-semibold">session-evidence</span> under:
-                            <div className="mt-1 rounded-lg bg-white px-2 py-1 font-mono text-[11px] text-slate-700">
-                              club/{clubId}/session/{selectedSession.id}/...
-                            </div>
-                          </div>
-
-                          <div className="mt-3">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              disabled={uploading || !canEditEvidence}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) uploadImageEvidence(f);
-                                e.currentTarget.value = "";
-                              }}
-                              className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800 disabled:opacity-60"
-                            />
-                            <div className="mt-2 text-xs text-slate-600">
-                              {uploading ? "Uploading..." : "Tip: take photos during builds, challenges, and demos."}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
-                      <div className="flex items-center justify-between bg-slate-50 px-4 py-2">
-                        <div className="text-[11px] font-semibold tracking-widest text-slate-500">
-                          EVIDENCE ({evidence.length})
-                        </div>
-                        {evidenceLoading ? <div className="text-xs text-slate-600">Loading…</div> : null}
-                      </div>
-
-                      <div className="divide-y divide-slate-200">
-                        {!evidence.length ? (
-                          <div className="px-4 py-8 text-center text-sm text-slate-600">
-                            No evidence yet. Add a note or upload a photo.
-                          </div>
-                        ) : (
-                          evidence.map((r) => {
-                            const isImage = r.type === "image";
-                            const path = r.content || "";
-                            const url = isImage && path ? signedUrls[path] : "";
-
-                            return (
-                              <div key={r.id} className="px-4 py-4">
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                  <div className="min-w-0">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                        {r.type.toUpperCase()}
-                                      </span>
-                                      <span className="text-xs text-slate-600">{fmtDateTime(r.created_at)}</span>
-                                    </div>
-
-                                    {r.type === "note" ? (
-                                      <div className="mt-2 whitespace-pre-wrap text-sm text-slate-900">{r.content}</div>
-                                    ) : null}
-
-                                    {isImage ? (
-                                      <div className="mt-3">
-                                        {url ? (
-                                          // eslint-disable-next-line @next/next/no-img-element
-                                          <img
-                                            src={url}
-                                            alt="Session evidence"
-                                            className="h-auto w-full max-w-[520px] rounded-2xl border border-slate-200"
-                                          />
-                                        ) : (
-                                          <div className="text-sm text-slate-600">
-                                            Image ready. Click refresh evidence if preview doesn’t load yet.
-                                          </div>
-                                        )}
-                                        <div className="mt-2 font-mono text-[11px] text-slate-500 break-all">{path}</div>
-                                      </div>
-                                    ) : null}
-                                  </div>
-
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteEvidence(r)}
-                                      disabled={!canEditEvidence}
-                                      className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-rose-50 disabled:opacity-50"
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-3 text-xs text-slate-600">
-                      Evidence is your “proof engine”: notes + photos become a portfolio for reporting, parents, and funders.
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-6 rounded-[18px] border border-slate-200 bg-white/70 p-4 text-sm text-slate-700">
-              Next: if you want, we can implement <span className="font-semibold text-slate-900">teacher-facing session view</span>{" "}
-              (non-admin) that shows the checklist + evidence capture in a simpler “in-session” UI.
+            <div className="mt-4 rounded-[18px] border border-slate-200 bg-white/70 p-4 text-sm text-slate-700">
+              Next pages: <span className="font-semibold text-slate-900">Plan</span> (create + participants) →{" "}
+              <span className="font-semibold text-slate-900">Run</span> (open/close + checklist) →{" "}
+              <span className="font-semibold text-slate-900">Evidence</span> (proof engine + AI summaries).
             </div>
           </div>
         </div>
       </div>
     </main>
+  );
+}
+
+function KpiCard(props: { label: string; value: string; hint: string }) {
+  return (
+    <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] p-4">
+      <div className="text-xs font-semibold tracking-widest text-slate-500">{props.label.toUpperCase()}</div>
+      <div className="mt-2 text-2xl font-semibold text-slate-900">{props.value}</div>
+      <div className="mt-1 text-xs text-slate-600">{props.hint}</div>
+    </div>
+  );
+}
+
+function MetricCard(props: { title: string; value: string; desc: string; score: number }) {
+  const s = clamp01(props.score);
+  return (
+    <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">{props.title}</div>
+          <div className="mt-1 text-xs text-slate-600">{props.desc}</div>
+        </div>
+        <div className="text-lg font-semibold text-slate-900">{props.value}</div>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full border border-slate-200 bg-slate-50">
+        <div className="h-full bg-slate-900" style={{ width: `${Math.round(s * 100)}%` }} />
+      </div>
+    </div>
   );
 }
