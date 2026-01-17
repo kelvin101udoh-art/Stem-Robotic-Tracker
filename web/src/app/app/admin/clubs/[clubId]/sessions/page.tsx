@@ -1,9 +1,7 @@
-// web/src/app/app/admin/clubs/[clubId]/sessions/page.tsx
-
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAdminGuard } from "@/lib/admin/admin-guard";
 
@@ -51,8 +49,6 @@ type SessionAiInsight = {
   created_at: string;
 };
 
-type RangeKey = "7" | "30" | "90";
-
 function cx(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
 }
@@ -64,6 +60,12 @@ function clamp01(x: number) {
 function pct(n: number) {
   if (!Number.isFinite(n)) return "0%";
   return `${Math.round(n * 100)}%`;
+}
+
+function fmtTime(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
 function fmtDateTimeShort(iso?: string | null) {
@@ -78,12 +80,6 @@ function fmtDateTimeShort(iso?: string | null) {
   });
 }
 
-function fmtDateShort(iso?: string | null) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" });
-}
-
 function statusChip(s?: SessionStatus | null) {
   const k = s ?? "planned";
   if (k === "open") return "border-emerald-200 bg-emerald-50 text-emerald-900";
@@ -91,19 +87,32 @@ function statusChip(s?: SessionStatus | null) {
   return "border-indigo-200 bg-indigo-50 text-indigo-900";
 }
 
-function daysAgoIso(days: number) {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+function startOfTodayIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
 }
 
-function median(values: number[]) {
-  const v = values.filter((x) => Number.isFinite(x)).slice().sort((a, b) => a - b);
-  if (!v.length) return 0;
-  const mid = Math.floor(v.length / 2);
-  return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+function endOfTodayIso() {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d.toISOString();
 }
 
 function safeDiv(a: number, b: number) {
   return b === 0 ? 0 : a / b;
+}
+
+function minsBetween(now: number, thenIso?: string | null) {
+  if (!thenIso) return 0;
+  const t = new Date(thenIso).getTime();
+  return Math.max(0, Math.round((now - t) / 60000));
+}
+
+function freshnessLabel(minutes: number) {
+  if (minutes <= 2) return { label: "LIVE", cls: "border-emerald-200 bg-emerald-50 text-emerald-900" };
+  if (minutes <= 10) return { label: "FRESH", cls: "border-indigo-200 bg-indigo-50 text-indigo-900" };
+  return { label: "STALE", cls: "border-rose-200 bg-rose-50 text-rose-900" };
 }
 
 export default function SessionsAnalyticsHomePage() {
@@ -115,43 +124,81 @@ export default function SessionsAnalyticsHomePage() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
 
-  const [range, setRange] = useState<RangeKey>("30");
+  const [sessionsToday, setSessionsToday] = useState<SessionRow[]>([]);
+  const [participantsToday, setParticipantsToday] = useState<ParticipantRow[]>([]);
+  const [evidenceToday, setEvidenceToday] = useState<EvidenceRow[]>([]);
+  const [activitiesToday, setActivitiesToday] = useState<ActivityRow[]>([]);
 
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [participants, setParticipants] = useState<ParticipantRow[]>([]);
-  const [evidence, setEvidence] = useState<EvidenceRow[]>([]);
-  const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [latestAiToday, setLatestAiToday] = useState<SessionAiInsight | null>(null);
 
-  const [latestAi, setLatestAi] = useState<SessionAiInsight | null>(null);
-  const [aiBusy, setAiBusy] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+
+  const intervalRef = useRef<number | null>(null);
 
   function flash(text: string, ms = 1800) {
     setMsg(text);
     window.setTimeout(() => setMsg(""), ms);
   }
 
-  const windowDays = Number(range);
+  const todayStart = startOfTodayIso();
+  const todayEnd = endOfTodayIso();
 
-  async function loadAnalytics() {
+  async function loadToday() {
     setLoading(true);
     setMsg("");
 
     try {
-      // We fetch enough rows then do all analytics client-side for now.
-      // (Later you can shift heavy aggregations to v_session_metrics + RPC.)
+      // 1) Sessions scheduled today
       const sRes = await supabase
         .from("sessions")
         .select("id, club_id, title, starts_at, duration_minutes, status, term_id, created_at")
         .eq("club_id", clubId)
-        .order("starts_at", { ascending: false })
-        .limit(700);
+        .gte("starts_at", todayStart)
+        .lte("starts_at", todayEnd)
+        .order("starts_at", { ascending: true })
+        .limit(200);
 
+      if (sRes.error) throw sRes.error;
+
+      const sToday = (sRes.data ?? []) as SessionRow[];
+      const sessionIds = new Set(sToday.map((s) => s.id));
+
+      // If no sessions today, we still show an enterprise empty state
+      if (!sToday.length) {
+        setSessionsToday([]);
+        setParticipantsToday([]);
+        setEvidenceToday([]);
+        setActivitiesToday([]);
+
+        // AI: still attempt to show latest insight covering today window (optional)
+        const aiRes = await supabase
+          .from("session_ai_insights")
+          .select("id, club_id, period_start, period_end, source, summary, recommendations, created_at")
+          .eq("club_id", clubId)
+          .lte("period_start", todayEnd)
+          .gte("period_end", todayStart)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        setLatestAiToday((aiRes.data ?? null) as any);
+        setLastUpdatedAt(new Date().toISOString());
+        setLoading(false);
+        return;
+      }
+
+      // 2) Participants (today sessions only)
       const pRes = await supabase
         .from("session_participants")
         .select("session_id, student_id")
         .eq("club_id", clubId)
         .limit(12000);
 
+      if (pRes.error) throw pRes.error;
+
+      const pFiltered = ((pRes.data ?? []) as ParticipantRow[]).filter((p) => sessionIds.has(p.session_id));
+
+      // 3) Evidence (today sessions only)
       const eRes = await supabase
         .from("session_evidence")
         .select("id, club_id, session_id, type, created_at")
@@ -159,30 +206,39 @@ export default function SessionsAnalyticsHomePage() {
         .order("created_at", { ascending: false })
         .limit(6000);
 
+      if (eRes.error) throw eRes.error;
+
+      const eFiltered = ((eRes.data ?? []) as EvidenceRow[]).filter((e) => sessionIds.has(e.session_id));
+
+      // 4) Activities (today sessions only)
       const aRes = await supabase
         .from("session_activities")
         .select("id, club_id, session_id, is_completed")
         .eq("club_id", clubId)
         .limit(12000);
 
+      if (aRes.error) throw aRes.error;
+
+      const aFiltered = ((aRes.data ?? []) as ActivityRow[]).filter((a) => sessionIds.has(a.session_id));
+
+      // 5) AI: latest insight covering today window (automated, no buttons)
       const aiRes = await supabase
         .from("session_ai_insights")
         .select("id, club_id, period_start, period_end, source, summary, recommendations, created_at")
         .eq("club_id", clubId)
+        .lte("period_start", todayEnd)
+        .gte("period_end", todayStart)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (sRes.error) throw sRes.error;
-      if (pRes.error) throw pRes.error;
-      if (eRes.error) throw eRes.error;
-      if (aRes.error) throw aRes.error;
+      setSessionsToday(sToday);
+      setParticipantsToday(pFiltered);
+      setEvidenceToday(eFiltered);
+      setActivitiesToday(aFiltered);
+      setLatestAiToday((aiRes.data ?? null) as any);
 
-      setSessions((sRes.data ?? []) as SessionRow[]);
-      setParticipants((pRes.data ?? []) as ParticipantRow[]);
-      setEvidence((eRes.data ?? []) as EvidenceRow[]);
-      setActivities((aRes.data ?? []) as ActivityRow[]);
-      setLatestAi((aiRes.data ?? null) as any);
+      setLastUpdatedAt(new Date().toISOString());
     } catch (e: any) {
       flash(e?.message ? `Load failed: ${e.message}` : "Load failed.", 2400);
     } finally {
@@ -190,305 +246,243 @@ export default function SessionsAnalyticsHomePage() {
     }
   }
 
+  // Auto-refresh: production-grade “real-time” feel
   useEffect(() => {
     if (checking) return;
-    loadAnalytics();
+
+    loadToday();
+
+    if (intervalRef.current) window.clearInterval(intervalRef.current);
+    intervalRef.current = window.setInterval(() => {
+      loadToday();
+    }, 25000);
+
+    return () => {
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checking, clubId]);
 
-  // ---- Derived structures ----
+  // Optional: Realtime subscriptions (if enabled)
+  useEffect(() => {
+    if (checking) return;
+
+    // If realtime is not enabled in your Supabase project, this won't break your app,
+    // but it may not receive updates. Auto-refresh still works.
+    const ch = supabase.channel(`rt:sessions_today:${clubId}`);
+
+    ch.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "sessions", filter: `club_id=eq.${clubId}` },
+      () => loadToday()
+    );
+    ch.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "session_participants", filter: `club_id=eq.${clubId}` },
+      () => loadToday()
+    );
+    ch.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "session_evidence", filter: `club_id=eq.${clubId}` },
+      () => loadToday()
+    );
+    ch.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "session_activities", filter: `club_id=eq.${clubId}` },
+      () => loadToday()
+    );
+    ch.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "session_ai_insights", filter: `club_id=eq.${clubId}` },
+      () => loadToday()
+    );
+
+    ch.subscribe();
+
+    return () => {
+      supabase.removeChannel(ch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checking, clubId]);
+
+  // Derived maps
   const participantsBySession = useMemo(() => {
     const m = new Map<string, number>();
-    for (const p of participants) m.set(p.session_id, (m.get(p.session_id) ?? 0) + 1);
+    for (const p of participantsToday) m.set(p.session_id, (m.get(p.session_id) ?? 0) + 1);
     return m;
-  }, [participants]);
+  }, [participantsToday]);
 
   const evidenceBySession = useMemo(() => {
     const m = new Map<string, number>();
-    for (const e of evidence) m.set(e.session_id, (m.get(e.session_id) ?? 0) + 1);
+    for (const e of evidenceToday) m.set(e.session_id, (m.get(e.session_id) ?? 0) + 1);
     return m;
-  }, [evidence]);
+  }, [evidenceToday]);
+
+  const lastEvidenceAtBySession = useMemo(() => {
+    const m = new Map<string, string>();
+    // evidenceToday already ordered desc from query (but filtered). Still compute robustly:
+    for (const e of evidenceToday) {
+      const cur = m.get(e.session_id);
+      if (!cur || new Date(e.created_at).getTime() > new Date(cur).getTime()) {
+        m.set(e.session_id, e.created_at);
+      }
+    }
+    return m;
+  }, [evidenceToday]);
 
   const activitiesBySession = useMemo(() => {
     const m = new Map<string, { total: number; done: number }>();
-    for (const a of activities) {
+    for (const a of activitiesToday) {
       const cur = m.get(a.session_id) ?? { total: 0, done: 0 };
       cur.total += 1;
       if (a.is_completed) cur.done += 1;
       m.set(a.session_id, cur);
     }
     return m;
-  }, [activities]);
+  }, [activitiesToday]);
 
-  const sessionsInRange = useMemo(() => {
-    const cutoff = daysAgoIso(windowDays);
-    return sessions.filter((s) => (s.starts_at ?? "") >= cutoff);
-  }, [sessions, windowDays]);
+  // Live session focus:
+  // - Prefer OPEN session
+  // - Else next session today
+  const liveSession = useMemo(() => {
+    const open = sessionsToday.find((s) => (s.status ?? "planned") === "open");
+    if (open) return open;
+    // next session today (by starts_at)
+    return sessionsToday.find((s) => (s.status ?? "planned") !== "closed") ?? sessionsToday[0] ?? null;
+  }, [sessionsToday]);
 
-  // ---- KPI set (range-based) ----
-  const kpis = useMemo(() => {
-    const total = sessionsInRange.length;
+  // Today aggregated KPIs (for enterprise header cards)
+  const todayKpis = useMemo(() => {
+    const totalSessions = sessionsToday.length;
+    const open = sessionsToday.filter((s) => (s.status ?? "planned") === "open").length;
+    const planned = sessionsToday.filter((s) => (s.status ?? "planned") === "planned").length;
+    const closed = sessionsToday.filter((s) => (s.status ?? "planned") === "closed").length;
 
-    const byStatus = {
-      planned: sessionsInRange.filter((s) => (s.status ?? "planned") === "planned").length,
-      open: sessionsInRange.filter((s) => (s.status ?? "planned") === "open").length,
-      closed: sessionsInRange.filter((s) => (s.status ?? "planned") === "closed").length,
-    };
+    const learners = sessionsToday.reduce((sum, s) => sum + (participantsBySession.get(s.id) ?? 0), 0);
+    const evidence = sessionsToday.reduce((sum, s) => sum + (evidenceBySession.get(s.id) ?? 0), 0);
 
-    const learners = sessionsInRange.reduce((sum, s) => sum + (participantsBySession.get(s.id) ?? 0), 0);
-    const evItems = sessionsInRange.reduce((sum, s) => sum + (evidenceBySession.get(s.id) ?? 0), 0);
+    const aTotal = sessionsToday.reduce((sum, s) => sum + (activitiesBySession.get(s.id)?.total ?? 0), 0);
+    const aDone = sessionsToday.reduce((sum, s) => sum + (activitiesBySession.get(s.id)?.done ?? 0), 0);
 
-    const activityTotal = sessionsInRange.reduce((sum, s) => sum + (activitiesBySession.get(s.id)?.total ?? 0), 0);
-    const activityDone = sessionsInRange.reduce((sum, s) => sum + (activitiesBySession.get(s.id)?.done ?? 0), 0);
+    const completion = safeDiv(aDone, aTotal);
 
-    const avgLearners = safeDiv(learners, total);
-    const avgEvidence = safeDiv(evItems, total);
-    const completion = safeDiv(activityDone, activityTotal);
-
-    // Coverage signals
-    const scheduledCoverage = total > 0 ? sessionsInRange.filter((s) => !!s.starts_at).length / total : 0;
-    const checklistCoverage = total > 0 ? sessionsInRange.filter((s) => (activitiesBySession.get(s.id)?.total ?? 0) > 0).length / total : 0;
-    const evidenceCoverage = total > 0 ? sessionsInRange.filter((s) => (evidenceBySession.get(s.id) ?? 0) > 0).length / total : 0;
-
-    // Consistency signal: % sessions meeting minimum operational footprint
-    // (enterprise-style: minimum checklist + minimum evidence + minimum learners)
-    const minEvidence = 2;
-    const minChecklist = 4;
-    const minLearners = 4;
-
-    const healthy = total > 0
-      ? sessionsInRange.filter((s) => {
-          const p = participantsBySession.get(s.id) ?? 0;
-          const ev = evidenceBySession.get(s.id) ?? 0;
-          const a = activitiesBySession.get(s.id)?.total ?? 0;
-          return p >= minLearners && ev >= minEvidence && a >= minChecklist;
-        }).length / total
-      : 0;
-
-    // Composite “Delivery Quality Index” (0..1)
-    // weights tuned for operations: completion + consistency + coverage
-    const qualityIndex = clamp01(
-      0.45 * clamp01(completion) +
-        0.30 * clamp01(healthy) +
-        0.15 * clamp01(evidenceCoverage) +
-        0.10 * clamp01(checklistCoverage)
-    );
+    // “Live Quality Index” for today (simple & explainable)
+    const evidenceCoverage = totalSessions > 0 ? sessionsToday.filter((s) => (evidenceBySession.get(s.id) ?? 0) > 0).length / totalSessions : 0;
+    const checklistCoverage = totalSessions > 0 ? sessionsToday.filter((s) => (activitiesBySession.get(s.id)?.total ?? 0) > 0).length / totalSessions : 0;
+    const quality = clamp01(0.5 * clamp01(completion) + 0.3 * clamp01(evidenceCoverage) + 0.2 * clamp01(checklistCoverage));
 
     return {
-      total,
-      byStatus,
+      totalSessions,
+      open,
+      planned,
+      closed,
       learners,
-      evItems,
-      activityTotal,
-      activityDone,
-      avgLearners,
-      avgEvidence,
+      evidence,
       completion,
-      scheduledCoverage,
-      checklistCoverage,
-      evidenceCoverage,
-      healthy,
-      qualityIndex,
+      quality,
     };
-  }, [sessionsInRange, participantsBySession, evidenceBySession, activitiesBySession]);
+  }, [sessionsToday, participantsBySession, evidenceBySession, activitiesBySession]);
 
-  // ---- Trend tiles (last N weeks) ----
-  const trend = useMemo(() => {
-    // 8 buckets by week (most recent first)
-    const buckets = 8;
-    const now = Date.now();
-    const weekMs = 7 * 24 * 60 * 60 * 1000;
-
-    const points = Array.from({ length: buckets }, (_, i) => {
-      const end = now - i * weekMs;
-      const start = end - weekMs;
-      const rows = sessions.filter((s) => {
-        const t = s.starts_at ? new Date(s.starts_at).getTime() : 0;
-        return t > start && t <= end;
-      });
-
-      const sessionsCount = rows.length;
-      const learners = rows.reduce((sum, s) => sum + (participantsBySession.get(s.id) ?? 0), 0);
-      const ev = rows.reduce((sum, s) => sum + (evidenceBySession.get(s.id) ?? 0), 0);
-      const aTotal = rows.reduce((sum, s) => sum + (activitiesBySession.get(s.id)?.total ?? 0), 0);
-      const aDone = rows.reduce((sum, s) => sum + (activitiesBySession.get(s.id)?.done ?? 0), 0);
-
-      const completion = safeDiv(aDone, aTotal);
-      const avgLearners = safeDiv(learners, sessionsCount);
-      const avgEvidence = safeDiv(ev, sessionsCount);
-
+  // Live session KPIs
+  const liveKpis = useMemo(() => {
+    if (!liveSession) {
       return {
-        label: i === 0 ? "This week" : `${i}w ago`,
-        sessions: sessionsCount,
-        avgLearners,
-        avgEvidence,
-        completion,
+        participants: 0,
+        evidence: 0,
+        checklistTotal: 0,
+        checklistDone: 0,
+        completion: 0,
+        lastEvidenceAt: null as string | null,
       };
-    });
+    }
+    const participants = participantsBySession.get(liveSession.id) ?? 0;
+    const evidence = evidenceBySession.get(liveSession.id) ?? 0;
+    const a = activitiesBySession.get(liveSession.id) ?? { total: 0, done: 0 };
+    const completion = a.total > 0 ? a.done / a.total : 0;
+    const lastEvidenceAt = lastEvidenceAtBySession.get(liveSession.id) ?? null;
 
-    return points.reverse();
-  }, [sessions, participantsBySession, evidenceBySession, activitiesBySession]);
+    return {
+      participants,
+      evidence,
+      checklistTotal: a.total,
+      checklistDone: a.done,
+      completion,
+      lastEvidenceAt,
+    };
+  }, [liveSession, participantsBySession, evidenceBySession, activitiesBySession, lastEvidenceAtBySession]);
 
-  const distribution = useMemo(() => {
-    const rows = sessionsInRange.map((s) => {
-      const p = participantsBySession.get(s.id) ?? 0;
-      const ev = evidenceBySession.get(s.id) ?? 0;
-      const a = activitiesBySession.get(s.id) ?? { total: 0, done: 0 };
-      const completion = a.total > 0 ? a.done / a.total : 0;
-
-      // A per-session “score” 0..100
-      const score =
-        35 * clamp01(completion) +
-        25 * clamp01(ev >= 2 ? 1 : ev / 2) +
-        20 * clamp01(p >= 6 ? 1 : p / 6) +
-        20 * clamp01(a.total >= 4 ? 1 : a.total / 4);
-
+  // Live rules-based insight (computed in-memory every refresh; feels “AI” but is deterministic)
+  const liveRulesInsight = useMemo(() => {
+    if (!liveSession) {
       return {
-        id: s.id,
-        title: s.title || "Untitled session",
-        starts_at: s.starts_at,
-        status: (s.status ?? "planned") as SessionStatus,
-        participants: p,
-        evidence: ev,
-        checklist_total: a.total,
-        checklist_done: a.done,
-        completion,
-        score,
+        headline: "No live session detected",
+        bullets: [
+          { title: "Today has no sessions", detail: "Plan a session for today to activate live analytics." },
+        ],
+        actions: [
+          "Add starts_at and status to your session plan.",
+          "Open a session to start capturing real-time signals.",
+        ],
       };
-    });
-
-    const scores = rows.map((r) => r.score);
-    const med = median(scores);
-
-    const sorted = rows.slice().sort((a, b) => b.score - a.score);
-    const top = sorted.slice(0, 5);
-    const bottom = sorted.slice(-5).reverse();
-
-    // Anomalies: outliers vs median
-    const anomalies = rows
-      .filter((r) => Math.abs(r.score - med) >= 25)
-      .sort((a, b) => Math.abs(b.score - med) - Math.abs(a.score - med))
-      .slice(0, 6);
-
-    return { rows, top, bottom, medianScore: med, anomalies };
-  }, [sessionsInRange, participantsBySession, evidenceBySession, activitiesBySession]);
-
-  // ---- Session-only rule recommendations (no parent, no attendance ops) ----
-  const ruleAdvice = useMemo(() => {
-    const recs: Array<{ title: string; why: string; action: string }> = [];
-
-    if (kpis.scheduledCoverage < 0.95 && kpis.total >= 5) {
-      recs.push({
-        title: "Improve schedule completeness",
-        why: `Only ${pct(kpis.scheduledCoverage)} of sessions in this window have a defined start time.`,
-        action: "Enforce starts_at for all planned sessions. Add a validation gate in Plan workflow.",
-      });
     }
 
-    if (kpis.checklistCoverage < 0.85 && kpis.total >= 5) {
-      recs.push({
-        title: "Standardize checklist usage",
-        why: `Only ${pct(kpis.checklistCoverage)} of sessions have a checklist defined.`,
-        action: "Introduce 4–6 standardized checklist templates. Auto-apply a template at session creation.",
-      });
+    const bullets: Array<{ title: string; detail: string }> = [];
+    const actions: string[] = [];
+
+    const p = liveKpis.participants;
+    const ev = liveKpis.evidence;
+    const total = liveKpis.checklistTotal;
+    const done = liveKpis.checklistDone;
+
+    const completion = liveKpis.completion;
+
+    if ((liveSession.status ?? "planned") !== "open") {
+      bullets.push({ title: "Session not open", detail: "Live analytics is strongest when a session is marked OPEN." });
+      actions.push("Open the session to enable live signals (attendance, evidence, checklist).");
+    } else {
+      bullets.push({ title: "Session is live", detail: "Monitoring signals in real time (participants, evidence, checklist)." });
     }
 
-    if (kpis.completion < 0.7 && kpis.activityTotal >= 20) {
-      recs.push({
-        title: "Reduce checklist overload to raise completion",
-        why: `Checklist completion is ${pct(kpis.completion)} across ${kpis.activityTotal} checklist items.`,
-        action: "Cap checklists at 6 core outcomes. Move optional items into stretch goals.",
-      });
+    if (total === 0) {
+      bullets.push({ title: "Checklist missing", detail: "No checklist items detected for this session." });
+      actions.push("Attach a checklist template (4–6 core outcomes) to improve execution tracking.");
+    } else if (completion < 0.5 && total >= 4) {
+      bullets.push({ title: "Execution lag", detail: `Completion is ${pct(completion)} (${done}/${total}).` });
+      actions.push("Reduce scope to 4–6 core items and mark progress as you deliver.");
+    } else {
+      bullets.push({ title: "Execution tracking", detail: `Completion is ${pct(completion)} (${done}/${total}).` });
     }
 
-    if (kpis.avgEvidence < 2 && kpis.total >= 3) {
-      recs.push({
-        title: "Raise evidence baseline to strengthen analytics accuracy",
-        why: `Average evidence is ${kpis.avgEvidence.toFixed(1)} items per session. Sparse evidence reduces signal quality.`,
-        action: "Set a minimum evidence target per session (e.g., 2). Add an end-of-session prompt in Run workflow.",
-      });
+    if (ev === 0) {
+      bullets.push({ title: "Evidence signal is zero", detail: "No evidence logged yet for this session." });
+      actions.push("Capture at least 2 evidence items to stabilize analytics (e.g., 1 photo + 1 note).");
+    } else {
+      const mins = minsBetween(Date.now(), liveKpis.lastEvidenceAt);
+      const f = freshnessLabel(mins);
+      bullets.push({ title: "Evidence signal active", detail: `${ev} item(s). Last update: ${mins} min ago (${f.label}).` });
+      if (mins > 10) actions.push("Capture a quick update now to keep live insight fresh.");
     }
 
-    if (kpis.healthy < 0.6 && kpis.total >= 6) {
-      recs.push({
-        title: "Increase delivery consistency",
-        why: `Only ${pct(kpis.healthy)} of sessions meet the minimum operational footprint (learners + checklist + evidence).`,
-        action: "Adopt a session SOP: start-time set → checklist attached → evidence captured → close.",
-      });
+    if (p === 0) {
+      bullets.push({ title: "Participants not recorded", detail: "No participants linked to this session yet." });
+      actions.push("Mark participants early to make attendance-based analytics accurate.");
+    } else {
+      bullets.push({ title: "Participants tracked", detail: `${p} participant(s) recorded for this session.` });
     }
 
-    if (!recs.length) {
-      recs.push({
-        title: "Analytics baseline looks stable",
-        why: "No high-risk signals detected in the selected window.",
-        action: "Next: connect Azure to generate root-cause narratives and auto-create operational tasks.",
-      });
-    }
+    return {
+      headline: liveSession.title || "Live Session",
+      bullets,
+      actions: actions.length ? actions.slice(0, 3) : ["Continue delivery and keep evidence/checklist updated."],
+    };
+  }, [liveSession, liveKpis]);
 
-    return recs;
-  }, [kpis]);
-
-  async function saveRuleInsight() {
-    const now = new Date();
-    const end = now.toISOString();
-    const start = new Date(now.getTime() - 1000 * 60 * 60 * 24 * windowDays).toISOString();
-
-    try {
-      const payload = {
-        club_id: clubId,
-        period_start: start,
-        period_end: end,
-        source: "rules",
-        summary: `Sessions analytics (${windowDays}d): ${kpis.total} sessions • Quality Index ${pct(kpis.qualityIndex)} • Completion ${pct(
-          kpis.completion
-        )} • Coverage (checklist ${pct(kpis.checklistCoverage)}, evidence ${pct(kpis.evidenceCoverage)}).`,
-        recommendations: ruleAdvice,
-        metrics: {
-          windowDays,
-          totalSessions: kpis.total,
-          byStatus: kpis.byStatus,
-          avgLearners: kpis.avgLearners,
-          avgEvidence: kpis.avgEvidence,
-          completionRate: kpis.completion,
-          scheduledCoverage: kpis.scheduledCoverage,
-          checklistCoverage: kpis.checklistCoverage,
-          evidenceCoverage: kpis.evidenceCoverage,
-          consistencyRate: kpis.healthy,
-          qualityIndex: kpis.qualityIndex,
-          medianSessionScore: distribution.medianScore,
-        },
-      };
-
-      const res = await supabase.from("session_ai_insights").insert(payload as any).select("*").single();
-      if (res.error) throw res.error;
-
-      setLatestAi(res.data as any);
-      flash("Rules insight saved ✓");
-    } catch (e: any) {
-      flash(e?.message ? `Save failed: ${e.message}` : "Save failed.", 2400);
-    }
-  }
-
-  async function generateAzureAdvice() {
-    setAiBusy(true);
-    try {
-      const res = await fetch(`/api/ai/session-advice`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clubId, windowDays }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error ?? "AI request failed.");
-
-      setLatestAi(json.data as any);
-      flash("Azure insight generated ✓", 1900);
-    } catch (e: any) {
-      flash(e?.message ?? "Azure AI failed.", 2400);
-    } finally {
-      setAiBusy(false);
-    }
-  }
+  const aiFreshness = useMemo(() => {
+    if (!latestAiToday?.created_at) return null;
+    const mins = minsBetween(Date.now(), latestAiToday.created_at);
+    return { mins, ...freshnessLabel(mins) };
+  }, [latestAiToday]);
 
   if (checking || loading) {
     return (
@@ -500,6 +494,9 @@ export default function SessionsAnalyticsHomePage() {
       </main>
     );
   }
+
+  const lastUpdatedMins = lastUpdatedAt ? minsBetween(Date.now(), lastUpdatedAt) : null;
+  const liveTag = lastUpdatedMins !== null ? freshnessLabel(lastUpdatedMins) : null;
 
   return (
     <main className="relative min-h-screen w-full overflow-x-clip text-slate-900">
@@ -516,9 +513,22 @@ export default function SessionsAnalyticsHomePage() {
         <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 relative">
           <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-900">Sessions Analytics</div>
-            <div className="text-xs text-slate-600">
-              Enterprise dashboard • Session performance, consistency, quality index • AI insights from session data
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-sm font-semibold text-slate-900">Live Sessions Analytics</div>
+
+              {liveTag ? (
+                <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", liveTag.cls)}>
+                  {liveTag.label}
+                </span>
+              ) : null}
+
+              <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                Today
+              </span>
+            </div>
+
+            <div className="mt-0.5 text-xs text-slate-600">
+              Real-time dashboard for today’s sessions • Automated Azure insights from session signals
             </div>
           </div>
 
@@ -530,13 +540,9 @@ export default function SessionsAnalyticsHomePage() {
               Back
             </Link>
 
-            <button
-              type="button"
-              onClick={loadAnalytics}
-              className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
-            >
-              Refresh
-            </button>
+            <span className="hidden sm:inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+              Last updated: <span className="ml-2 text-slate-900">{fmtDateTimeShort(lastUpdatedAt)}</span>
+            </span>
           </div>
         </div>
       </div>
@@ -548,248 +554,242 @@ export default function SessionsAnalyticsHomePage() {
           </div>
         ) : null}
 
-        {/* Controls row */}
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-semibold text-slate-900">Window</div>
-
-            <SegButton active={range === "7"} onClick={() => setRange("7")}>7 days</SegButton>
-            <SegButton active={range === "30"} onClick={() => setRange("30")}>30 days</SegButton>
-            <SegButton active={range === "90"} onClick={() => setRange("90")}>90 days</SegButton>
-
-            <div className="ml-2 text-xs text-slate-600">
-              Sessions in window: <span className="font-semibold text-slate-900">{kpis.total}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={saveRuleInsight}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
-            >
-              Save rules insight
-            </button>
-
-            <button
-              type="button"
-              disabled={aiBusy}
-              onClick={generateAzureAdvice}
-              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-            >
-              {aiBusy ? "Generating…" : "Generate Azure insight"}
-            </button>
-          </div>
+        {/* Today KPI Strip */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <KpiCard label="Today sessions" value={`${todayKpis.totalSessions}`} hint={`${todayKpis.open} open • ${todayKpis.planned} planned • ${todayKpis.closed} closed`} />
+          <KpiCard label="Live quality index" value={pct(todayKpis.quality)} hint="Coverage + completion blend" />
+          <KpiCard label="Checklist completion" value={pct(todayKpis.completion)} hint="Across today" />
+          <KpiCard label="Participants tracked" value={`${todayKpis.learners}`} hint="Across today" />
+          <KpiCard label="Evidence captured" value={`${todayKpis.evidence}`} hint="Across today" />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-12">
-          {/* LEFT: Dashboard */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-12">
+          {/* LEFT: Live Session Focus */}
           <div className="lg:col-span-8">
-            {/* KPI strip */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiCard label="Sessions" value={`${kpis.total}`} hint={`Last ${windowDays} days`} />
-              <KpiCard label="Quality Index" value={pct(kpis.qualityIndex)} hint="Composite performance" />
-              <KpiCard label="Completion" value={pct(kpis.completion)} hint="Checklist execution" />
-              <KpiCard label="Consistency" value={pct(kpis.healthy)} hint="Meets baseline" />
-            </div>
-
-            {/* Coverage + Ops health */}
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
-              <GaugeCard title="Schedule coverage" value={pct(kpis.scheduledCoverage)} score={kpis.scheduledCoverage} desc="Sessions with start time set" />
-              <GaugeCard title="Checklist coverage" value={pct(kpis.checklistCoverage)} score={kpis.checklistCoverage} desc="Sessions with checklist defined" />
-              <GaugeCard title="Evidence coverage" value={pct(kpis.evidenceCoverage)} score={kpis.evidenceCoverage} desc="Sessions with evidence logged" />
-            </div>
-
-            {/* Trends */}
-            <div className="mt-4 rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
+            <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
               <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                <div className="text-sm font-semibold text-slate-900">Trends (weekly)</div>
-                <div className="mt-0.5 text-xs text-slate-600">Operational stability signals over time</div>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-900">Live session focus</div>
+                    <div className="mt-0.5 text-xs text-slate-600">
+                      Real-time operational signals for the active session (or the next session today)
+                    </div>
+                  </div>
+                  {liveSession ? (
+                    <span className={cx("rounded-full border px-3 py-1 text-xs font-semibold", statusChip(liveSession.status))}>
+                      {(liveSession.status ?? "planned").toUpperCase()}
+                    </span>
+                  ) : null}
+                </div>
               </div>
 
               <div className="px-5 py-5 sm:px-6">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {trend.slice(-4).map((t) => (
-                    <MiniTrend
-                      key={t.label}
-                      label={t.label}
-                      sessions={t.sessions}
-                      avgLearners={t.avgLearners}
-                      avgEvidence={t.avgEvidence}
-                      completion={t.completion}
-                    />
-                  ))}
-                </div>
-
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                  <div className="grid grid-cols-12 gap-2 bg-slate-50 px-4 py-2 text-[11px] font-semibold tracking-widest text-slate-500">
-                    <div className="col-span-3">WEEK</div>
-                    <div className="col-span-3">SESSIONS</div>
-                    <div className="col-span-3">AVG EVIDENCE</div>
-                    <div className="col-span-3">COMPLETION</div>
-                  </div>
-                  <div className="divide-y divide-slate-200">
-                    {trend.map((t, idx) => (
-                      <div key={idx} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm">
-                        <div className="col-span-3 font-semibold text-slate-900">{t.label}</div>
-                        <div className="col-span-3 text-slate-700">{t.sessions}</div>
-                        <div className="col-span-3 text-slate-700">{t.avgEvidence.toFixed(1)}</div>
-                        <div className="col-span-3 text-slate-700">{pct(t.completion)}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-3 text-xs text-slate-600">
-                  Tip: long-term stability improves forecast quality when Azure analytics runs on top of these signals.
-                </div>
-              </div>
-            </div>
-
-            {/* Top/Bottom + anomalies */}
-            <div className="mt-4 grid gap-4 lg:grid-cols-12">
-              <div className="lg:col-span-6">
-                <TableCard
-                  title="Top sessions"
-                  subtitle="Best-performing sessions by score (0–100)"
-                  rows={distribution.top}
-                  tone="good"
-                />
-              </div>
-              <div className="lg:col-span-6">
-                <TableCard
-                  title="Sessions needing attention"
-                  subtitle="Lowest-performing sessions by score (0–100)"
-                  rows={distribution.bottom}
-                  tone="risk"
-                />
-              </div>
-
-              <div className="lg:col-span-12">
-                <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
-                  <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                    <div className="text-sm font-semibold text-slate-900">Anomalies & outliers</div>
-                    <div className="mt-0.5 text-xs text-slate-600">
-                      Sessions significantly above/below the median score ({Math.round(distribution.medianScore)}).
+                {!liveSession ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700">
+                    No sessions scheduled for today yet.
+                    <div className="mt-2 text-xs text-slate-600">
+                      This page is live-only. The history analytics page will be added later.
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="truncate text-lg font-semibold text-slate-900">
+                          {liveSession.title || "Untitled session"}
+                        </div>
+                        <div className="mt-1 text-sm text-slate-600">
+                          Start: <span className="font-semibold text-slate-900">{fmtTime(liveSession.starts_at)}</span>{" "}
+                          • Duration: <span className="font-semibold text-slate-900">{liveSession.duration_minutes ?? 60}m</span>
+                        </div>
 
-                  <div className="px-5 py-5 sm:px-6">
-                    {!distribution.anomalies.length ? (
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                        No strong outliers detected in this window.
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Pill label="Participants" value={`${liveKpis.participants}`} />
+                          <Pill label="Evidence" value={`${liveKpis.evidence}`} />
+                          <Pill label="Checklist" value={`${liveKpis.checklistDone}/${liveKpis.checklistTotal}`} />
+                          <Pill label="Completion" value={pct(liveKpis.completion)} />
+                          {liveKpis.lastEvidenceAt ? (
+                            <Pill label="Last evidence" value={fmtDateTimeShort(liveKpis.lastEvidenceAt)} />
+                          ) : (
+                            <Pill label="Last evidence" value="—" />
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <div className="grid gap-3 md:grid-cols-2">
-                        {distribution.anomalies.map((r) => (
-                          <div key={r.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-semibold text-slate-900">{r.title}</div>
-                                <div className="mt-1 text-xs text-slate-600">{fmtDateTimeShort(r.starts_at)}</div>
-                                <div className="mt-2 flex flex-wrap items-center gap-2">
-                                  <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", statusChip(r.status))}>
-                                    {r.status.toUpperCase()}
-                                  </span>
-                                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                    Score: <span className="text-slate-900">{Math.round(r.score)}</span>
-                                  </span>
-                                </div>
-                              </div>
 
-                              <div className="text-right">
-                                <div className="text-xs text-slate-600">Completion</div>
-                                <div className="text-sm font-semibold text-slate-900">{pct(r.completion)}</div>
-                              </div>
-                            </div>
+                      {/* Live signal badge */}
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-xs font-semibold tracking-widest text-slate-500">LIVE SIGNALS</div>
+                        <div className="mt-2 space-y-1 text-sm">
+                          <SignalRow label="Participants tracked" ok={liveKpis.participants > 0} />
+                          <SignalRow label="Evidence active" ok={liveKpis.evidence > 0} />
+                          <SignalRow label="Checklist attached" ok={liveKpis.checklistTotal > 0} />
+                        </div>
+                      </div>
+                    </div>
 
-                            <div className="mt-3 grid grid-cols-3 gap-2">
-                              <SmallStat label="Learners" value={`${r.participants}`} />
-                              <SmallStat label="Evidence" value={`${r.evidence}`} />
-                              <SmallStat label="Checklist" value={`${r.checklist_done}/${r.checklist_total}`} />
-                            </div>
+                    {/* Live bars */}
+                    <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                      <BarCard title="Checklist completion" value={pct(liveKpis.completion)} score={liveKpis.completion} desc="Done / Total checklist items" />
+                      <BarCard
+                        title="Evidence momentum"
+                        value={`${liveKpis.evidence}`}
+                        score={clamp01(liveKpis.evidence >= 2 ? 1 : liveKpis.evidence / 2)}
+                        desc="Target: ≥ 2 items per live session"
+                      />
+                      <BarCard
+                        title="Participation signal"
+                        value={`${liveKpis.participants}`}
+                        score={clamp01(liveKpis.participants >= 6 ? 1 : liveKpis.participants / 6)}
+                        desc="Target: ≥ 6 tracked participants"
+                      />
+                    </div>
+
+                    {/* Session radar insight (rules-derived, computed continuously) */}
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs font-semibold tracking-widest text-slate-500">LIVE INSIGHT (AUTO)</div>
+                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                          Updates automatically
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-sm font-semibold text-slate-900">{liveRulesInsight.headline}</div>
+
+                      <div className="mt-3 grid gap-2">
+                        {liveRulesInsight.bullets.slice(0, 3).map((b, idx) => (
+                          <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="text-sm font-semibold text-slate-900">{b.title}</div>
+                            <div className="mt-1 text-xs text-slate-700">{b.detail}</div>
                           </div>
                         ))}
                       </div>
-                    )}
+
+                      <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="text-xs font-semibold tracking-widest text-slate-500">NEXT BEST ACTIONS</div>
+                        <ul className="mt-2 list-disc pl-5 text-sm text-slate-800">
+                          {liveRulesInsight.actions.slice(0, 3).map((a, idx) => (
+                            <li key={idx}>{a}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Today Schedule */}
+            <div className="mt-6 rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
+                <div className="text-sm font-semibold text-slate-900">Today schedule</div>
+                <div className="mt-0.5 text-xs text-slate-600">Sessions planned for today (analytics view only)</div>
+              </div>
+
+              <div className="divide-y divide-slate-200">
+                {sessionsToday.length ? (
+                  sessionsToday.map((s) => {
+                    const p = participantsBySession.get(s.id) ?? 0;
+                    const ev = evidenceBySession.get(s.id) ?? 0;
+                    const a = activitiesBySession.get(s.id) ?? { total: 0, done: 0 };
+                    const cr = a.total > 0 ? a.done / a.total : 0;
+
+                    return (
+                      <div key={s.id} className="px-5 py-4 sm:px-6">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-slate-900">{s.title || "Untitled session"}</div>
+                            <div className="mt-1 text-xs text-slate-600">
+                              {fmtTime(s.starts_at)} • {s.duration_minutes ?? 60}m
+                            </div>
+
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span className={cx("rounded-full border px-3 py-1 text-xs font-semibold", statusChip(s.status))}>
+                                {(s.status ?? "planned").toUpperCase()}
+                              </span>
+
+                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                                Participants: <span className="ml-1 text-slate-900">{p}</span>
+                              </span>
+
+                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                                Evidence: <span className="ml-1 text-slate-900">{ev}</span>
+                              </span>
+
+                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                                Checklist:{" "}
+                                <span className="ml-1 text-slate-900">
+                                  {a.done}/{a.total} ({pct(cr)})
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* No execution buttons here by design */}
+                          <div className="text-xs text-slate-600">
+                            Live analytics is centered above. History analytics will be a separate page.
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="px-6 py-10 text-center">
+                    <div className="text-sm font-semibold text-slate-900">No sessions scheduled today</div>
+                    <div className="mt-1 text-sm text-slate-600">Add a session for today to activate live analytics.</div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* RIGHT: AI control center */}
+          {/* RIGHT: Automated AI Panel */}
           <div className="lg:col-span-4">
             <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
               <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-                <div className="text-sm font-semibold text-slate-900">AI Insights</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-semibold text-slate-900">Automated AI Insight</div>
+
+                  {aiFreshness ? (
+                    <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", aiFreshness.cls)}>
+                      {aiFreshness.label}
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                      WAITING
+                    </span>
+                  )}
+                </div>
+
                 <div className="mt-0.5 text-xs text-slate-600">
-                  Azure is scoped to session data → analytics → operational recommendations
+                  No manual triggers • Azure writes to <span className="font-mono">session_ai_insights</span> automatically
                 </div>
               </div>
 
               <div className="px-5 py-5 sm:px-6">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs font-semibold tracking-widest text-slate-500">RULE INSIGHTS (LOCAL)</div>
+                  <div className="text-xs font-semibold tracking-widest text-slate-500">TODAY’S AI WINDOW</div>
                   <div className="mt-2 text-sm text-slate-800">
-                    Generated from session metrics. Save to the AI log for auditability and trend tracking.
+                    Period: <span className="font-semibold text-slate-900">{fmtDateTimeShort(todayStart)}</span> →{" "}
+                    <span className="font-semibold text-slate-900">{fmtDateTimeShort(todayEnd)}</span>
                   </div>
-
-                  <div className="mt-3 grid gap-2">
-                    {ruleAdvice.slice(0, 3).map((r, idx) => (
-                      <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3">
-                        <div className="text-sm font-semibold text-slate-900">{r.title}</div>
-                        <div className="mt-1 text-xs text-slate-600">{r.why}</div>
-                        <div className="mt-2 text-xs font-semibold text-slate-900">Action</div>
-                        <div className="text-xs text-slate-700">{r.action}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={saveRuleInsight}
-                    className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-indigo-50/60"
-                  >
-                    Save rules insight to log
-                  </button>
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs font-semibold tracking-widest text-slate-500">AZURE INSIGHT</div>
-                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                      Window: {windowDays}d
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={aiBusy}
-                    onClick={generateAzureAdvice}
-                    className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                  >
-                    {aiBusy ? "Generating…" : "Generate Azure insight"}
-                  </button>
-
-                  <div className="mt-3 text-xs text-slate-600">
-                    Azure output is stored in <span className="font-mono">session_ai_insights</span> for traceability.
+                  <div className="mt-2 text-xs text-slate-600">
+                    If Azure is connected, it should refresh insight continuously as session logs update.
                   </div>
                 </div>
 
-                {latestAi ? (
+                {latestAiToday ? (
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-xs font-semibold tracking-widest text-slate-500">LATEST INSIGHT</div>
+                      <div className="text-xs font-semibold tracking-widest text-slate-500">LATEST AI OUTPUT</div>
                       <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                        {latestAi.source.toUpperCase()}
+                        {latestAiToday.source.toUpperCase()}
                       </span>
                     </div>
 
-                    <div className="mt-2 text-sm font-semibold text-slate-900">{latestAi.summary}</div>
+                    <div className="mt-2 text-sm font-semibold text-slate-900">{latestAiToday.summary}</div>
 
                     <div className="mt-3 grid gap-2">
-                      {(latestAi.recommendations ?? []).slice(0, 4).map((r, idx) => (
+                      {(latestAiToday.recommendations ?? []).slice(0, 4).map((r, idx) => (
                         <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                           <div className="text-sm font-semibold text-slate-900">{r.title}</div>
                           <div className="mt-1 text-xs text-slate-600">{r.why}</div>
@@ -799,28 +799,30 @@ export default function SessionsAnalyticsHomePage() {
                     </div>
 
                     <div className="mt-3 text-[11px] text-slate-500">
-                      Saved: {fmtDateShort(latestAi.created_at)} • Period: {fmtDateShort(latestAi.period_start)} →{" "}
-                      {fmtDateShort(latestAi.period_end)}
+                      Updated: {fmtDateTimeShort(latestAiToday.created_at)} • Freshness: {aiFreshness ? `${aiFreshness.mins} min ago` : "—"}
                     </div>
                   </div>
                 ) : (
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    No stored AI insight yet. Generate Azure insight or save a rules insight.
+                    No AI insight stored for today yet.
+                    <div className="mt-2 text-xs text-slate-600">
+                      Once Azure automation is writing real-time insights, this panel will update automatically.
+                    </div>
                   </div>
                 )}
 
                 <div className="mt-4 rounded-[18px] border border-slate-200 bg-white/70 p-4 text-sm text-slate-700">
-                  This page is intentionally analytics-only. Execution workflows live in Plan/Run/Evidence.
+                  This page is strictly live analytics. A separate History Analytics page will cover older days and trends.
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer note */}
+        {/* Footer */}
         <div className="mt-6 text-xs text-slate-600">
-          Metrics are computed from sessions, activities, evidence, and participants. For enterprise scaling, move heavy aggregates into{" "}
-          <span className="font-mono">v_session_metrics</span> and/or Supabase RPC for faster dashboards.
+          Live refresh: every ~25s + realtime subscriptions (if enabled). For enterprise scale, move aggregates into{" "}
+          <span className="font-mono">v_session_metrics</span> and create a dedicated “today_live_metrics” RPC.
         </div>
       </div>
     </main>
@@ -828,23 +830,6 @@ export default function SessionsAnalyticsHomePage() {
 }
 
 /* ---------------- UI Components ---------------- */
-
-function SegButton(props: { active?: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      className={cx(
-        "inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-sm font-semibold transition",
-        props.active
-          ? "bg-slate-900 text-white"
-          : "border border-slate-200 bg-white text-slate-900 hover:bg-indigo-50/60"
-      )}
-    >
-      {props.children}
-    </button>
-  );
-}
 
 function KpiCard(props: { label: string; value: string; hint: string }) {
   return (
@@ -856,7 +841,31 @@ function KpiCard(props: { label: string; value: string; hint: string }) {
   );
 }
 
-function GaugeCard(props: { title: string; value: string; score: number; desc: string }) {
+function Pill(props: { label: string; value: string }) {
+  return (
+    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+      {props.label}: <span className="ml-1 text-slate-900">{props.value}</span>
+    </span>
+  );
+}
+
+function SignalRow(props: { label: string; ok: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="text-slate-700">{props.label}</div>
+      <span
+        className={cx(
+          "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+          props.ok ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"
+        )}
+      >
+        {props.ok ? "OK" : "MISSING"}
+      </span>
+    </div>
+  );
+}
+
+function BarCard(props: { title: string; value: string; score: number; desc: string }) {
   const s = clamp01(props.score);
   return (
     <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] p-4">
@@ -869,117 +878,6 @@ function GaugeCard(props: { title: string; value: string; score: number; desc: s
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full border border-slate-200 bg-slate-50">
         <div className="h-full bg-slate-900" style={{ width: `${Math.round(s * 100)}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function MiniTrend(props: { label: string; sessions: number; avgLearners: number; avgEvidence: number; completion: number }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="text-xs font-semibold tracking-widest text-slate-500">{props.label.toUpperCase()}</div>
-      <div className="mt-2 grid gap-1 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-slate-600">Sessions</span>
-          <span className="font-semibold text-slate-900">{props.sessions}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-slate-600">Avg evidence</span>
-          <span className="font-semibold text-slate-900">{props.avgEvidence.toFixed(1)}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-slate-600">Completion</span>
-          <span className="font-semibold text-slate-900">{pct(props.completion)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SmallStat(props: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-      <div className="text-[11px] font-semibold tracking-widest text-slate-500">{props.label.toUpperCase()}</div>
-      <div className="mt-1 text-sm font-semibold text-slate-900">{props.value}</div>
-    </div>
-  );
-}
-
-function TableCard(props: {
-  title: string;
-  subtitle: string;
-  rows: Array<{
-    id: string;
-    title: string;
-    starts_at: string | null;
-    status: SessionStatus;
-    participants: number;
-    evidence: number;
-    checklist_total: number;
-    checklist_done: number;
-    completion: number;
-    score: number;
-  }>;
-  tone: "good" | "risk";
-}) {
-  return (
-    <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
-      <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-900">{props.title}</div>
-            <div className="mt-0.5 text-xs text-slate-600">{props.subtitle}</div>
-          </div>
-          <span
-            className={cx(
-              "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-              props.tone === "good"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                : "border-rose-200 bg-rose-50 text-rose-900"
-            )}
-          >
-            {props.tone === "good" ? "TOP" : "RISK"}
-          </span>
-        </div>
-      </div>
-
-      <div className="divide-y divide-slate-200">
-        {props.rows.length ? (
-          props.rows.map((r) => (
-            <div key={r.id} className="px-5 py-4 sm:px-6">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-900">{r.title}</div>
-                  <div className="mt-1 text-xs text-slate-600">{fmtDateTimeShort(r.starts_at)}</div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", statusChip(r.status))}>
-                      {r.status.toUpperCase()}
-                    </span>
-                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                      Score: <span className="text-slate-900">{Math.round(r.score)}</span>
-                    </span>
-                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                      Completion: <span className="text-slate-900">{pct(r.completion)}</span>
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-xs text-slate-600">Evidence</div>
-                  <div className="text-sm font-semibold text-slate-900">{r.evidence}</div>
-                </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <SmallStat label="Learners" value={`${r.participants}`} />
-                <SmallStat label="Checklist" value={`${r.checklist_done}/${r.checklist_total}`} />
-                <SmallStat label="Score" value={`${Math.round(r.score)}`} />
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="px-6 py-10 text-center text-sm text-slate-600">No sessions in this window.</div>
-        )}
       </div>
     </div>
   );
