@@ -1,8 +1,13 @@
 // web/src/app/api/ai/session-advice/route.ts
-
-
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
+
+// 1. Strict Schema Validation
+const RequestSchema = z.object({
+  clubId: z.string().uuid({ message: "Invalid Club ID format" }),
+  windowDays: z.number().min(1).max(90).default(1),
+});
 
 type AiRec = { title: string; why: string; action: string };
 
@@ -22,24 +27,50 @@ function safeJsonParse<T = any>(s: string): T | null {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const clubId = body?.clubId as string;
-    const windowDays = Number(body?.windowDays ?? 1); // default to 1 day for "session live" analytics
-
-    if (!clubId) {
-      return NextResponse.json({ error: "clubId is required" }, { status: 400 });
+    // 2. Validate Request Body
+    const json = await req.json();
+    const parseResult = RequestSchema.safeParse(json);
+    
+    if (!parseResult.success) {
+      return NextResponse.json({ error: parseResult.error.format() }, { status: 400 });
     }
 
-    // ---- Supabase (server-side service role) ----
+    const { clubId, windowDays } = parseResult.data;
+
+    // 3. Setup Supabase
     const supabaseUrl = mustGet("NEXT_PUBLIC_SUPABASE_URL");
-    const serviceKey = mustGet("SUPABASE_SERVICE_ROLE_KEY"); // ✅ server env only
+    const serviceKey = mustGet("SUPABASE_SERVICE_ROLE_KEY");
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // ---- Time window ----
+    // 4. Authorization Check: Is the user logged in and part of this club?
+    // Note: We extract the Bearer token from headers sent by the frontend
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return NextResponse.json({ error: "Missing Authorization header" }, { status: 401 });
+    }
+
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (authErr || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Verify user membership (Replace 'club_members' with your actual junction table name)
+    const { data: membership, error: memberErr } = await supabase
+      .from("club_members")
+      .select("id")
+      .eq("club_id", clubId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (memberErr || !membership) {
+      return NextResponse.json({ error: "Forbidden: You do not have access to this club" }, { status: 403 });
+    }
+
+    // 5. Time window 
     const periodEnd = new Date();
     const periodStart = new Date(periodEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
 
-    // Pull compact metrics for the model
+    // 6. Data Retrieval
     const { data: metricsRows, error: mErr } = await supabase
       .from("v_session_metrics")
       .select("session_id, starts_at, status, participants, evidence_items, activities_total, activities_done")
@@ -48,145 +79,57 @@ export async function POST(req: Request) {
       .lte("starts_at", periodEnd.toISOString());
 
     if (mErr) throw mErr;
-
-    // If nothing to analyze, return a clean response (and do not write noisy rows)
     if (!metricsRows || metricsRows.length === 0) {
-      return NextResponse.json(
-        {
-          data: null,
-          message: "No sessions found in the selected window.",
-          windowDays,
-        },
-        { status: 200 }
-      );
+      return NextResponse.json({ data: null, message: "No sessions found.", windowDays }, { status: 200 });
     }
 
-    // ---- Azure OpenAI (Session AI) ----
+    // 7. Azure OpenAI Logic
     const azureEndpoint = mustGet("AZURE_OPENAI_ENDPOINT");
     const azureApiKey = mustGet("AZURE_OPENAI_API_KEY");
     const azureApiVersion = process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview";
-
-    // You said your deployment name is: AZURE_DEPLOYMENT_SESSION=session-ai
     const deployment = process.env.AZURE_DEPLOYMENT_SESSION ?? "session-ai";
-
     const url = `${azureEndpoint}/openai/deployments/${deployment}/chat/completions?api-version=${azureApiVersion}`;
 
-    const system = `
-You are SessionAI for a STEM club platform.
-You ONLY analyze session delivery signals from the session system:
-- sessions (starts_at, status)
-- participants count
-- evidence count
-- checklist totals & done
-You do NOT give parent/marketing advice.
-You do NOT talk about running sessions, links, or UI actions.
-Return STRICT JSON ONLY, no markdown, no extra text:
-{
-  "summary": string,
-  "recommendations": [
-    {"title": string, "why": string, "action": string}
-  ],
-  "metrics": object
-}
-`.trim();
-
-    const user = `
-Analyze the following session metrics (most recent window first) and provide operational analytics insight.
-Focus on:
-- schedule completeness & stability
-- open/closed discipline signals (if status patterns exist)
-- evidence capture consistency
-- checklist usage and completion quality
-Return JSON only.
-
-windowDays=${windowDays}
-periodStart=${periodStart.toISOString()}
-periodEnd=${periodEnd.toISOString()}
-
-metricsRows:
-${JSON.stringify(metricsRows)}
-`.trim();
-
-    const azureBody = {
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.2,
-      max_tokens: 800,
-    };
+    const system = `You are SessionAI. Return STRICT JSON ONLY: {"summary": string, "recommendations": [{"title": string, "why": string, "action": string}], "metrics": object}`;
+    const userPrompt = `Analyze metrics for club ${clubId}: ${JSON.stringify(metricsRows)}`;
 
     const azureRes = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": azureApiKey,
-      },
-      body: JSON.stringify(azureBody),
+      headers: { "Content-Type": "application/json", "api-key": azureApiKey },
+      body: JSON.stringify({
+        messages: [{ role: "system", content: system }, { role: "user", content: userPrompt }],
+        temperature: 0.2,
+      }),
     });
 
-    if (!azureRes.ok) {
-      const txt = await azureRes.text();
-      return NextResponse.json(
-        { error: `Azure OpenAI error: ${azureRes.status} ${txt}` },
-        { status: 502 }
-      );
-    }
+    if (!azureRes.ok) throw new Error(`Azure error: ${azureRes.status}`);
 
     const azureJson = await azureRes.json();
-    const content: string | undefined = azureJson?.choices?.[0]?.message?.content;
+    const parsed = safeJsonParse(azureJson?.choices?.[0]?.message?.content);
 
-    if (!content || typeof content !== "string") {
-      return NextResponse.json(
-        { error: "Azure OpenAI returned no content." },
-        { status: 502 }
-      );
-    }
+    if (!parsed?.summary) throw new Error("Invalid AI response shape");
 
-    const parsed = safeJsonParse<{
-      summary: string;
-      recommendations: AiRec[];
-      metrics?: Record<string, unknown>;
-    }>(content);
-
-    if (!parsed?.summary || !Array.isArray(parsed?.recommendations)) {
-      return NextResponse.json(
-        {
-          error:
-            "Azure output was not valid JSON in the required shape. Adjust prompt or model settings.",
-          raw: content.slice(0, 600),
-        },
-        { status: 502 }
-      );
-    }
-
-    const insertPayload = {
-      club_id: clubId,
-      period_start: periodStart.toISOString(),
-      period_end: periodEnd.toISOString(),
-      source: "azure",
-      summary: parsed.summary,
-      recommendations: parsed.recommendations,
-      metrics: {
-        windowDays,
-        sessions: metricsRows ?? [],
-        azure_metrics: parsed.metrics ?? {},
-      },
-    };
-
+    // 8. Save Insight (Audit Trail)
     const { data: saved, error: insErr } = await supabase
       .from("session_ai_insights")
-      .insert(insertPayload as any)
+      .insert({
+        club_id: clubId,
+        requested_by: user.id, // Enterprise practice: track who generated the insight
+        period_start: periodStart.toISOString(),
+        period_end: periodEnd.toISOString(),
+        summary: parsed.summary,
+        recommendations: parsed.recommendations,
+        metrics: { windowDays, session_count: metricsRows.length },
+      } as any)
       .select("*")
       .single();
 
     if (insErr) throw insErr;
 
     return NextResponse.json({ data: saved }, { status: 200 });
+
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message ?? "Unknown error" },
-      { status: 500 }
-    );
+    console.error("[SESSION_ADVICE_ERROR]", e);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

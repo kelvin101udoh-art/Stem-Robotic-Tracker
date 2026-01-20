@@ -1,7 +1,8 @@
+// web/src/app/app/admin/clubs/[clubId]/sessions/page.tsx
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { useAdminGuard } from "@/lib/admin/admin-guard";
 
@@ -130,7 +131,6 @@ export default function SessionsAnalyticsHomePage() {
   const [activitiesToday, setActivitiesToday] = useState<ActivityRow[]>([]);
 
   const [latestAiToday, setLatestAiToday] = useState<SessionAiInsight | null>(null);
-
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
 
   const intervalRef = useRef<number | null>(null);
@@ -268,8 +268,6 @@ export default function SessionsAnalyticsHomePage() {
   useEffect(() => {
     if (checking) return;
 
-    // If realtime is not enabled in your Supabase project, this won't break your app,
-    // but it may not receive updates. Auto-refresh still works.
     const ch = supabase.channel(`rt:sessions_today:${clubId}`);
 
     ch.on(
@@ -321,7 +319,6 @@ export default function SessionsAnalyticsHomePage() {
 
   const lastEvidenceAtBySession = useMemo(() => {
     const m = new Map<string, string>();
-    // evidenceToday already ordered desc from query (but filtered). Still compute robustly:
     for (const e of evidenceToday) {
       const cur = m.get(e.session_id);
       if (!cur || new Date(e.created_at).getTime() > new Date(cur).getTime()) {
@@ -343,16 +340,13 @@ export default function SessionsAnalyticsHomePage() {
   }, [activitiesToday]);
 
   // Live session focus:
-  // - Prefer OPEN session
-  // - Else next session today
   const liveSession = useMemo(() => {
     const open = sessionsToday.find((s) => (s.status ?? "planned") === "open");
     if (open) return open;
-    // next session today (by starts_at)
     return sessionsToday.find((s) => (s.status ?? "planned") !== "closed") ?? sessionsToday[0] ?? null;
   }, [sessionsToday]);
 
-  // Today aggregated KPIs (for enterprise header cards)
+  // Today aggregated KPIs
   const todayKpis = useMemo(() => {
     const totalSessions = sessionsToday.length;
     const open = sessionsToday.filter((s) => (s.status ?? "planned") === "open").length;
@@ -367,10 +361,18 @@ export default function SessionsAnalyticsHomePage() {
 
     const completion = safeDiv(aDone, aTotal);
 
-    // “Live Quality Index” for today (simple & explainable)
-    const evidenceCoverage = totalSessions > 0 ? sessionsToday.filter((s) => (evidenceBySession.get(s.id) ?? 0) > 0).length / totalSessions : 0;
-    const checklistCoverage = totalSessions > 0 ? sessionsToday.filter((s) => (activitiesBySession.get(s.id)?.total ?? 0) > 0).length / totalSessions : 0;
-    const quality = clamp01(0.5 * clamp01(completion) + 0.3 * clamp01(evidenceCoverage) + 0.2 * clamp01(checklistCoverage));
+    const evidenceCoverage =
+      totalSessions > 0
+        ? sessionsToday.filter((s) => (evidenceBySession.get(s.id) ?? 0) > 0).length / totalSessions
+        : 0;
+    const checklistCoverage =
+      totalSessions > 0
+        ? sessionsToday.filter((s) => (activitiesBySession.get(s.id)?.total ?? 0) > 0).length / totalSessions
+        : 0;
+
+    const quality = clamp01(
+      0.5 * clamp01(completion) + 0.3 * clamp01(evidenceCoverage) + 0.2 * clamp01(checklistCoverage)
+    );
 
     return {
       totalSessions,
@@ -412,18 +414,13 @@ export default function SessionsAnalyticsHomePage() {
     };
   }, [liveSession, participantsBySession, evidenceBySession, activitiesBySession, lastEvidenceAtBySession]);
 
-  // Live rules-based insight (computed in-memory every refresh; feels “AI” but is deterministic)
+  // Live rules insight
   const liveRulesInsight = useMemo(() => {
     if (!liveSession) {
       return {
         headline: "No live session detected",
-        bullets: [
-          { title: "Today has no sessions", detail: "Plan a session for today to activate live analytics." },
-        ],
-        actions: [
-          "Add starts_at and status to your session plan.",
-          "Open a session to start capturing real-time signals.",
-        ],
+        bullets: [{ title: "No sessions today", detail: "Schedule a session for today to activate live analytics." }],
+        actions: ["Add a session scheduled for today.", "Mark it OPEN during delivery.", "Capture evidence early."],
       };
     }
 
@@ -438,37 +435,37 @@ export default function SessionsAnalyticsHomePage() {
     const completion = liveKpis.completion;
 
     if ((liveSession.status ?? "planned") !== "open") {
-      bullets.push({ title: "Session not open", detail: "Live analytics is strongest when a session is marked OPEN." });
-      actions.push("Open the session to enable live signals (attendance, evidence, checklist).");
+      bullets.push({ title: "Session not OPEN", detail: "Live analytics is strongest when status is OPEN." });
+      actions.push("Mark the session OPEN to improve signal quality.");
     } else {
-      bullets.push({ title: "Session is live", detail: "Monitoring signals in real time (participants, evidence, checklist)." });
+      bullets.push({ title: "Session is live", detail: "Monitoring participants, evidence and checklist progress." });
     }
 
     if (total === 0) {
       bullets.push({ title: "Checklist missing", detail: "No checklist items detected for this session." });
-      actions.push("Attach a checklist template (4–6 core outcomes) to improve execution tracking.");
+      actions.push("Attach a checklist (4–6 core outcomes) for execution tracking.");
     } else if (completion < 0.5 && total >= 4) {
       bullets.push({ title: "Execution lag", detail: `Completion is ${pct(completion)} (${done}/${total}).` });
-      actions.push("Reduce scope to 4–6 core items and mark progress as you deliver.");
+      actions.push("Reduce to 4–6 core tasks and mark progress live.");
     } else {
       bullets.push({ title: "Execution tracking", detail: `Completion is ${pct(completion)} (${done}/${total}).` });
     }
 
     if (ev === 0) {
-      bullets.push({ title: "Evidence signal is zero", detail: "No evidence logged yet for this session." });
-      actions.push("Capture at least 2 evidence items to stabilize analytics (e.g., 1 photo + 1 note).");
+      bullets.push({ title: "Evidence is zero", detail: "No evidence logged yet for this session." });
+      actions.push("Capture at least 2 items (photo + note) to stabilize insight.");
     } else {
       const mins = minsBetween(Date.now(), liveKpis.lastEvidenceAt);
       const f = freshnessLabel(mins);
-      bullets.push({ title: "Evidence signal active", detail: `${ev} item(s). Last update: ${mins} min ago (${f.label}).` });
-      if (mins > 10) actions.push("Capture a quick update now to keep live insight fresh.");
+      bullets.push({ title: "Evidence active", detail: `${ev} item(s). Last update: ${mins} min ago (${f.label}).` });
+      if (mins > 10) actions.push("Capture a quick update to keep insight fresh.");
     }
 
     if (p === 0) {
       bullets.push({ title: "Participants not recorded", detail: "No participants linked to this session yet." });
-      actions.push("Mark participants early to make attendance-based analytics accurate.");
+      actions.push("Record participants early for accurate attendance analytics.");
     } else {
-      bullets.push({ title: "Participants tracked", detail: `${p} participant(s) recorded for this session.` });
+      bullets.push({ title: "Participants tracked", detail: `${p} participant(s) recorded.` });
     }
 
     return {
@@ -512,6 +509,7 @@ export default function SessionsAnalyticsHomePage() {
       <div className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 relative">
           <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
+
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <div className="text-sm font-semibold text-slate-900">Live Sessions Analytics</div>
@@ -556,7 +554,11 @@ export default function SessionsAnalyticsHomePage() {
 
         {/* Today KPI Strip */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <KpiCard label="Today sessions" value={`${todayKpis.totalSessions}`} hint={`${todayKpis.open} open • ${todayKpis.planned} planned • ${todayKpis.closed} closed`} />
+          <KpiCard
+            label="Today sessions"
+            value={`${todayKpis.totalSessions}`}
+            hint={`${todayKpis.open} open • ${todayKpis.planned} planned • ${todayKpis.closed} closed`}
+          />
           <KpiCard label="Live quality index" value={pct(todayKpis.quality)} hint="Coverage + completion blend" />
           <KpiCard label="Checklist completion" value={pct(todayKpis.completion)} hint="Across today" />
           <KpiCard label="Participants tracked" value={`${todayKpis.learners}`} hint="Across today" />
@@ -564,8 +566,9 @@ export default function SessionsAnalyticsHomePage() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-12">
-          {/* LEFT: Live Session Focus */}
+          {/* LEFT */}
           <div className="lg:col-span-8">
+            {/* Live Session Focus */}
             <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
               <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -585,12 +588,75 @@ export default function SessionsAnalyticsHomePage() {
 
               <div className="px-5 py-5 sm:px-6">
                 {!liveSession ? (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700">
-                    No sessions scheduled for today yet.
-                    <div className="mt-2 text-xs text-slate-600">
-                      This page is live-only. The history analytics page will be added later.
+                  <EnterpriseEmptyState
+                    title="Live session focus is on standby"
+                    subtitle="No sessions are scheduled for today yet. This view is designed for in-session operations, not history."
+                    accent="indigo"
+                    right={
+                      <div className="space-y-3">
+                        <StatusTile label="Data readiness" value="Not ready" hint="Create a session for today" tone="risk" />
+                        <StatusTile label="Realtime feed" value="Active" hint="Auto-refresh + realtime (if enabled)" tone="good" />
+                        <StatusTile
+                          label="SessionAI pipeline"
+                          value={latestAiToday ? "Receiving" : "Waiting"}
+                          hint="Azure writes insights automatically"
+                          tone={latestAiToday ? "good" : "neutral"}
+                        />
+                      </div>
+                    }
+                  >
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <InfoCard
+                        kicker="WHAT THIS PAGE DOES"
+                        title="Operational signals for today"
+                        desc="Tracks checklist progress, evidence cadence, and participation signals for the active session (or next scheduled)."
+                        bullets={[
+                          "Live quality index (coverage + completion)",
+                          "Evidence momentum and freshness",
+                          "Checklist execution tracking",
+                        ]}
+                      />
+                      <InfoCard
+                        kicker="HOW TO ACTIVATE"
+                        title="Schedule at least one session today"
+                        desc="Once a session exists for today, the dashboard auto-populates and the live focus locks to OPEN (or next upcoming)."
+                        bullets={[
+                          "Add today’s session in Plan",
+                          "Mark it OPEN during delivery",
+                          "Capture at least 2 evidence items",
+                        ]}
+                      />
                     </div>
-                  </div>
+
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-900">System readiness checklist</div>
+                          <div className="mt-1 text-xs text-slate-600">
+                            Enterprise dashboards explain what is missing and what becomes available next.
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                            Live-only
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                            Auto-refresh
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                            No manual triggers
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        <CheckRow ok={false} label="Session scheduled today" />
+                        <CheckRow ok={false} label="Session marked OPEN" />
+                        <CheckRow ok={true} label="Realtime refresh running" />
+                      </div>
+                    </div>
+                  </EnterpriseEmptyState>
                 ) : (
                   <>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -599,8 +665,8 @@ export default function SessionsAnalyticsHomePage() {
                           {liveSession.title || "Untitled session"}
                         </div>
                         <div className="mt-1 text-sm text-slate-600">
-                          Start: <span className="font-semibold text-slate-900">{fmtTime(liveSession.starts_at)}</span>{" "}
-                          • Duration: <span className="font-semibold text-slate-900">{liveSession.duration_minutes ?? 60}m</span>
+                          Start: <span className="font-semibold text-slate-900">{fmtTime(liveSession.starts_at)}</span> • Duration:{" "}
+                          <span className="font-semibold text-slate-900">{liveSession.duration_minutes ?? 60}m</span>
                         </div>
 
                         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -616,7 +682,6 @@ export default function SessionsAnalyticsHomePage() {
                         </div>
                       </div>
 
-                      {/* Live signal badge */}
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <div className="text-xs font-semibold tracking-widest text-slate-500">LIVE SIGNALS</div>
                         <div className="mt-2 space-y-1 text-sm">
@@ -627,9 +692,13 @@ export default function SessionsAnalyticsHomePage() {
                       </div>
                     </div>
 
-                    {/* Live bars */}
                     <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                      <BarCard title="Checklist completion" value={pct(liveKpis.completion)} score={liveKpis.completion} desc="Done / Total checklist items" />
+                      <BarCard
+                        title="Checklist completion"
+                        value={pct(liveKpis.completion)}
+                        score={liveKpis.completion}
+                        desc="Done / Total checklist items"
+                      />
                       <BarCard
                         title="Evidence momentum"
                         value={`${liveKpis.evidence}`}
@@ -644,7 +713,6 @@ export default function SessionsAnalyticsHomePage() {
                       />
                     </div>
 
-                    {/* Session radar insight (rules-derived, computed continuously) */}
                     <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-xs font-semibold tracking-widest text-slate-500">LIVE INSIGHT (AUTO)</div>
@@ -724,7 +792,6 @@ export default function SessionsAnalyticsHomePage() {
                             </div>
                           </div>
 
-                          {/* No execution buttons here by design */}
                           <div className="text-xs text-slate-600">
                             Live analytics is centered above. History analytics will be a separate page.
                           </div>
@@ -733,16 +800,49 @@ export default function SessionsAnalyticsHomePage() {
                     );
                   })
                 ) : (
-                  <div className="px-6 py-10 text-center">
-                    <div className="text-sm font-semibold text-slate-900">No sessions scheduled today</div>
-                    <div className="mt-1 text-sm text-slate-600">Add a session for today to activate live analytics.</div>
+                  <div className="px-6 py-8 sm:px-8">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">No sessions scheduled today</div>
+                        <div className="mt-1 text-sm text-slate-600">
+                          This table becomes a live operational ledger once a session exists for today.
+                        </div>
+                      </div>
+
+                      <div className="grid w-full gap-2 md:w-[420px]">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="text-xs font-semibold tracking-widest text-slate-500">WHAT YOU’LL SEE HERE</div>
+                          <div className="mt-2 grid gap-1 text-sm text-slate-800">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600">Participants</span>
+                              <span className="font-semibold text-slate-900">count per session</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600">Evidence</span>
+                              <span className="font-semibold text-slate-900">items + freshness</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600">Checklist</span>
+                              <span className="font-semibold text-slate-900">done / total</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="text-xs font-semibold tracking-widest text-slate-500">ENTERPRISE NOTE</div>
+                          <div className="mt-2 text-sm text-slate-700">
+                            History analytics is intentionally separated to keep the live view fast, focused, and operational.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* RIGHT: Automated AI Panel */}
+          {/* RIGHT */}
           <div className="lg:col-span-4">
             <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
               <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
@@ -799,14 +899,41 @@ export default function SessionsAnalyticsHomePage() {
                     </div>
 
                     <div className="mt-3 text-[11px] text-slate-500">
-                      Updated: {fmtDateTimeShort(latestAiToday.created_at)} • Freshness: {aiFreshness ? `${aiFreshness.mins} min ago` : "—"}
+                      Updated: {fmtDateTimeShort(latestAiToday.created_at)} • Freshness:{" "}
+                      {aiFreshness ? `${aiFreshness.mins} min ago` : "—"}
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    No AI insight stored for today yet.
-                    <div className="mt-2 text-xs text-slate-600">
-                      Once Azure automation is writing real-time insights, this panel will update automatically.
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold tracking-widest text-slate-500">PIPELINE STATUS</div>
+                        <div className="mt-2 text-sm font-semibold text-slate-900">Waiting for today’s first insight</div>
+                        <div className="mt-1 text-xs text-slate-600">
+                          Azure will write into <span className="font-mono">session_ai_insights</span> automatically once session signals exist.
+                        </div>
+                      </div>
+
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                        {aiFreshness ? `${aiFreshness.label} • ${aiFreshness.mins}m` : "WAITING"}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-2">
+                      <PipelineStep ok={sessionsToday.length > 0} label="Session exists for today" />
+                      <PipelineStep
+                        ok={sessionsToday.some((s) => (s.status ?? "planned") === "open")}
+                        label="Session is OPEN (best signal quality)"
+                      />
+                      <PipelineStep ok={evidenceToday.length > 0} label="Evidence stream has started" />
+                      <PipelineStep ok={!!latestAiToday} label="Azure wrote latest insight row" />
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-xs font-semibold tracking-widest text-slate-500">NEXT</div>
+                      <div className="mt-2 text-sm text-slate-700">
+                        When the first session starts, this panel will show a summary + operational recommendations and keep updating automatically.
+                      </div>
                     </div>
                   </div>
                 )}
@@ -879,6 +1006,112 @@ function BarCard(props: { title: string; value: string; score: number; desc: str
       <div className="mt-3 h-2 overflow-hidden rounded-full border border-slate-200 bg-slate-50">
         <div className="h-full bg-slate-900" style={{ width: `${Math.round(s * 100)}%` }} />
       </div>
+    </div>
+  );
+}
+
+/* ---------------- Enterprise-grade Empty State Components ---------------- */
+
+function EnterpriseEmptyState(props: {
+  title: string;
+  subtitle: string;
+  accent?: "indigo" | "cyan" | "emerald";
+  right?: ReactNode;
+  children?: ReactNode;
+}) {
+  const accent =
+    props.accent === "cyan"
+      ? "from-cyan-500/15 via-cyan-400/0 to-transparent"
+      : props.accent === "emerald"
+      ? "from-emerald-500/15 via-emerald-400/0 to-transparent"
+      : "from-indigo-500/15 via-indigo-400/0 to-transparent";
+
+  return (
+    <div className="relative overflow-hidden rounded-[22px] border border-slate-200 bg-white">
+      <div className={cx("absolute inset-x-0 top-0 h-24 bg-gradient-to-b", accent)} />
+      <div className="relative px-5 py-5 sm:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-900">{props.title}</div>
+            <div className="mt-1 text-sm text-slate-600">{props.subtitle}</div>
+          </div>
+
+          {props.right ? <div className="w-full lg:w-[340px]">{props.right}</div> : null}
+        </div>
+
+        <div className="mt-5">{props.children}</div>
+      </div>
+    </div>
+  );
+}
+
+function StatusTile(props: { label: string; value: string; hint: string; tone: "good" | "risk" | "neutral" }) {
+  const toneCls =
+    props.tone === "good"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : props.tone === "risk"
+      ? "border-rose-200 bg-rose-50 text-rose-900"
+      : "border-slate-200 bg-slate-50 text-slate-700";
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold tracking-widest text-slate-500">{props.label.toUpperCase()}</div>
+          <div className="mt-2 text-sm font-semibold text-slate-900">{props.value}</div>
+          <div className="mt-1 text-xs text-slate-600">{props.hint}</div>
+        </div>
+        <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", toneCls)}>
+          {props.tone === "good" ? "OK" : props.tone === "risk" ? "NEEDS" : "INFO"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function InfoCard(props: { kicker: string; title: string; desc: string; bullets: string[] }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="text-xs font-semibold tracking-widest text-slate-500">{props.kicker}</div>
+      <div className="mt-2 text-sm font-semibold text-slate-900">{props.title}</div>
+      <div className="mt-1 text-sm text-slate-700">{props.desc}</div>
+      <ul className="mt-3 list-disc pl-5 text-sm text-slate-700">
+        {props.bullets.map((b, idx) => (
+          <li key={idx}>{b}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function CheckRow(props: { ok: boolean; label: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <div className="text-sm text-slate-700">{props.label}</div>
+      <span
+        className={cx(
+          "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+          props.ok ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"
+        )}
+      >
+        {props.ok ? "READY" : "MISSING"}
+      </span>
+    </div>
+  );
+}
+
+function PipelineStep(props: { ok: boolean; label: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <div className="text-sm text-slate-700">{props.label}</div>
+      <span
+        className={cx(
+          "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+          props.ok ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"
+        )}
+      >
+        {props.ok ? "DONE" : "PENDING"}
+      </span>
     </div>
   );
 }
