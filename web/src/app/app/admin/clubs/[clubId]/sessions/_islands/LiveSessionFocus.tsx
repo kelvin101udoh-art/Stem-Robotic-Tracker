@@ -1,5 +1,7 @@
 // web/src/app/app/admin/clubs/[clubId]/sessions/_islands/LiveSessionFocus.tsx
 
+
+
 "use client";
 
 import { useMemo } from "react";
@@ -33,9 +35,9 @@ function fmtDateTimeShort(iso?: string | null) {
 }
 function statusChip(s?: string | null) {
   const k = s ?? "planned";
-  if (k === "open") return "border-emerald-200 bg-emerald-50 text-emerald-900";
-  if (k === "closed") return "border-slate-200 bg-slate-50 text-slate-700";
-  return "border-indigo-200 bg-indigo-50 text-indigo-900";
+  if (k === "open") return "border-emerald-200/80 bg-emerald-50/80 text-emerald-950";
+  if (k === "closed") return "border-slate-200/80 bg-slate-50/80 text-slate-800";
+  return "border-indigo-200/80 bg-indigo-50/80 text-indigo-950";
 }
 function minsBetween(now: number, thenIso?: string | null) {
   if (!thenIso) return 0;
@@ -43,14 +45,14 @@ function minsBetween(now: number, thenIso?: string | null) {
   return Math.max(0, Math.round((now - t) / 60000));
 }
 function freshnessLabel(minutes: number) {
-  if (minutes <= 2) return { label: "LIVE", cls: "border-emerald-200 bg-emerald-50 text-emerald-900" };
-  if (minutes <= 10) return { label: "FRESH", cls: "border-indigo-200 bg-indigo-50 text-indigo-900" };
-  return { label: "STALE", cls: "border-rose-200 bg-rose-50 text-rose-900" };
+  if (minutes <= 2) return { label: "LIVE", cls: "border-emerald-200/80 bg-emerald-50/80 text-emerald-950" };
+  if (minutes <= 10) return { label: "FRESH", cls: "border-indigo-200/80 bg-indigo-50/80 text-indigo-950" };
+  return { label: "STALE", cls: "border-rose-200/80 bg-rose-50/80 text-rose-950" };
 }
 
 function Pill(props: { label: string; value: string }) {
   return (
-    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+    <span className="rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700">
       {props.label}: <span className="ml-1 text-slate-900">{props.value}</span>
     </span>
   );
@@ -63,7 +65,7 @@ function SignalRow(props: { label: string; ok: boolean }) {
       <span
         className={cx(
           "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-          props.ok ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"
+          props.ok ? "border-emerald-200/80 bg-emerald-50/80 text-emerald-950" : "border-rose-200/80 bg-rose-50/80 text-rose-950"
         )}
       >
         {props.ok ? "OK" : "MISSING"}
@@ -72,10 +74,10 @@ function SignalRow(props: { label: string; ok: boolean }) {
   );
 }
 
-function BarCard(props: { title: string; value: string; score: number; desc: string }) {
+function MetricCard(props: { title: string; value: string; score: number; desc: string }) {
   const s = clamp01(props.score);
   return (
-    <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] p-4">
+    <div className="rounded-2xl border border-slate-200/80 bg-white/70 shadow-[0_16px_52px_-52px_rgba(2,6,23,0.55)] backdrop-blur p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-sm font-semibold text-slate-900">{props.title}</div>
@@ -101,7 +103,14 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
 
   const liveKpis = useMemo(() => {
     if (!liveSession) {
-      return { participants: 0, evidence: 0, checklistTotal: 0, checklistDone: 0, completion: 0, lastEvidenceAt: null as string | null };
+      return {
+        participants: 0,
+        evidence: 0,
+        checklistTotal: 0,
+        checklistDone: 0,
+        completion: 0,
+        lastEvidenceAt: null as string | null,
+      };
     }
     const total = liveSession.activities_total ?? 0;
     const done = liveSession.activities_done ?? 0;
@@ -120,8 +129,11 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
     if (!liveSession) {
       return {
         headline: "No live session detected",
-        bullets: [{ title: "No sessions today", detail: "Schedule a session for today to activate live analytics." }],
-        actions: ["Add a session scheduled for today.", "Mark it OPEN during delivery.", "Capture evidence early."],
+        bullets: [
+          { title: "Nothing scheduled for today", detail: "Create a session dated today to activate live analytics and AI output." },
+          { title: "What populates this view?", detail: "Attendance, checklist execution, and evidence capture signal quality." },
+        ],
+        actions: ["Add a session scheduled for today.", "Mark it OPEN during delivery.", "Capture evidence early (photo + note)."],
       };
     }
 
@@ -133,35 +145,35 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
     const completion = liveKpis.completion;
 
     if ((liveSession.status ?? "planned") !== "open") {
-      bullets.push({ title: "Session not OPEN", detail: "Live analytics is strongest when status is OPEN." });
-      actions.push("Mark the session OPEN to improve signal quality.");
+      bullets.push({ title: "Session not OPEN", detail: "Signal quality improves when the session is marked OPEN during delivery." });
+      actions.push("Mark the session OPEN to improve real-time quality.");
     } else {
-      bullets.push({ title: "Session is live", detail: "Monitoring participants, evidence and checklist progress." });
+      bullets.push({ title: "Session is live", detail: "Monitoring participants, evidence and checklist progress in real time." });
     }
 
     if (total === 0) {
-      bullets.push({ title: "Checklist missing", detail: "No checklist items detected for this session." });
-      actions.push("Attach a checklist (4–6 core outcomes) for execution tracking.");
+      bullets.push({ title: "Checklist missing", detail: "Attach 4–6 outcomes to track delivery execution." });
+      actions.push("Attach a checklist (4–6 core outcomes).");
     } else {
       bullets.push({ title: "Execution tracking", detail: `Completion is ${pct(completion)} (${done}/${total}).` });
-      if (completion < 0.5 && total >= 4) actions.push("Reduce to 4–6 core tasks and mark progress live.");
+      if (completion < 0.5 && total >= 4) actions.push("Trim checklist to core outcomes and update during session.");
     }
 
     if ((liveSession.evidence_items ?? 0) === 0) {
-      bullets.push({ title: "Evidence is zero", detail: "No evidence logged yet for this session." });
-      actions.push("Capture at least 2 items (photo + note) to stabilize insight.");
+      bullets.push({ title: "Evidence is zero", detail: "Add at least 2 items to stabilize AI insights and proof logs." });
+      actions.push("Capture at least 2 items (photo + note).");
     } else {
       const mins = minsBetween(Date.now(), liveSession.last_evidence_at);
       const f = freshnessLabel(mins);
-      bullets.push({ title: "Evidence active", detail: `${liveSession.evidence_items} item(s). Last update: ${mins} min ago (${f.label}).` });
-      if (mins > 10) actions.push("Capture a quick update to keep insight fresh.");
+      bullets.push({ title: "Evidence momentum", detail: `${liveSession.evidence_items} item(s). Last update: ${mins} min ago (${f.label}).` });
+      if (mins > 10) actions.push("Capture a quick update to keep insights fresh.");
     }
 
     if ((liveSession.participants ?? 0) === 0) {
-      bullets.push({ title: "Participants not recorded", detail: "No participants linked to this session yet." });
+      bullets.push({ title: "Participants not recorded", detail: "Attendance improves analytics accuracy and reporting." });
       actions.push("Record participants early for accurate attendance analytics.");
     } else {
-      bullets.push({ title: "Participants tracked", detail: `${liveSession.participants} participant(s) recorded.` });
+      bullets.push({ title: "Attendance tracked", detail: `${liveSession.participants} participant(s) recorded.` });
     }
 
     return {
@@ -172,34 +184,57 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
   }, [liveSession, liveKpis]);
 
   if (booting) {
-    return <div className="h-[360px] rounded-[22px] border border-slate-200 bg-white animate-pulse" />;
+    return <div className="h-[380px] rounded-[22px] border border-slate-200 bg-white/60 animate-pulse" />;
   }
 
   return (
-    <div className="rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_48px_-34px_rgba(2,6,23,0.35)] overflow-hidden">
-      <div className="border-b border-slate-200 bg-gradient-to-r from-transparent via-indigo-50/60 to-transparent px-5 py-4 sm:px-6">
+    <div className="rounded-[26px] border border-slate-200/80 bg-white/70 shadow-[0_22px_72px_-60px_rgba(2,6,23,0.55)] backdrop-blur overflow-hidden">
+      <div className="border-b border-slate-200/70 bg-[radial-gradient(900px_240px_at_10%_0%,rgba(99,102,241,0.14),transparent_60%),radial-gradient(800px_220px_at_90%_0%,rgba(34,211,238,0.10),transparent_55%)] px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">Live session focus</div>
-            <div className="mt-0.5 text-xs text-slate-600">Real-time operational signals for the active session (or the next session today)</div>
+            <div className="mt-0.5 text-xs text-slate-600">Operational signals + actionable insight for the active session (or next scheduled today)</div>
           </div>
+
           {liveSession ? (
             <span className={cx("rounded-full border px-3 py-1 text-xs font-semibold", statusChip(liveSession.status))}>
               {(liveSession.status ?? "planned").toUpperCase()}
             </span>
-          ) : null}
+          ) : (
+            <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700">NO ACTIVE</span>
+          )}
         </div>
       </div>
 
       <div className="px-5 py-5 sm:px-6">
         {!liveSession ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700">
-            No sessions scheduled for today yet.
-            <div className="mt-2 text-xs text-slate-600">This view activates automatically once a session exists for today.</div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-6">
+            <div className="text-sm font-semibold text-slate-900">No sessions scheduled for today</div>
+            <div className="mt-1 text-sm text-slate-700">
+              This panel becomes a live report as soon as a session exists for today.
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
+                <div className="text-xs font-semibold tracking-widest text-slate-500">SIGNAL 1</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">Attendance</div>
+                <div className="mt-1 text-xs text-slate-600">Participants recorded → better accuracy</div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
+                <div className="text-xs font-semibold tracking-widest text-slate-500">SIGNAL 2</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">Checklist</div>
+                <div className="mt-1 text-xs text-slate-600">4–6 outcomes → execution tracking</div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
+                <div className="text-xs font-semibold tracking-widest text-slate-500">SIGNAL 3</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">Evidence</div>
+                <div className="mt-1 text-xs text-slate-600">Photo + note → proof & AI stability</div>
+              </div>
+            </div>
           </div>
         ) : (
           <>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="truncate text-lg font-semibold text-slate-900">{liveSession.title || "Untitled session"}</div>
                 <div className="mt-1 text-sm text-slate-600">
@@ -216,7 +251,7 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-[0_10px_30px_-26px_rgba(2,6,23,0.45)]">
                 <div className="text-xs font-semibold tracking-widest text-slate-500">LIVE SIGNALS</div>
                 <div className="mt-2 space-y-1 text-sm">
                   <SignalRow label="Participants tracked" ok={liveKpis.participants > 0} />
@@ -227,29 +262,31 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
-              <BarCard title="Checklist completion" value={pct(liveKpis.completion)} score={liveKpis.completion} desc="Done / Total checklist items" />
-              <BarCard title="Evidence momentum" value={`${liveKpis.evidence}`} score={clamp01(liveKpis.evidence >= 2 ? 1 : liveKpis.evidence / 2)} desc="Target: ≥ 2 items per live session" />
-              <BarCard title="Participation signal" value={`${liveKpis.participants}`} score={clamp01(liveKpis.participants >= 6 ? 1 : liveKpis.participants / 6)} desc="Target: ≥ 6 tracked participants" />
+              <MetricCard title="Checklist completion" value={pct(liveKpis.completion)} score={liveKpis.completion} desc="Done / total checklist items" />
+              <MetricCard title="Evidence momentum" value={`${liveKpis.evidence}`} score={clamp01(liveKpis.evidence >= 2 ? 1 : liveKpis.evidence / 2)} desc="Target: ≥ 2 items per live session" />
+              <MetricCard title="Participation signal" value={`${liveKpis.participants}`} score={clamp01(liveKpis.participants >= 6 ? 1 : liveKpis.participants / 6)} desc="Target: ≥ 6 tracked participants" />
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="mt-5 rounded-2xl border border-slate-200/80 bg-white/70 p-4">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-xs font-semibold tracking-widest text-slate-500">LIVE INSIGHT (AUTO)</div>
-                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">Updates automatically</span>
+                <div className="text-xs font-semibold tracking-widest text-slate-500">EXECUTIVE INSIGHT</div>
+                <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                  Auto-updating
+                </span>
               </div>
 
               <div className="mt-2 text-sm font-semibold text-slate-900">{insight.headline}</div>
 
               <div className="mt-3 grid gap-2">
                 {insight.bullets.slice(0, 3).map((b, idx) => (
-                  <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
                     <div className="text-sm font-semibold text-slate-900">{b.title}</div>
                     <div className="mt-1 text-xs text-slate-700">{b.detail}</div>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+              <div className="mt-3 rounded-xl border border-slate-200 bg-white/70 p-3">
                 <div className="text-xs font-semibold tracking-widest text-slate-500">NEXT BEST ACTIONS</div>
                 <ul className="mt-2 list-disc pl-5 text-sm text-slate-800">
                   {insight.actions.slice(0, 3).map((a, idx) => (
