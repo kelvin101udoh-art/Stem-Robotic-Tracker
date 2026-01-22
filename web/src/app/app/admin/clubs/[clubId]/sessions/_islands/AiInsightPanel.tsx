@@ -5,10 +5,7 @@
 
 import { useMemo } from "react";
 import { useLiveDashboard } from "./useLiveDashboard";
-
-function cx(...v: Array<string | false | null | undefined>) {
-  return v.filter(Boolean).join(" ");
-}
+import { DataCoveragePanel, SkeletonMicroCharts, cx } from "./_ui";
 
 function fmtDateTimeShort(iso?: string | null) {
   if (!iso) return "—";
@@ -39,13 +36,23 @@ function SectionTitle({ label }: { label: string }) {
 }
 
 export default function AiInsightPanel({ clubId }: { clubId: string }) {
-  const { latestAi, booting } = useLiveDashboard(clubId);
+  const { latestAi, booting, sessions } = useLiveDashboard(clubId);
 
   const tag = useMemo(() => {
     if (!latestAi?.created_at) return null;
     const mins = minsBetween(Date.now(), latestAi.created_at);
     return { mins, ...freshnessLabel(mins) };
   }, [latestAi]);
+
+  const coverage = useMemo(() => {
+    const sessionsCount = sessions.length;
+    const openCount = sessions.filter((s) => (s.status ?? "planned") === "open").length;
+    const withParticipantsCount = sessions.filter((s) => (s.participants ?? 0) > 0).length;
+    const withEvidenceCount = sessions.filter((s) => (s.evidence_items ?? 0) > 0).length;
+    const withChecklistCount = sessions.filter((s) => (s.activities_total ?? 0) > 0).length;
+
+    return { sessionsCount, openCount, withParticipantsCount, withEvidenceCount, withChecklistCount };
+  }, [sessions]);
 
   if (booting) {
     return <div className="h-[520px] rounded-[22px] border border-slate-200 bg-white/60 animate-pulse" />;
@@ -63,7 +70,9 @@ export default function AiInsightPanel({ clubId }: { clubId: string }) {
               {tag.label} <span className="text-slate-500 font-semibold">•</span> {tag.mins}m
             </span>
           ) : (
-            <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700">WAITING</span>
+            <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+              WAITING
+            </span>
           )}
         </div>
 
@@ -78,11 +87,12 @@ export default function AiInsightPanel({ clubId }: { clubId: string }) {
         <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
           <SectionTitle label="TODAY’S AI WINDOW" />
           <div className="mt-2 text-sm text-slate-800">
-            This panel refreshes continuously as session signals update (attendance • checklist • evidence).
+            This panel refreshes as session signals update (attendance • checklist • evidence).
           </div>
+
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-700">
             <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold">
-              Source: <span className="text-slate-900">{latestAi?.source?.toUpperCase?.() ?? "AZURE / RULES"}</span>
+              Source: <span className="text-slate-900">{latestAi?.source?.toUpperCase?.() ?? "—"}</span>
             </span>
             <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold">
               Updated: <span className="text-slate-900">{latestAi?.created_at ? fmtDateTimeShort(latestAi.created_at) : "—"}</span>
@@ -107,18 +117,14 @@ export default function AiInsightPanel({ clubId }: { clubId: string }) {
               <div className="mt-2 grid gap-2">
                 {(latestAi.recommendations ?? []).slice(0, 4).map((r, idx) => (
                   <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-900">
-                          <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white/70 text-xs font-bold text-slate-800">
-                            {idx + 1}
-                          </span>
-                          {r.title}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-600">{r.why}</div>
-                        <div className="mt-2 text-xs text-slate-800">{r.action}</div>
-                      </div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white/70 text-xs font-bold text-slate-800">
+                        {idx + 1}
+                      </span>
+                      {r.title}
                     </div>
+                    <div className="mt-1 text-xs text-slate-600">{r.why}</div>
+                    <div className="mt-2 text-xs text-slate-800">{r.action}</div>
                   </div>
                 ))}
               </div>
@@ -129,29 +135,42 @@ export default function AiInsightPanel({ clubId }: { clubId: string }) {
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-            <SectionTitle label="WAITING FOR FIRST INSIGHT" />
-            <div className="mt-2 text-sm text-slate-800">
-              No AI insight stored for today yet.
-            </div>
-            <div className="mt-2 text-xs text-slate-600">
-              Once automation writes an insight row, this panel updates instantly — without reloading the page.
+          <>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+              <SectionTitle label="WAITING FOR FIRST INSIGHT" />
+              <div className="mt-2 text-sm text-slate-800">No AI insight stored for today yet.</div>
+              <div className="mt-2 text-xs text-slate-600">
+                Once automation writes an insight row, this panel updates instantly — without reloading.
+              </div>
+
+              <div className="mt-4 grid gap-2">
+                <div className="rounded-xl border border-slate-200 bg-white/70 p-3 text-xs text-slate-700">
+                  Tip: Capture <span className="font-semibold text-slate-900">photo + note</span> early, and record participants.
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white/70 p-3 text-xs text-slate-700">
+                  Tip: Attach <span className="font-semibold text-slate-900">4–6 checklist outcomes</span> for execution tracking.
+                </div>
+              </div>
             </div>
 
-            <div className="mt-4 grid gap-2">
-              <div className="rounded-xl border border-slate-200 bg-white/70 p-3 text-xs text-slate-700">
-                Tip: Capture <span className="font-semibold text-slate-900">photo + note</span> early, and record participants to improve signal quality.
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white/70 p-3 text-xs text-slate-700">
-                Tip: Attach <span className="font-semibold text-slate-900">4–6 checklist outcomes</span> for execution tracking.
-              </div>
-            </div>
-          </div>
+            {/* Alive empty-state (correct location) */}
+            <SkeletonMicroCharts />
+
+            {/* Explains why AI is empty (uses existing payload only) */}
+            <DataCoveragePanel
+              title="Why AI is empty"
+              sessionsCount={coverage.sessionsCount}
+              openCount={coverage.openCount}
+              withParticipantsCount={coverage.withParticipantsCount}
+              withEvidenceCount={coverage.withEvidenceCount}
+              withChecklistCount={coverage.withChecklistCount}
+            />
+          </>
         )}
 
         {/* Footer note */}
         <div className="rounded-2xl border border-slate-200 bg-white/60 p-4 text-sm text-slate-700">
-          This is strictly <span className="font-semibold text-slate-900">live analytics</span>. A separate History Analytics page will cover older days, trends, and cohort performance.
+          This is strictly <span className="font-semibold text-slate-900">live analytics</span>. History Analytics will cover older days, trends, and cohort performance.
         </div>
       </div>
     </div>

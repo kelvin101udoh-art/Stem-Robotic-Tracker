@@ -1,15 +1,12 @@
 // web/src/app/app/admin/clubs/[clubId]/sessions/_islands/LiveSessionFocus.tsx
 
 
-
 "use client";
 
 import { useMemo } from "react";
 import { useLiveDashboard, SessionRow } from "./useLiveDashboard";
+import { DataCoveragePanel, SkeletonMicroCharts, cx } from "./_ui";
 
-function cx(...v: Array<string | false | null | undefined>) {
-  return v.filter(Boolean).join(" ");
-}
 function pct(n: number) {
   if (!Number.isFinite(n)) return "0%";
   return `${Math.round(n * 100)}%`;
@@ -115,6 +112,7 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
     const total = liveSession.activities_total ?? 0;
     const done = liveSession.activities_done ?? 0;
     const completion = total > 0 ? done / total : 0;
+
     return {
       participants: liveSession.participants ?? 0,
       evidence: liveSession.evidence_items ?? 0,
@@ -125,13 +123,23 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
     };
   }, [liveSession]);
 
+  const coverage = useMemo(() => {
+    const sessionsCount = sessions.length;
+    const openCount = sessions.filter((s) => (s.status ?? "planned") === "open").length;
+    const withParticipantsCount = sessions.filter((s) => (s.participants ?? 0) > 0).length;
+    const withEvidenceCount = sessions.filter((s) => (s.evidence_items ?? 0) > 0).length;
+    const withChecklistCount = sessions.filter((s) => (s.activities_total ?? 0) > 0).length;
+
+    return { sessionsCount, openCount, withParticipantsCount, withEvidenceCount, withChecklistCount };
+  }, [sessions]);
+
   const insight = useMemo(() => {
     if (!liveSession) {
       return {
         headline: "No live session detected",
         bullets: [
           { title: "Nothing scheduled for today", detail: "Create a session dated today to activate live analytics and AI output." },
-          { title: "What populates this view?", detail: "Attendance, checklist execution, and evidence capture signal quality." },
+          { title: "What populates this view?", detail: "Attendance, checklist execution, and evidence capture drive signal quality." },
         ],
         actions: ["Add a session scheduled for today.", "Mark it OPEN during delivery.", "Capture evidence early (photo + note)."],
       };
@@ -189,11 +197,14 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
 
   return (
     <div className="rounded-[26px] border border-slate-200/80 bg-white/70 shadow-[0_22px_72px_-60px_rgba(2,6,23,0.55)] backdrop-blur overflow-hidden">
+      {/* Header */}
       <div className="border-b border-slate-200/70 bg-[radial-gradient(900px_240px_at_10%_0%,rgba(99,102,241,0.14),transparent_60%),radial-gradient(800px_220px_at_90%_0%,rgba(34,211,238,0.10),transparent_55%)] px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">Live session focus</div>
-            <div className="mt-0.5 text-xs text-slate-600">Operational signals + actionable insight for the active session (or next scheduled today)</div>
+            <div className="mt-0.5 text-xs text-slate-600">
+              Operational signals + actionable insight for the active session (or next scheduled today)
+            </div>
           </div>
 
           {liveSession ? (
@@ -201,37 +212,53 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
               {(liveSession.status ?? "planned").toUpperCase()}
             </span>
           ) : (
-            <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700">NO ACTIVE</span>
+            <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700">
+              NO SESSION
+            </span>
           )}
         </div>
       </div>
 
-      <div className="px-5 py-5 sm:px-6">
+      {/* Body */}
+      <div className="px-5 py-5 sm:px-6 space-y-4">
         {!liveSession ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-6">
-            <div className="text-sm font-semibold text-slate-900">No sessions scheduled for today</div>
-            <div className="mt-1 text-sm text-slate-700">
-              This panel becomes a live report as soon as a session exists for today.
+          <>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-6">
+              <div className="text-sm font-semibold text-slate-900">No sessions scheduled for today</div>
+              <div className="mt-1 text-sm text-slate-700">
+                Create a session dated today to activate real-time analytics and AI insight.
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3 text-left">
+                <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
+                  <div className="text-xs font-semibold tracking-widest text-slate-500">SIGNAL 1</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-900">Attendance</div>
+                  <div className="mt-1 text-xs text-slate-600">Participants recorded → better accuracy</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
+                  <div className="text-xs font-semibold tracking-widest text-slate-500">SIGNAL 2</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-900">Checklist</div>
+                  <div className="mt-1 text-xs text-slate-600">4–6 outcomes → execution tracking</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
+                  <div className="text-xs font-semibold tracking-widest text-slate-500">SIGNAL 3</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-900">Evidence</div>
+                  <div className="mt-1 text-xs text-slate-600">Photo + note → proof & AI stability</div>
+                </div>
+              </div>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-                <div className="text-xs font-semibold tracking-widest text-slate-500">SIGNAL 1</div>
-                <div className="mt-2 text-sm font-semibold text-slate-900">Attendance</div>
-                <div className="mt-1 text-xs text-slate-600">Participants recorded → better accuracy</div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-                <div className="text-xs font-semibold tracking-widest text-slate-500">SIGNAL 2</div>
-                <div className="mt-2 text-sm font-semibold text-slate-900">Checklist</div>
-                <div className="mt-1 text-xs text-slate-600">4–6 outcomes → execution tracking</div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-                <div className="text-xs font-semibold tracking-widest text-slate-500">SIGNAL 3</div>
-                <div className="mt-2 text-sm font-semibold text-slate-900">Evidence</div>
-                <div className="mt-1 text-xs text-slate-600">Photo + note → proof & AI stability</div>
-              </div>
-            </div>
-          </div>
+            <SkeletonMicroCharts />
+
+            <DataCoveragePanel
+              title="Data Coverage (Today)"
+              sessionsCount={0}
+              openCount={0}
+              withParticipantsCount={0}
+              withEvidenceCount={0}
+              withChecklistCount={0}
+            />
+          </>
         ) : (
           <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -261,13 +288,13 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-3">
               <MetricCard title="Checklist completion" value={pct(liveKpis.completion)} score={liveKpis.completion} desc="Done / total checklist items" />
               <MetricCard title="Evidence momentum" value={`${liveKpis.evidence}`} score={clamp01(liveKpis.evidence >= 2 ? 1 : liveKpis.evidence / 2)} desc="Target: ≥ 2 items per live session" />
               <MetricCard title="Participation signal" value={`${liveKpis.participants}`} score={clamp01(liveKpis.participants >= 6 ? 1 : liveKpis.participants / 6)} desc="Target: ≥ 6 tracked participants" />
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-200/80 bg-white/70 p-4">
+            <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold tracking-widest text-slate-500">EXECUTIVE INSIGHT</div>
                 <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
@@ -295,6 +322,16 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
                 </ul>
               </div>
             </div>
+
+            {/* Always show coverage when sessions exist (enterprise monitoring vibe) */}
+            <DataCoveragePanel
+              title="Data Coverage (Today)"
+              sessionsCount={coverage.sessionsCount}
+              openCount={coverage.openCount}
+              withParticipantsCount={coverage.withParticipantsCount}
+              withEvidenceCount={coverage.withEvidenceCount}
+              withChecklistCount={coverage.withChecklistCount}
+            />
           </>
         )}
       </div>
