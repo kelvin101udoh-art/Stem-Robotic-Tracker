@@ -2,7 +2,7 @@
 
 "use client";
 
-import { SectionTitle } from "./_ui";
+import { SectionTitle } from "./_ui/page";
 
 export default function QualityChecklistPanel({ clubId }: { clubId: string }) {
   return (

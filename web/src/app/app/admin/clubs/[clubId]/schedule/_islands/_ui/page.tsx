@@ -1,4 +1,4 @@
-// web/src/app/app/admin/clubs/[clubId]/schedule/_islands/_ui.tsx
+// web/src/app/app/admin/clubs/[clubId]/schedule/_islands/_ui/page.tsx
 
 "use client";
 

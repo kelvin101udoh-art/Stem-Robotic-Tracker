@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { cx } from "./_ui";
+import { cx } from "./_ui/page";
 
 function todayLabel() {
   const d = new Date();
