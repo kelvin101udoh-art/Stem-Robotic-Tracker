@@ -61,7 +61,7 @@ export default function SchedulePage() {
               onCreated={() => setRefreshToken((x) => x + 1)}
             />
 
-            <UpcomingSchedule clubId={clubId} refreshToken={refreshToken} />
+            <UpcomingSchedule clubId={clubId} />
           </div>
 
           <div className="lg:col-span-4 space-y-6">
