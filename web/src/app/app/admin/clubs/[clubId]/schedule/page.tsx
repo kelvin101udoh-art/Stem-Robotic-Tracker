@@ -144,7 +144,7 @@ export default function ScheduleHomePage() {
         {/* Right */}
         <div className="lg:col-span-4 space-y-6">
           <AiOpsCoachPanel clubId={clubId} />
-          <QualityChecklistPanel clubId={clubId} />
+          <QualityChecklistPanel />
         </div>
       </div>
     </div>
