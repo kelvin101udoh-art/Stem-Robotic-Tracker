@@ -1,13 +1,11 @@
+// web/src/app/app/admin/clubs/[clubId]/schedule/create/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAdminGuard } from "@/lib/admin/admin-guard";
-
-// Your shared UI helpers (keep your existing import path)
 import { cx, SectionTitle } from "../_islands/_ui/page";
 
-// Your existing upcoming schedule hook + optimistic helpers
 import {
   addOptimisticSession,
   confirmOptimisticSession,
@@ -45,7 +43,7 @@ function localDateTimeToIsoUtc(dateISO: string, timeHHMM: string) {
   const [hh, mm] = timeHHMM.split(":").map((x) => Number(x));
   const local = new Date(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0, 0, 0);
   if (!Number.isFinite(local.getTime())) throw new Error("Invalid date/time");
-  return local.toISOString(); // stored as UTC ISO
+  return local.toISOString();
 }
 function fmtLocalHuman(iso?: string | null) {
   if (!iso) return "—";
@@ -65,7 +63,8 @@ function makeTempId() {
 
 function addMinutesToHHMM(timeHHMM: string, minutes: number) {
   const [hh, mm] = timeHHMM.split(":").map(Number);
-  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return { time: timeHHMM, crossedMidnight: false };
+  if (!Number.isFinite(hh) || !Number.isFinite(mm))
+    return { time: timeHHMM, crossedMidnight: false };
 
   const base = new Date(2000, 0, 1, hh, mm, 0, 0);
   base.setMinutes(base.getMinutes() + minutes);
@@ -75,7 +74,9 @@ function addMinutesToHHMM(timeHHMM: string, minutes: number) {
   const final = crossedMidnight ? endOfDay : base;
 
   return {
-    time: `${String(final.getHours()).padStart(2, "0")}:${String(final.getMinutes()).padStart(2, "0")}`,
+    time: `${String(final.getHours()).padStart(2, "0")}:${String(
+      final.getMinutes()
+    ).padStart(2, "0")}`,
     crossedMidnight,
   };
 }
@@ -85,9 +86,19 @@ function FieldLabel({ children }: { children: string }) {
   return <div className="text-xs font-semibold text-slate-700">{children}</div>;
 }
 function InputShell({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4">{children}</div>;
+  return (
+    <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4">
+      {children}
+    </div>
+  );
 }
-function Chip({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "indigo" | "emerald" | "amber" | "rose" }) {
+function Chip({
+  children,
+  tone = "neutral",
+}: {
+  children: React.ReactNode;
+  tone?: "neutral" | "indigo" | "emerald" | "amber" | "rose";
+}) {
   const cls =
     tone === "indigo"
       ? "border-indigo-200/80 bg-indigo-50/70 text-indigo-950"
@@ -98,21 +109,26 @@ function Chip({ children, tone = "neutral" }: { children: React.ReactNode; tone?
           : tone === "rose"
             ? "border-rose-200/80 bg-rose-50/70 text-rose-950"
             : "border-slate-200/80 bg-white/70 text-slate-700";
-  return <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", cls)}>{children}</span>;
+  return (
+    <span
+      className={cx(
+        "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+        cls
+      )}
+    >
+      {children}
+    </span>
+  );
 }
 
-type DeliveryMode = "broadcast" | "differentiated";
-
 type TemplateChecklistItem = { id: string; text: string };
-
 type TemplateDef = {
   id: string;
   name: string;
   title: string;
   durationMinutes: number;
   checklist: TemplateChecklistItem[];
-  next?: string; // template chaining (UI-only)
-  modeHint?: DeliveryMode; // optional
+  next?: string;
 };
 
 const TEMPLATES: TemplateDef[] = [
@@ -130,7 +146,6 @@ const TEMPLATES: TemplateDef[] = [
       { id: "c6", text: "Wrap-up reflection (1 learning each)" },
     ],
     next: "evidence_first",
-    modeHint: "broadcast",
   },
   {
     id: "skills_ladder",
@@ -145,7 +160,6 @@ const TEMPLATES: TemplateDef[] = [
       { id: "c5", text: "Evidence captured (photo + note)" },
     ],
     next: "build_test",
-    modeHint: "differentiated",
   },
   {
     id: "evidence_first",
@@ -160,7 +174,6 @@ const TEMPLATES: TemplateDef[] = [
       { id: "c5", text: "Final evidence + reflection" },
     ],
     next: "skills_ladder",
-    modeHint: "broadcast",
   },
 ];
 
@@ -168,7 +181,7 @@ function findTemplate(id?: string | null) {
   return TEMPLATES.find((t) => t.id === id) ?? null;
 }
 
-// ===== Draft persistence (enterprise feel, no backend) =====
+// ===== Draft persistence for Delivery Ops =====
 function useDraft<T>(key: string, initial: T) {
   const [state, setState] = useState<T>(() => {
     try {
@@ -182,16 +195,19 @@ function useDraft<T>(key: string, initial: T) {
   useEffect(() => {
     try {
       window.localStorage.setItem(key, JSON.stringify(state));
-    } catch {
-      // ignore
-    }
+    } catch { }
   }, [key, state]);
 
   return [state, setState] as const;
 }
 
 // ===== Conflict detection (UI-only) =====
-function overlaps(aStartIso: string, aDurMin: number, bStartIso: string, bDurMin: number) {
+function overlaps(
+  aStartIso: string,
+  aDurMin: number,
+  bStartIso: string,
+  bDurMin: number
+) {
   const a0 = new Date(aStartIso).getTime();
   const a1 = a0 + Math.max(0, aDurMin) * 60000;
   const b0 = new Date(bStartIso).getTime();
@@ -199,69 +215,20 @@ function overlaps(aStartIso: string, aDurMin: number, bStartIso: string, bDurMin
   return a0 < b1 && b0 < a1;
 }
 
-function WizardStep({
-  idx,
-  active,
-  title,
-  hint,
-}: {
-  idx: number;
-  active: boolean;
-  title: string;
-  hint: string;
-}) {
-  return (
-    <div className={cx("rounded-2xl border p-3", active ? "border-indigo-200/80 bg-indigo-50/40" : "border-slate-200/80 bg-white/60")}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-semibold tracking-widest text-slate-500">STEP {idx}</div>
-        {active ? <Chip tone="indigo">ACTIVE</Chip> : <Chip>READY</Chip>}
-      </div>
-      <div className="mt-2 text-sm font-semibold text-slate-900">{title}</div>
-      <div className="mt-1 text-xs text-slate-600">{hint}</div>
-    </div>
-  );
-}
-
-function ModeCard({
-  active,
-  title,
-  desc,
-  onClick,
-}: {
-  active: boolean;
-  title: string;
-  desc: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cx(
-        "w-full text-left rounded-2xl border p-4 transition",
-        active ? "border-indigo-200/80 bg-indigo-50/50" : "border-slate-200/80 bg-white/60 hover:bg-slate-50"
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-semibold text-slate-900">{title}</div>
-        {active ? <Chip tone="indigo">Selected</Chip> : <Chip>Choose</Chip>}
-      </div>
-      <div className="mt-2 text-xs text-slate-600">{desc}</div>
-    </button>
-  );
-}
-
 function ChecklistPreview({ items }: { items: TemplateChecklistItem[] }) {
   if (!items.length) {
     return (
       <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 text-sm text-slate-700">
-        No checklist selected — this is okay. You can still add it during delivery.
+        No checklist selected — this is okay. You can still add it during
+        delivery.
       </div>
     );
   }
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4">
-      <div className="text-xs font-semibold tracking-widest text-slate-500">SUGGESTED CHECKLIST</div>
+      <div className="text-xs font-semibold tracking-widest text-slate-500">
+        SUGGESTED CHECKLIST
+      </div>
       <ul className="mt-3 space-y-2 text-sm text-slate-800">
         {items.map((x, i) => (
           <li key={x.id} className="flex items-start gap-2">
@@ -292,28 +259,39 @@ function TemplatePanel({
       <div className="border-b border-slate-200/70 px-5 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-900">AI Templates</div>
+            <div className="text-sm font-semibold text-slate-900">
+              AI Templates
+            </div>
             <div className="mt-0.5 text-xs text-slate-600">
-              Click Apply to auto-fill title, duration, and checklist. (Chaining is UI-only for now.)
+              Apply → auto-fills title + duration + checklist
             </div>
           </div>
-          {applied ? <Chip tone="indigo">Applied: {applied.name}</Chip> : <Chip>None</Chip>}
+          {applied ? (
+            <Chip tone="indigo">Applied: {applied.name}</Chip>
+          ) : (
+            <Chip>None</Chip>
+          )}
         </div>
       </div>
 
       <div className="p-5 space-y-3">
         {TEMPLATES.map((t) => (
-          <div key={t.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4">
+          <div
+            key={t.id}
+            className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4"
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-xs font-semibold tracking-widest text-slate-500">TEMPLATE</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">{t.name}</div>
+                <div className="text-xs font-semibold tracking-widest text-slate-500">
+                  TEMPLATE
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {t.name}
+                </div>
                 <div className="mt-1 text-xs text-slate-600">{t.title}</div>
-
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Chip>{t.durationMinutes}m</Chip>
                   <Chip>{t.checklist.length} outcomes</Chip>
-                  {t.modeHint ? <Chip tone="amber">Mode hint: {t.modeHint}</Chip> : null}
                 </div>
               </div>
 
@@ -330,7 +308,9 @@ function TemplatePanel({
 
         <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-4">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xs font-semibold tracking-widest text-slate-500">SMART CHAINING</div>
+            <div className="text-xs font-semibold tracking-widest text-slate-500">
+              SMART CHAINING
+            </div>
             <button
               type="button"
               onClick={onChain}
@@ -340,7 +320,7 @@ function TemplatePanel({
             </button>
           </div>
           <div className="mt-2 text-xs text-slate-600">
-            If a template defines a “next”, this rotates to the next recommended delivery pattern.
+            Rotates to the next recommended template (UI-only).
           </div>
         </div>
       </div>
@@ -348,43 +328,44 @@ function TemplatePanel({
   );
 }
 
+// ===== Data types for dropdowns =====
+type TeacherOption = { id: string; full_name: string | null };
+type LocationOption = { id: string; name: string };
+
 export default function CreateSessionPage() {
   const { clubId } = useParams<{ clubId: string }>();
   const router = useRouter();
   const { supabase, checking } = useAdminGuard({ idleMinutes: 20 });
 
-  // Pull upcoming sessions (real data) so we can do conflict detection UI-only
   const { next7Days } = useUpcomingSchedule(clubId);
 
-  // ===== Core session fields (DB stored) =====
+  // DB stored fields
   const [title, setTitle] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<number>(60);
   const [status, setStatus] = useState<SessionStatus>("planned");
   const [dateISO, setDateISO] = useState<string>(() => defaultLocalDateISO());
   const [timeHHMM, setTimeHHMM] = useState<string>(() => defaultLocalTimeHHMM());
 
-  // ===== Enterprise workflow =====
-  const [bufferMinutes, setBufferMinutes] = useState<number>(10); // break buffer
+  // Delivery ops (persisted to DB)
+  const draftKey = `stemtrack:create_session_ops:${clubId}`;
+  const [opsDraft, setOpsDraft] = useDraft(draftKey, {
+    teacherId: "" as string, // profiles.id (teacher)
+    locationId: "" as string, // club_locations.id
+  });
+
+  // Dropdown data
+  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [loadingLookups, setLoadingLookups] = useState(true);
+
+  // Workflow
+  const [bufferMinutes, setBufferMinutes] = useState<number>(10);
   const [createAnother, setCreateAnother] = useState(true);
   const [timeAutoClamped, setTimeAutoClamped] = useState(false);
 
-  // ===== Planning metadata (UI-only for now, aligns with your diagram) =====
-  const draftKey = `stemtrack:create_session_draft:${clubId}`;
-  const [planDraft, setPlanDraft] = useDraft(draftKey, {
-    instructor: "",
-    location: "",
-    mode: "broadcast" as DeliveryMode,
-    tracks: [
-      { id: "t1", name: "All learners", activity: "Robotics activity", notes: "" },
-    ],
-  });
-
-  // Template application
+  // Template
   const [appliedTemplateId, setAppliedTemplateId] = useState<string | null>(null);
   const [suggestedChecklist, setSuggestedChecklist] = useState<TemplateChecklistItem[]>([]);
-
-  // Wizard step
-  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // UX
   const [submitting, setSubmitting] = useState(false);
@@ -397,6 +378,51 @@ export default function CreateSessionPage() {
     (setTimedNotice as any)._t = window.setTimeout(() => setNotice(null), 3500);
   }
 
+  // Fetch teachers + locations
+  useEffect(() => {
+    if (!clubId) return;
+    if (!supabase) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setLoadingLookups(true);
+      setError(null);
+      try {
+        const [tRes, lRes] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id, full_name")
+            .eq("club_id", clubId)
+            .eq("role", "teacher")
+            .eq("is_active", true)
+            .order("full_name", { ascending: true }),
+          supabase
+            .from("club_locations")
+            .select("id, name")
+            .eq("club_id", clubId)
+            .order("name", { ascending: true }),
+        ]);
+
+        if (cancelled) return;
+
+        if (tRes.error) throw tRes.error;
+        if (lRes.error) throw lRes.error;
+
+        setTeachers((tRes.data ?? []) as TeacherOption[]);
+        setLocations((lRes.data ?? []) as LocationOption[]);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message ?? "Failed to load teachers/locations.");
+      } finally {
+        if (!cancelled) setLoadingLookups(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clubId, supabase]);
+
   const preview = useMemo(() => {
     try {
       const startsAtIso = localDateTimeToIsoUtc(dateISO, timeHHMM);
@@ -406,7 +432,6 @@ export default function CreateSessionPage() {
     }
   }, [dateISO, timeHHMM]);
 
-  // Conflict detection UI-only
   const conflicts = useMemo(() => {
     if (!preview.startsAtIso) return [];
     return (next7Days ?? []).filter((s: any) => {
@@ -416,32 +441,13 @@ export default function CreateSessionPage() {
     });
   }, [next7Days, preview.startsAtIso, durationMinutes]);
 
-
-
-
   function applyTemplate(t: TemplateDef) {
     setTitle(t.title);
     setDurationMinutes(t.durationMinutes);
     setSuggestedChecklist(t.checklist);
     setAppliedTemplateId(t.id);
-
-    // 1. Extract the hint to a local constant
-    const newMode = t.modeHint;
-
-    // 2. Check the local constant
-    if (newMode) {
-      // TypeScript now knows newMode is exactly 'DeliveryMode' (not undefined)
-      setPlanDraft((p) => ({
-        ...p,
-        mode: newMode
-      }));
-    }
-
     setTimedNotice(`Applied template: ${t.name}`);
   }
-
-
-
 
   function applyNextTemplate() {
     const curr = findTemplate(appliedTemplateId);
@@ -453,19 +459,17 @@ export default function CreateSessionPage() {
     applyTemplate(next);
   }
 
-  function resetFormKeepDateAdvanceTime() {
+  function resetKeepDateAdvanceTime() {
     setTitle("");
     setStatus("planned");
     setSuggestedChecklist([]);
     setAppliedTemplateId(null);
 
-    // Advance time by duration + buffer
     const totalAdvance = Math.max(0, durationMinutes) + Math.max(0, bufferMinutes);
     const res = addMinutesToHHMM(timeHHMM, totalAdvance);
     setTimeHHMM(res.time);
     setTimeAutoClamped(res.crossedMidnight);
 
-    // Keep duration default to 60 unless template was driving it
     setDurationMinutes(60);
     setTimedNotice(`Ready for next session (+${totalAdvance}m).`);
   }
@@ -483,24 +487,18 @@ export default function CreateSessionPage() {
     }
 
     const cleanTitle = title.trim();
-    if (!cleanTitle) {
-      setError("Title is required.");
-      return;
-    }
-    if (!Number.isFinite(durationMinutes) || durationMinutes < 15) {
-      setError("Duration must be at least 15 minutes.");
-      return;
-    }
+    if (!cleanTitle) return setError("Title is required.");
+    if (!Number.isFinite(durationMinutes) || durationMinutes < 15)
+      return setError("Duration must be at least 15 minutes.");
 
     let starts_at: string;
     try {
       starts_at = localDateTimeToIsoUtc(dateISO, timeHHMM);
     } catch (err: any) {
-      setError(err?.message ?? "Invalid date/time");
-      return;
+      return setError(err?.message ?? "Invalid date/time");
     }
 
-    // Optimistic insert to schedule list
+    // optimistic row (schedule list)
     const tempId = makeTempId();
     const optimisticRow: ScheduleSessionRow = {
       id: tempId,
@@ -511,42 +509,36 @@ export default function CreateSessionPage() {
       status,
       __optimistic: true,
     };
-
     addOptimisticSession(clubId, optimisticRow);
+
+    // inside onSubmit(), replace the DB write section with this atomic RPC:
 
     setSubmitting(true);
     try {
-      const { data, error: insertErr } = await supabase
-        .from("sessions")
-        .insert([
-          {
-            club_id: clubId,
-            title: cleanTitle,
-            starts_at,
-            duration_minutes: durationMinutes,
-            status,
-          },
-        ])
-        .select("id, club_id, title, starts_at, duration_minutes, status")
-        .single();
+      const { data: session, error: rpcErr } = await supabase.rpc(
+        "create_session_with_lead_teacher",
+        {
+          p_club_id: clubId,
+          p_title: cleanTitle,
+          p_starts_at: starts_at,
+          p_duration_minutes: durationMinutes,
+          p_status: status,
+          p_location_id: opsDraft.locationId || null,
+          p_teacher_id: opsDraft.teacherId || null,
+        }
+      );
 
-      if (insertErr || !data) {
+      if (rpcErr || !session) {
         revertOptimisticSession(clubId, tempId);
-        setError(insertErr?.message ?? "Insert failed.");
+        setError(rpcErr?.message ?? "Create session failed.");
         return;
       }
 
-      confirmOptimisticSession(clubId, tempId, { ...(data as any), __optimistic: false });
+      confirmOptimisticSession(clubId, tempId, { ...(session as any), __optimistic: false });
       setTimedNotice("Session created successfully.");
 
-      // Keep your plan draft (instructor/location/mode/tracks) as local “plan”
-      // so it matches your diagram even before DB schema grows.
-      // (This is intentional enterprise UX.)
-      setPlanDraft((p) => ({ ...p }));
-
       if (createAnother) {
-        resetFormKeepDateAdvanceTime();
-        setSubmitting(false);
+        resetKeepDateAdvanceTime();
         return;
       }
 
@@ -555,44 +547,25 @@ export default function CreateSessionPage() {
     } finally {
       setSubmitting(false);
     }
-  }
 
-  // Tracks for differentiated mode
-  function setMode(mode: DeliveryMode) {
-    setPlanDraft((p) => {
-      if (mode === "broadcast") {
-        return {
-          ...p,
-          mode,
-          tracks: [{ id: "t1", name: "All learners", activity: p.tracks?.[0]?.activity ?? "Robotics activity", notes: "" }],
-        };
-      }
-      // differentiated
-      const existing = p.tracks?.length ? p.tracks : [];
-      const base = existing.length > 1 ? existing : [
-        { id: "t1", name: "Beginner", activity: "Build core robot", notes: "" },
-        { id: "t2", name: "Intermediate", activity: "Sensor integration + test", notes: "" },
-        { id: "t3", name: "Advanced", activity: "Autonomy challenge extension", notes: "" },
-      ];
-      return { ...p, mode, tracks: base };
-    });
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="rounded-[26px] border border-slate-200/80 bg-white/70 shadow-[0_22px_72px_-60px_rgba(2,6,23,0.55)] backdrop-blur overflow-hidden">
+      <div className="mb-6 rounded-[26px] border border-slate-200/80 bg-white/70 shadow-[0_22px_72px_-60px_rgba(2,6,23,0.55)] backdrop-blur overflow-hidden">
         <div className="border-b border-slate-200/70 bg-[radial-gradient(900px_240px_at_10%_0%,rgba(99,102,241,0.12),transparent_60%),radial-gradient(800px_220px_at_90%_0%,rgba(34,211,238,0.10),transparent_55%)] px-5 py-4 sm:px-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-slate-900">Create Session (Enterprise Wizard)</div>
+              <div className="text-sm font-semibold text-slate-900">Create a session</div>
               <div className="mt-0.5 text-xs text-slate-600">
-                Matches your diagram: Instructor • Time • Location • Activities (Broadcast / Differentiated)
+                Local scheduling → stored safely as UTC. Instructor = Teacher (profiles) • Location = club_locations.
               </div>
+
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Chip tone="indigo">Optimistic UI</Chip>
                 <Chip tone="amber">Conflict detection (UI-only)</Chip>
-                <Chip>Draft saved locally</Chip>
+                {loadingLookups ? <Chip>Loading lookups…</Chip> : <Chip tone="emerald">Lookups ready</Chip>}
               </div>
             </div>
 
@@ -621,7 +594,7 @@ export default function CreateSessionPage() {
               <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4 text-sm text-amber-950">
                 <div className="font-semibold">Potential conflict detected</div>
                 <div className="mt-1 text-xs text-amber-950/80">
-                  This time overlaps with {conflicts.length} scheduled session(s). (UI-only warning — still allows create.)
+                  This time overlaps with {conflicts.length} scheduled session(s). (Warning only — still allows create.)
                 </div>
               </div>
             ) : null}
@@ -635,28 +608,15 @@ export default function CreateSessionPage() {
         )}
       </div>
 
-      {/* Grid */}
+      {/* Content grid */}
       <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left column */}
+        {/* Left: ONE form */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Stepper */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <button type="button" onClick={() => setStep(1)} className="text-left">
-              <WizardStep idx={1} active={step === 1} title="Schedule" hint="Timestamp + duration + status + conflicts" />
-            </button>
-            <button type="button" onClick={() => setStep(2)} className="text-left">
-              <WizardStep idx={2} active={step === 2} title="Instructor & Location" hint="Delivery ops context (draft)" />
-            </button>
-            <button type="button" onClick={() => setStep(3)} className="text-left">
-              <WizardStep idx={3} active={step === 3} title="Activities Plan" hint="Broadcast vs Differentiated tracks" />
-            </button>
-          </div>
-
-          {/* Form card */}
           <div className="rounded-[26px] border border-slate-200/80 bg-white/70 shadow-[0_22px_72px_-60px_rgba(2,6,23,0.55)] backdrop-blur overflow-hidden">
             <div className="border-b border-slate-200/70 px-5 py-4 sm:px-6">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm font-semibold text-slate-900">Create a session</div>
+
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-800">
                     <input
@@ -691,346 +651,182 @@ export default function CreateSessionPage() {
             </div>
 
             <form onSubmit={onSubmit} className="px-5 py-5 sm:px-6 space-y-4">
-              {/* STEP 1: schedule */}
-              {step === 1 ? (
-                <>
-                  <InputShell>
-                    <SectionTitle label="SCHEDULING" />
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <div className="sm:col-span-2">
-                        <FieldLabel>Session title</FieldLabel>
-                        <input
-                          value={title}
-                          onChange={(e) => setTitle(e.target.value)}
-                          placeholder="e.g., Robotics Build: Line-Following Challenge"
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                        <div className="mt-2 text-xs text-slate-600">
-                          Tip: outcome-driven titles improve reporting + evidence traceability (enterprise clean).
-                        </div>
-                      </div>
-
-                      <div>
-                        <FieldLabel>Date (local)</FieldLabel>
-                        <input
-                          type="date"
-                          value={dateISO}
-                          onChange={(e) => setDateISO(e.target.value)}
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                      </div>
-
-                      <div>
-                        <FieldLabel>Time (local)</FieldLabel>
-                        <input
-                          type="time"
-                          value={timeHHMM}
-                          onChange={(e) => setTimeHHMM(e.target.value)}
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                      </div>
-
-                      <div>
-                        <FieldLabel>Duration (minutes)</FieldLabel>
-                        <input
-                          type="number"
-                          min={15}
-                          step={5}
-                          value={durationMinutes}
-                          onChange={(e) => setDurationMinutes(Math.max(15, Number(e.target.value) || 0))}
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                      </div>
-
-                      <div>
-                        <FieldLabel>Status</FieldLabel>
-                        <select
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value as SessionStatus)}
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                        >
-                          <option value="planned">Planned</option>
-                          <option value="open">Open</option>
-                          <option value="closed">Closed</option>
-                        </select>
-                      </div>
+              <InputShell>
+                <SectionTitle label="SCHEDULING" />
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <FieldLabel>Session title</FieldLabel>
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="e.g., Robotics Build: Line-Following Challenge"
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                    <div className="mt-2 text-xs text-slate-600">
+                      Tip: outcome-driven titles improve reporting + evidence traceability (enterprise clean).
                     </div>
-
-                    <div className="mt-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs font-semibold tracking-widest text-slate-500">INSERT PREVIEW</div>
-                        <Chip>
-                          starts_at (UTC ISO): <span className="font-mono text-slate-900">{preview.startsAtIso || "—"}</span>
-                        </Chip>
-                      </div>
-                      <div className="mt-2 text-xs text-slate-600">
-                        Stored as UTC ISO; UI displays local time automatically. This keeps analytics consistent across devices/timezones.
-                      </div>
-                    </div>
-                  </InputShell>
-
-                  <div className="flex items-center justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      className="rounded-xl border border-indigo-200/80 bg-indigo-50/70 px-4 py-2 text-sm font-semibold text-indigo-950 hover:bg-indigo-50 transition"
-                    >
-                      Next: Instructor & Location →
-                    </button>
-                  </div>
-                </>
-              ) : null}
-
-              {/* STEP 2: instructor & location */}
-              {step === 2 ? (
-                <>
-                  <InputShell>
-                    <SectionTitle label="DELIVERY OPS (DRAFT)" />
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <FieldLabel>Instructor</FieldLabel>
-                        <input
-                          value={planDraft.instructor}
-                          onChange={(e) => setPlanDraft((p) => ({ ...p, instructor: e.target.value }))}
-                          placeholder="e.g., Kelvin / Coach A / Mentor B"
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                        <div className="mt-2 text-xs text-slate-600">
-                          Saved as draft (local) for now — ready for DB mapping later.
-                        </div>
-                      </div>
-
-                      <div>
-                        <FieldLabel>Location</FieldLabel>
-                        <input
-                          value={planDraft.location}
-                          onChange={(e) => setPlanDraft((p) => ({ ...p, location: e.target.value }))}
-                          placeholder="e.g., Lab 2 / Hall A / Room 104"
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                        <div className="mt-2 text-xs text-slate-600">
-                          Keeps instructor context operational for real clubs.
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/60 p-4 text-xs text-slate-600">
-                      Enterprise note: In production, these map cleanly to <span className="font-mono">sessions.instructor_id</span> and{" "}
-                      <span className="font-mono">sessions.location_id</span> (or strings). We’re keeping it schema-safe for now.
-                    </div>
-                  </InputShell>
-
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setStep(1)}
-                      className="rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white transition"
-                    >
-                      ← Back
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setStep(3)}
-                      className="rounded-xl border border-indigo-200/80 bg-indigo-50/70 px-4 py-2 text-sm font-semibold text-indigo-950 hover:bg-indigo-50 transition"
-                    >
-                      Next: Activities Plan →
-                    </button>
-                  </div>
-                </>
-              ) : null}
-
-              {/* STEP 3: activities plan */}
-              {step === 3 ? (
-                <>
-                  <InputShell>
-                    <SectionTitle label="ACTIVITIES (MATCHES YOUR DIAGRAM)" />
-
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <ModeCard
-                        active={planDraft.mode === "broadcast"}
-                        title="Broadcast plan (After-school)"
-                        desc="One activity plan for all learners. Cleaner ops + easier reporting."
-                        onClick={() => setMode("broadcast")}
-                      />
-                      <ModeCard
-                        active={planDraft.mode === "differentiated"}
-                        title="Differentiated plan (Robotics club)"
-                        desc="Multiple tracks in one session (Beginner/Intermediate/Advanced or per grade)."
-                        onClick={() => setMode("differentiated")}
-                      />
-                    </div>
-
-                    <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-xs font-semibold tracking-widest text-slate-500">SESSION ACTIVITIES</div>
-                        <Chip tone="amber">Plan is draft (local) for now</Chip>
-                      </div>
-
-                      <div className="mt-3 space-y-3">
-                        {planDraft.tracks.map((t: any, idx: number) => (
-                          <div key={t.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="text-sm font-semibold text-slate-900">
-                                Track {idx + 1}:{" "}
-                                <input
-                                  value={t.name}
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setPlanDraft((p: any) => ({
-                                      ...p,
-                                      tracks: p.tracks.map((x: any) => (x.id === t.id ? { ...x, name: v } : x)),
-                                    }));
-                                  }}
-                                  className="ml-2 rounded-lg border border-slate-200 bg-white/80 px-2 py-1 text-sm text-slate-900 outline-none"
-                                />
-                              </div>
-
-                              {planDraft.mode === "differentiated" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPlanDraft((p: any) => ({
-                                      ...p,
-                                      tracks: p.tracks.filter((x: any) => x.id !== t.id),
-                                    }));
-                                  }}
-                                  className="rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-white transition"
-                                >
-                                  Remove
-                                </button>
-                              ) : null}
-                            </div>
-
-                            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                              <div className="sm:col-span-2">
-                                <FieldLabel>Activity</FieldLabel>
-                                <input
-                                  value={t.activity}
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setPlanDraft((p: any) => ({
-                                      ...p,
-                                      tracks: p.tracks.map((x: any) => (x.id === t.id ? { ...x, activity: v } : x)),
-                                    }));
-                                  }}
-                                  placeholder="e.g., Build line-following bot / Sensor integration / Coding extension"
-                                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                                />
-                              </div>
-
-                              <div className="sm:col-span-2">
-                                <FieldLabel>Notes (optional)</FieldLabel>
-                                <textarea
-                                  value={t.notes}
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setPlanDraft((p: any) => ({
-                                      ...p,
-                                      tracks: p.tracks.map((x: any) => (x.id === t.id ? { ...x, notes: v } : x)),
-                                    }));
-                                  }}
-                                  placeholder="Materials, constraints, what success looks like…"
-                                  className="mt-1 min-h-[80px] w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {planDraft.mode === "differentiated" ? (
-                        <div className="mt-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPlanDraft((p: any) => ({
-                                ...p,
-                                tracks: [
-                                  ...p.tracks,
-                                  { id: `t_${Date.now()}`, name: `Track ${p.tracks.length + 1}`, activity: "Robotics task", notes: "" },
-                                ],
-                              }));
-                            }}
-                            className="rounded-xl border border-indigo-200/80 bg-indigo-50/70 px-4 py-2 text-sm font-semibold text-indigo-950 hover:bg-indigo-50 transition"
-                          >
-                            + Add track
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  </InputShell>
-
-                  <ChecklistPreview items={suggestedChecklist} />
-
-                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 text-xs text-slate-700">
-                    Status defaults to <span className="font-semibold">PLANNED</span>. Mark <span className="font-semibold">OPEN</span> during delivery for best live analytics.
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      className="rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white transition"
-                    >
-                      ← Back
-                    </button>
+                  <div>
+                    <FieldLabel>Date (local)</FieldLabel>
+                    <input
+                      type="date"
+                      value={dateISO}
+                      onChange={(e) => setDateISO(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                  </div>
 
-                    <button
-                      type="submit"
-                      disabled={submitting}
+                  <div>
+                    <FieldLabel>Time (local)</FieldLabel>
+                    <input
+                      type="time"
+                      value={timeHHMM}
+                      onChange={(e) => setTimeHHMM(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel>Duration (minutes)</FieldLabel>
+                    <input
+                      type="number"
+                      min={15}
+                      step={5}
+                      value={durationMinutes}
+                      onChange={(e) => setDurationMinutes(Math.max(15, Number(e.target.value) || 0))}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel>Status</FieldLabel>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as SessionStatus)}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
+                    >
+                      <option value="planned">Planned</option>
+                      <option value="open">Open</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs font-semibold tracking-widest text-slate-500">INSERT PREVIEW</div>
+                    <Chip>
+                      starts_at (UTC ISO):{" "}
+                      <span className="font-mono text-slate-900">{preview.startsAtIso || "—"}</span>
+                    </Chip>
+                  </div>
+                  <div className="mt-2 text-xs text-slate-600">
+                    Stored as UTC ISO; UI displays local time automatically.
+                  </div>
+                </div>
+              </InputShell>
+
+              <InputShell>
+                <SectionTitle label="DELIVERY OPS" />
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <FieldLabel>Teacher (Lead)</FieldLabel>
+                    <select
+                      value={opsDraft.teacherId}
+                      onChange={(e) => setOpsDraft((p) => ({ ...p, teacherId: e.target.value }))}
+                      disabled={loadingLookups}
                       className={cx(
-                        "rounded-xl border px-4 py-2 text-sm font-semibold transition",
-                        submitting
-                          ? "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
-                          : "border-slate-900/10 bg-slate-900 text-white hover:bg-slate-800"
+                        "mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200",
+                        loadingLookups ? "opacity-70" : ""
                       )}
                     >
-                      {submitting ? "Creating…" : "Create session"}
-                    </button>
+                      <option value="">
+                        {loadingLookups ? "Loading teachers…" : "None (assign later)"}
+                      </option>
+                      {teachers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.full_name || "Unnamed teacher"}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="mt-2 text-xs text-slate-600">
+                      Stored via <span className="font-mono">session_teachers</span> (lead).
+                    </div>
                   </div>
-                </>
-              ) : null}
+
+                  <div>
+                    <FieldLabel>Location</FieldLabel>
+                    <select
+                      value={opsDraft.locationId}
+                      onChange={(e) => setOpsDraft((p) => ({ ...p, locationId: e.target.value }))}
+                      disabled={loadingLookups}
+                      className={cx(
+                        "mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200",
+                        loadingLookups ? "opacity-70" : ""
+                      )}
+                    >
+                      <option value="">
+                        {loadingLookups ? "Loading locations…" : "None (set later)"}
+                      </option>
+                      {locations.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="mt-2 text-xs text-slate-600">
+                      Stored on <span className="font-mono">sessions.location_id</span>.
+                    </div>
+                  </div>
+                </div>
+
+                {(!teachers.length || !locations.length) && !loadingLookups ? (
+                  <div className="mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4 text-xs text-amber-950">
+                    <div className="font-semibold">Setup note</div>
+                    <div className="mt-1">
+                      {teachers.length ? null : "No teachers found (profiles.role=teacher for this club). "}
+                      {locations.length ? null : "No locations found (club_locations for this club)."}
+                    </div>
+                  </div>
+                ) : null}
+              </InputShell>
+
+              <ChecklistPreview items={suggestedChecklist} />
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={resetKeepDateAdvanceTime}
+                  className="rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white transition"
+                >
+                  Reset (keep date)
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={cx(
+                    "rounded-xl border px-4 py-2 text-sm font-semibold transition",
+                    submitting
+                      ? "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
+                      : "border-slate-900/10 bg-slate-900 text-white hover:bg-slate-800"
+                  )}
+                >
+                  {submitting ? "Creating…" : "Create session"}
+                </button>
+              </div>
             </form>
           </div>
         </div>
 
-        {/* Right column */}
+        {/* Right: templates */}
         <div className="lg:col-span-4 space-y-6">
           <TemplatePanel
             appliedId={appliedTemplateId}
             onApply={applyTemplate}
             onChain={applyNextTemplate}
           />
-
-          <div className="rounded-[26px] border border-slate-200/80 bg-white/70 shadow-[0_22px_72px_-60px_rgba(2,6,23,0.55)] backdrop-blur overflow-hidden">
-            <div className="border-b border-slate-200/70 px-5 py-4">
-              <div className="text-sm font-semibold text-slate-900">Ops Quality checklist</div>
-              <div className="mt-0.5 text-xs text-slate-600">Signals that make live analytics & AI stronger</div>
-            </div>
-            <div className="p-5 space-y-3 text-sm">
-              {[
-                { title: "Session scheduled", desc: "Enables planning + reporting baseline" },
-                { title: "Mark OPEN during delivery", desc: "Improves live dashboard signal quality" },
-                { title: "Participants recorded", desc: "Attendance accuracy + analytics reliability" },
-                { title: "Checklist outcomes attached", desc: "Execution tracking + measurable learning" },
-                { title: "Evidence captured early", desc: "Proof logs + more stable AI insight" },
-              ].map((x) => (
-                <div key={x.title} className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="font-semibold text-slate-900">{x.title}</div>
-                    <Chip tone="indigo">Recommended</Chip>
-                  </div>
-                  <div className="mt-1 text-xs text-slate-600">{x.desc}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-4 text-xs text-slate-600">
-            <span className="font-semibold text-slate-700">Enterprise note:</span> This Create page now matches your diagram. Next evolution (when you’re ready) is to persist the plan draft into
-            a <span className="font-mono">session_plan</span> table (tracks, instructor, location, checklist).
-          </div>
         </div>
       </div>
     </div>
