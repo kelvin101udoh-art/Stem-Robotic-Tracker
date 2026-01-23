@@ -92,12 +92,12 @@ function Chip({ children, tone = "neutral" }: { children: React.ReactNode; tone?
     tone === "indigo"
       ? "border-indigo-200/80 bg-indigo-50/70 text-indigo-950"
       : tone === "emerald"
-      ? "border-emerald-200/80 bg-emerald-50/70 text-emerald-950"
-      : tone === "amber"
-      ? "border-amber-200/80 bg-amber-50/70 text-amber-950"
-      : tone === "rose"
-      ? "border-rose-200/80 bg-rose-50/70 text-rose-950"
-      : "border-slate-200/80 bg-white/70 text-slate-700";
+        ? "border-emerald-200/80 bg-emerald-50/70 text-emerald-950"
+        : tone === "amber"
+          ? "border-amber-200/80 bg-amber-50/70 text-amber-950"
+          : tone === "rose"
+            ? "border-rose-200/80 bg-rose-50/70 text-rose-950"
+            : "border-slate-200/80 bg-white/70 text-slate-700";
   return <span className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", cls)}>{children}</span>;
 }
 
@@ -416,19 +416,32 @@ export default function CreateSessionPage() {
     });
   }, [next7Days, preview.startsAtIso, durationMinutes]);
 
+
+
+
   function applyTemplate(t: TemplateDef) {
     setTitle(t.title);
     setDurationMinutes(t.durationMinutes);
     setSuggestedChecklist(t.checklist);
     setAppliedTemplateId(t.id);
 
-    // help the user by nudging delivery mode
-    if (t.modeHint) {
-      setPlanDraft((p) => ({ ...p, mode: t.modeHint }));
+    // 1. Extract the hint to a local constant
+    const newMode = t.modeHint;
+
+    // 2. Check the local constant
+    if (newMode) {
+      // TypeScript now knows newMode is exactly 'DeliveryMode' (not undefined)
+      setPlanDraft((p) => ({
+        ...p,
+        mode: newMode
+      }));
     }
 
     setTimedNotice(`Applied template: ${t.name}`);
   }
+
+
+
 
   function applyNextTemplate() {
     const curr = findTemplate(appliedTemplateId);

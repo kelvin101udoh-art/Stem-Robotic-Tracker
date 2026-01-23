@@ -168,6 +168,8 @@ export function useUpcomingSchedule(clubId: string) {
     })();
   }, [clubId, supabase, checking]);
 
+  // ... inside useUpcomingSchedule hook
+
   const computed = useMemo(() => {
     // next 7 days only (client guard)
     const now = Date.now();
@@ -178,11 +180,19 @@ export function useUpcomingSchedule(clubId: string) {
     const filtered = rows.filter((r) => {
       if (!r.starts_at) return false;
       const t = new Date(r.starts_at).getTime();
+      // Logic: From 24 hours ago until 7 days from now
       return t >= now - 1000 * 60 * 60 * 24 && t <= endTs + 1000 * 60 * 60 * 24;
     });
 
-    return { rows: filtered };
+    return { next7Days: filtered }; // Rename key from 'rows' to 'next7Days'
   }, [rows]);
 
-  return { rows: computed.rows, booting, refreshing, refetch: () => fetchNext7Days(clubId, supabase) };
+  return {
+    rows, // Original unfiltered rows from state
+    next7Days: computed.next7Days, // The filtered 7-day view
+    booting,
+    refreshing,
+    refetch: () => fetchNext7Days(clubId, supabase)
+  };
+
 }
