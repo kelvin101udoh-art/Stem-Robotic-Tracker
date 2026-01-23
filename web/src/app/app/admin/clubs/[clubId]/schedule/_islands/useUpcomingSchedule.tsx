@@ -14,6 +14,9 @@ export type ScheduleSessionRow = {
   starts_at: string | null;
   duration_minutes: number | null;
   status?: SessionStatus | null;
+  activities_total?: number | null;
+  evidence_items?: number | null;
+  participants?: number | null;
 
   // client-only flags
   __optimistic?: boolean;
