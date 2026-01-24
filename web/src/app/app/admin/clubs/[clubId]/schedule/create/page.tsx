@@ -709,7 +709,7 @@ export default function CreateSessionPage() {
                     >
                       <option value="planned">Planned</option>
                       <option value="open">Open</option>
-                      <option value="closed">Closed</option>
+                      
                     </select>
                   </div>
                 </div>
