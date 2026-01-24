@@ -1,5 +1,4 @@
 // web/src/app/app/admin/clubs/[clubId]/schedule/_islands/UpcomingSchedule.tsx
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -58,8 +57,10 @@ function fmtTime(iso?: string | null) {
 
 function statusChip(status?: string | null) {
   const k = status ?? "planned";
-  if (k === "open") return "border-emerald-200/80 bg-emerald-50/70 text-emerald-950";
-  if (k === "closed") return "border-slate-200/80 bg-slate-50/70 text-slate-800";
+  if (k === "open")
+    return "border-emerald-200/80 bg-emerald-50/70 text-emerald-950";
+  if (k === "closed")
+    return "border-slate-200/80 bg-slate-50/70 text-slate-800";
   return "border-indigo-200/80 bg-indigo-50/70 text-indigo-950";
 }
 
@@ -193,26 +194,32 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // (Step 2) action states
+  // action states
   const [actionErr, setActionErr] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
-  // (Step 2 - optional) auto-clear error
+  // auto-clear errors
   useEffect(() => {
     if (!actionErr) return;
     const t = window.setTimeout(() => setActionErr(null), 4000);
     return () => window.clearTimeout(t);
   }, [actionErr]);
 
-  // (Step 2) atomic backend status update + optimistic UI
+  // atomic backend status update + optimistic UI
   async function setStatusAtomic(sessionId: string, nextStatus: SessionStatus) {
     if (checking) {
       setActionErr("Auth/session still checking. Try again in a moment.");
       return;
     }
 
-    const prev: SessionStatus = (rows.find((r) => r.id === sessionId)?.status ??
-      "planned") as SessionStatus;
+    if (!supabase) {
+      setActionErr("Supabase client not ready yet. Refresh and try again.");
+      return;
+    }
+
+    const prev: SessionStatus =
+      ((rows.find((r) => r.id === sessionId)?.status ?? "planned") as SessionStatus) ??
+      "planned";
 
     setActionErr(null);
     setActionBusyId(sessionId);
@@ -233,8 +240,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         return;
       }
 
-      // Optional: refetch for server-truth
-      // await refetch();
+      // Success: keep optimistic state (or refetch later if you want server-truth)
     } catch (e: any) {
       rollbackSessionStatus(clubId, sessionId, prev);
       setActionErr(e?.message ?? "Failed to update status.");
@@ -302,7 +308,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
             </div>
             <div className="mt-0.5 text-xs text-slate-600">
               Next 7 days • Grouped by day • Week separators • Inline ops actions
-              (backend-wired for status)
+              (status is backend-wired)
             </div>
           </div>
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-slate-700">
@@ -312,7 +318,6 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
       </div>
 
       <div className="p-5 sm:p-7 space-y-4">
-        {/* (Step 3) show backend errors */}
         {actionErr ? (
           <div className="rounded-2xl border border-rose-200/80 bg-rose-50/70 p-4 text-sm text-rose-950">
             {actionErr}
@@ -442,7 +447,6 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
                                 </div>
                               </div>
 
-                              {/* Inline actions */}
                               <div className="flex flex-wrap items-center gap-2">
                                 <button
                                   onClick={() => setStatusAtomic(s.id, "open")}
