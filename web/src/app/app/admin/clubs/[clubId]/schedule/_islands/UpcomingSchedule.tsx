@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import Link from "next/link";
 
 import { useAdminGuard } from "@/lib/admin/admin-guard";
 import {
@@ -12,7 +11,7 @@ import {
   SessionStatus,
 } from "./useUpcomingSchedule";
 
-type DrawerMode = "open" | "edit" | "cancel" | null;
+type DrawerMode = "edit" | "cancel" | null;
 
 function cx(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
@@ -186,22 +185,43 @@ function Drawer(props: {
   );
 }
 
-// Helpers for datetime-local
+// datetime-local helpers
 function isoToLocalInputValue(iso?: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
-  // local datetime-local format: YYYY-MM-DDTHH:MM
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
     d.getHours()
   )}:${pad(d.getMinutes())}`;
 }
 
 function localInputValueToIso(v: string) {
-  // v like "2026-01-24T10:30" -> Date treats as local
-  const d = new Date(v);
+  const d = new Date(v); // treats input as local
   if (!Number.isFinite(d.getTime())) throw new Error("Invalid date/time");
   return d.toISOString();
+}
+
+function computeAutoBadges(s: {
+  starts_at?: string | null;
+  duration_minutes?: number | null;
+  status?: string | null;
+}) {
+  const status = (s.status ?? "planned") as SessionStatus;
+  const startsAt = s.starts_at ? new Date(s.starts_at).getTime() : null;
+  const dur = Number(s.duration_minutes ?? 60);
+  const now = Date.now();
+
+  if (!startsAt) return { badge: null as null | "AUTO-OPEN" | "AUTO-CLOSE" };
+
+  const endsAt = startsAt + Math.max(0, dur) * 60000;
+
+  // If planned but already past start time -> should be auto-opened by backend job
+  if (status === "planned" && now >= startsAt) return { badge: "AUTO-OPEN" as const };
+
+  // If open but already past end time -> should be auto-closed by backend job
+  if (status === "open" && now >= endsAt) return { badge: "AUTO-CLOSE" as const };
+
+  return { badge: null };
 }
 
 export default function UpcomingSchedule({ clubId }: { clubId: string }) {
@@ -218,7 +238,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
   // Edit form states (backend-wired)
   const [editTitle, setEditTitle] = useState("");
   const [editDuration, setEditDuration] = useState<number>(60);
-  const [editStartsLocal, setEditStartsLocal] = useState<string>(""); // datetime-local string
+  const [editStartsLocal, setEditStartsLocal] = useState<string>("");
   const [editSaving, setEditSaving] = useState(false);
 
   const selectedSession = useMemo(() => {
@@ -237,7 +257,6 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
     setSelectedId(id);
     setDrawerMode(mode);
 
-    // preload edit fields
     if (mode === "edit") {
       const s = rows.find((r) => r.id === id);
       setEditTitle(s?.title ?? "");
@@ -246,7 +265,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
     }
   }
 
-  // atomic backend status update + optimistic UI
+  // Status update via your RPC (used only for Cancel now)
   async function setStatusAtomic(sessionId: string, nextStatus: SessionStatus) {
     if (checking) {
       setActionErr("Auth/session still checking. Try again in a moment.");
@@ -280,7 +299,6 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         return;
       }
 
-      // server-truth refresh
       await refetch?.();
     } catch (e: any) {
       rollbackSessionStatus(clubId, sessionId, prev);
@@ -399,7 +417,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
               Upcoming Schedule
             </div>
             <div className="mt-0.5 text-xs text-slate-600">
-              Next 7 days • Grouped by day • Week separators • Open/Cancel are backend-wired • Edit writes to sessions table
+              Enterprise-grade automation: sessions are planned → auto-open at start time → auto-close at end time (backend scheduler). UI has no manual Open.
             </div>
           </div>
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-slate-700">
@@ -437,9 +455,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
               const list = grouped.get(key) ?? [];
               const dayLabel = labelTodayTomorrow(day);
               const weekSep =
-                idx > 0 &&
-                day.getDay() === 1 &&
-                !isSameDay(rangeDays[idx - 1], day);
+                idx > 0 && day.getDay() === 1 && !isSameDay(rangeDays[idx - 1], day);
 
               const quality = opsQualityForDay(list);
 
@@ -477,8 +493,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
                         {quality.label}
                       </span>
                       <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                        Sessions:{" "}
-                        <span className="text-slate-900">{list.length}</span>
+                        Sessions: <span className="text-slate-900">{list.length}</span>
                       </span>
                     </div>
                   </div>
@@ -486,98 +501,101 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
                   <div className="rounded-2xl border border-slate-200/80 bg-white/60 overflow-hidden">
                     {list.length ? (
                       <div className="divide-y divide-slate-200/70">
-                        {list.map((s) => (
-                          <div key={s.id} className="px-4 py-3 sm:px-5">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span
-                                    className={cx(
-                                      "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                                      statusChip(s.status)
-                                    )}
-                                  >
-                                    {(s.status ?? "planned").toUpperCase()}
-                                  </span>
+                        {list.map((s) => {
+                          const { badge } = computeAutoBadges(s);
 
-                                  {s.__optimistic ? (
-                                    <span className="rounded-full border border-amber-200/80 bg-amber-50/70 px-2.5 py-1 text-[11px] font-semibold text-amber-950">
-                                      PENDING
+                          return (
+                            <div key={s.id} className="px-4 py-3 sm:px-5">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span
+                                      className={cx(
+                                        "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                                        statusChip(s.status)
+                                      )}
+                                    >
+                                      {(s.status ?? "planned").toUpperCase()}
                                     </span>
-                                  ) : null}
 
-                                  <div className="truncate text-sm font-semibold text-slate-900">
-                                    {s.title || "Untitled session"}
+                                    {badge ? (
+                                      <span
+                                        className={cx(
+                                          "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                                          badge === "AUTO-OPEN"
+                                            ? "border-amber-200/80 bg-amber-50/70 text-amber-950"
+                                            : "border-rose-200/80 bg-rose-50/70 text-rose-950"
+                                        )}
+                                      >
+                                        {badge}
+                                      </span>
+                                    ) : null}
+
+                                    {s.__optimistic ? (
+                                      <span className="rounded-full border border-amber-200/80 bg-amber-50/70 px-2.5 py-1 text-[11px] font-semibold text-amber-950">
+                                        PENDING
+                                      </span>
+                                    ) : null}
+
+                                    <div className="truncate text-sm font-semibold text-slate-900">
+                                      {s.title || "Untitled session"}
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-1 text-xs text-slate-600">
+                                    {fmtTime(s.starts_at)} • {s.duration_minutes ?? 60}m
+                                  </div>
+
+                                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                                    <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
+                                      Participants:{" "}
+                                      <span className="text-slate-900">
+                                        {s.participants ?? 0}
+                                      </span>
+                                    </span>
+                                    <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
+                                      Evidence:{" "}
+                                      <span className="text-slate-900">
+                                        {s.evidence_items ?? 0}
+                                      </span>
+                                    </span>
+                                    <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
+                                      Checklist:{" "}
+                                      <span className="text-slate-900">
+                                        {s.activities_total ?? 0}
+                                      </span>
+                                    </span>
                                   </div>
                                 </div>
 
-                                <div className="mt-1 text-xs text-slate-600">
-                                  {fmtTime(s.starts_at)} •{" "}
-                                  {s.duration_minutes ?? 60}m
+                                {/* Actions: Edit + Cancel only */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <button
+                                    onClick={() => openDrawer("edit", s.id)}
+                                    className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-white transition"
+                                    type="button"
+                                  >
+                                    Edit
+                                  </button>
+
+                                  <button
+                                    onClick={() => openDrawer("cancel", s.id)}
+                                    className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-2 text-xs font-semibold text-rose-950 hover:bg-rose-50 transition"
+                                    type="button"
+                                  >
+                                    Cancel
+                                  </button>
                                 </div>
-
-                                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                                  <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
-                                    Participants:{" "}
-                                    <span className="text-slate-900">
-                                      {s.participants ?? 0}
-                                    </span>
-                                  </span>
-                                  <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
-                                    Evidence:{" "}
-                                    <span className="text-slate-900">
-                                      {s.evidence_items ?? 0}
-                                    </span>
-                                  </span>
-                                  <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
-                                    Checklist:{" "}
-                                    <span className="text-slate-900">
-                                      {s.activities_total ?? 0}
-                                    </span>
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2">
-                                <button
-                                  onClick={() => setStatusAtomic(s.id, "open")}
-                                  disabled={actionBusyId === s.id}
-                                  className={cx(
-                                    "rounded-xl border px-3 py-2 text-xs font-semibold transition",
-                                    actionBusyId === s.id
-                                      ? "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
-                                      : "border-emerald-200/80 bg-emerald-50/70 text-emerald-950 hover:bg-emerald-50"
-                                  )}
-                                  type="button"
-                                >
-                                  {actionBusyId === s.id ? "Opening…" : "Open"}
-                                </button>
-
-                                <button
-                                  onClick={() => openDrawer("edit", s.id)}
-                                  className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-white transition"
-                                  type="button"
-                                >
-                                  Edit
-                                </button>
-
-                                <button
-                                  onClick={() => openDrawer("cancel", s.id)}
-                                  className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-2 text-xs font-semibold text-rose-950 hover:bg-rose-50 transition"
-                                  type="button"
-                                >
-                                  Cancel
-                                </button>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="px-5 py-4 text-sm text-slate-700">
                         No sessions planned for this day.
                         <div className="mt-1 text-xs text-slate-600">
-                          Use “New session” to add one (optimistic rows appear instantly).
+                          Use “New session” to add one.
                         </div>
                       </div>
                     )}
@@ -589,7 +607,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         )}
       </div>
 
-      {/* Drawer: Edit (NOW WRITES TO BACKEND) */}
+      {/* Drawer: Edit (backend write) */}
       <Drawer
         open={drawerMode === "edit"}
         title="Edit session"
@@ -634,7 +652,9 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
                   min={15}
                   step={5}
                   value={editDuration}
-                  onChange={(e) => setEditDuration(Math.max(15, Number(e.target.value) || 0))}
+                  onChange={(e) =>
+                    setEditDuration(Math.max(15, Number(e.target.value) || 0))
+                  }
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
@@ -667,7 +687,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         </div>
       </Drawer>
 
-      {/* Drawer: Cancel (NOW WRITES TO BACKEND via status=closed) */}
+      {/* Drawer: Cancel (backend write: status -> closed) */}
       <Drawer
         open={drawerMode === "cancel"}
         title="Cancel session"
@@ -676,8 +696,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         <div className="rounded-2xl border border-rose-200/80 bg-rose-50/70 p-4 text-sm text-rose-950">
           This will mark the session as <span className="font-semibold">CLOSED</span>.
           <div className="mt-3 text-xs text-rose-900/80">
-            Selected session:{" "}
-            <span className="font-mono">{selectedId ?? "—"}</span>
+            Selected session: <span className="font-mono">{selectedId ?? "—"}</span>
           </div>
         </div>
 
