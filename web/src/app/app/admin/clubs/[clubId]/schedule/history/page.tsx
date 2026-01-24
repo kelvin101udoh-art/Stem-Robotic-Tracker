@@ -42,7 +42,6 @@ function safeNum(x: any, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-type HistoryStatus = "planned" | "open" | "closed" | "any";
 type SortMode = "newest" | "oldest";
 
 type HistoryRow = {
@@ -64,26 +63,32 @@ type HistoryRow = {
   late_count?: number | null;
   absent_count?: number | null;
 
-  // for compatibility if view uses session_id instead of id
+  // compatibility if view uses session_id instead of id
   session_id?: string | null;
 };
 
 function statusChip(status?: string | null) {
   const k = status ?? "planned";
-  if (k === "open") return "border-emerald-200/80 bg-emerald-50/70 text-emerald-950";
   if (k === "closed") return "border-slate-200/80 bg-slate-50/70 text-slate-800";
+  if (k === "open") return "border-emerald-200/80 bg-emerald-50/70 text-emerald-950";
   return "border-indigo-200/80 bg-indigo-50/70 text-indigo-950";
 }
 
-function scoreCardTone(score: number) {
+function scoreTone(score: number) {
   if (score >= 0.78) return "border-emerald-200/80 bg-emerald-50/70 text-emerald-950";
   if (score >= 0.48) return "border-indigo-200/80 bg-indigo-50/70 text-indigo-950";
   return "border-rose-200/80 bg-rose-50/70 text-rose-950";
 }
 
-function computeOpsScore(r: HistoryRow) {
-  // UI-only “enterprise replay” score (no model needed)
-  // Strong signal when evidence + participants + activities exist and completion is high.
+/**
+ * For CLOSED sessions, we show a "Post-Session Quality" score:
+ * - Evidence captured
+ * - Checklist existed + completion rate
+ * - Attendance/participants signals exist
+ *
+ * (Deterministic, no AI needed.)
+ */
+function computePostSessionQuality(r: HistoryRow) {
   const p = safeNum(r.participants, 0);
   const e = safeNum(r.evidence_items, 0);
   const aT = safeNum(r.activities_total, 0);
@@ -100,32 +105,36 @@ function computeOpsScore(r: HistoryRow) {
     0,
     Math.min(
       1,
-      0.18 * hasPeople +
-        0.28 * hasEvidence +
-        0.18 * hasChecklist +
-        0.36 * completionRate
+      0.20 * hasPeople +
+        0.35 * hasEvidence +
+        0.15 * hasChecklist +
+        0.30 * completionRate
     )
   );
 
   const label =
-    score >= 0.78 ? "OPS STRONG" : score >= 0.48 ? "OPS PARTIAL" : "OPS WEAK";
+    score >= 0.78 ? "QUALITY STRONG" : score >= 0.48 ? "QUALITY PARTIAL" : "QUALITY WEAK";
 
-  const flags: string[] = [];
-  if (!hasPeople) flags.push("No attendance/participants signal");
-  if (!hasEvidence) flags.push("No evidence captured");
-  if (!hasChecklist) flags.push("No checklist activities");
-  if (hasChecklist && completionRate < 0.55) flags.push("Low completion rate");
+  const gaps: string[] = [];
+  if (!hasPeople) gaps.push("No attendance/participants signal recorded");
+  if (!hasEvidence) gaps.push("No evidence captured (photo/video/note)");
+  if (!hasChecklist) gaps.push("No checklist activities attached to session");
+  if (hasChecklist && completionRate < 0.55) gaps.push("Low checklist completion rate");
 
-  return { score, label, flags };
+  return { score, label, gaps };
 }
 
+/**
+ * Optional: If you have an AI summary record for a CLOSED session,
+ * we show it as a "Post-Session Summary Preview".
+ *
+ * IMPORTANT: If RLS blocks the table, we silently return null.
+ */
 async function tryReadAiSummaryForSession(
   supabase: any,
   clubId: string,
   sessionId: string
 ) {
-  // Best-effort AI lookup. If RLS blocks, we return null without breaking the UI.
-  // 1) attendance_ai_summaries (if you later add policies)
   try {
     const res = await supabase
       .from("attendance_ai_summaries")
@@ -138,9 +147,9 @@ async function tryReadAiSummaryForSession(
     const row = res?.data?.[0];
     if (!row) return null;
 
-    // summary is jsonb, we display compact
-    const summary = typeof row.summary === "string" ? row.summary : JSON.stringify(row.summary);
-    return { source: "attendance_ai_summaries" as const, summary };
+    const summary =
+      typeof row.summary === "string" ? row.summary : JSON.stringify(row.summary);
+    return { summary, created_at: row.created_at as string };
   } catch {
     return null;
   }
@@ -174,9 +183,8 @@ export default function ScheduleHistoryPage() {
   const { clubId } = useParams<{ clubId: string }>();
   const { supabase, checking } = useAdminGuard({ idleMinutes: 20 });
 
-  // Filters
+  // Filters (NO status filter — closed only)
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<HistoryStatus>("any");
   const [sort, setSort] = useState<SortMode>("newest");
 
   const [fromISO, setFromISO] = useState<string>(() => {
@@ -200,14 +208,13 @@ export default function ScheduleHistoryPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // AI drawer
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiSessionId, setAiSessionId] = useState<string | null>(null);
-  const [aiText, setAiText] = useState<string | null>(null);
+  // Report drawer
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportSessionId, setReportSessionId] = useState<string | null>(null);
+  const [reportText, setReportText] = useState<string | null>(null);
 
   const effectiveFrom = useMemo(() => {
-    // fromISO (yyyy-mm-dd) -> beginning of day local -> iso
     try {
       const [y, m, d] = fromISO.split("-").map(Number);
       const dt = new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
@@ -218,7 +225,6 @@ export default function ScheduleHistoryPage() {
   }, [fromISO]);
 
   const effectiveTo = useMemo(() => {
-    // inclusive end: end-of-day local
     try {
       const [y, m, d] = toISO.split("-").map(Number);
       const dt = new Date(y, (m ?? 1) - 1, d ?? 1, 23, 59, 59, 999);
@@ -234,7 +240,7 @@ export default function ScheduleHistoryPage() {
     setRows([]);
   }
 
-  // MAIN LOAD
+  // MAIN LOAD (CLOSED only)
   useEffect(() => {
     if (!clubId) return;
     if (!supabase) return;
@@ -251,30 +257,25 @@ export default function ScheduleHistoryPage() {
         const from = effectiveFrom;
         const to = effectiveTo;
 
-        // We prefer v_session_metrics (fast, aggregated).
-        // If your view isn't selectable, the catch will fallback to sessions.
+        // Prefer v_session_metrics
         const baseQuery = supabase
           .from("v_session_metrics")
           .select("*")
           .eq("club_id", clubId)
+          .eq("status", "closed")
           .lt("starts_at", nowIso);
 
         if (from) baseQuery.gte("starts_at", from);
         if (to) baseQuery.lte("starts_at", to);
-
-        if (status !== "any") baseQuery.eq("status", status);
-
         if (q.trim()) baseQuery.ilike("title", `%${q.trim()}%`);
 
         baseQuery.order("starts_at", { ascending: sort === "oldest" });
         baseQuery.range(0, PAGE - 1);
 
         const res = await baseQuery;
-
         if (res.error) throw res.error;
 
         const data = (res.data ?? []) as any[];
-
         if (cancelled) return;
 
         const normalized: HistoryRow[] = data.map((x) => {
@@ -302,7 +303,7 @@ export default function ScheduleHistoryPage() {
         setRows(normalized);
         setHasMore(normalized.length >= PAGE);
       } catch (e: any) {
-        // FALLBACK: sessions table only (still RLS-safe)
+        // FALLBACK: sessions only (closed only)
         try {
           const nowIso = new Date().toISOString();
           const from = effectiveFrom;
@@ -312,12 +313,11 @@ export default function ScheduleHistoryPage() {
             .from("sessions")
             .select("id, club_id, title, starts_at, duration_minutes, status")
             .eq("club_id", clubId)
+            .eq("status", "closed")
             .lt("starts_at", nowIso);
 
           if (from) sQ.gte("starts_at", from);
           if (to) sQ.lte("starts_at", to);
-
-          if (status !== "any") sQ.eq("status", status);
           if (q.trim()) sQ.ilike("title", `%${q.trim()}%`);
 
           sQ.order("starts_at", { ascending: sort === "oldest" });
@@ -340,7 +340,7 @@ export default function ScheduleHistoryPage() {
           setRows(normalized);
           setHasMore(normalized.length >= PAGE);
           setErr(
-            `Metrics view not available (or blocked). Loaded sessions only. Details: ${
+            `Metrics view not available (or blocked). Loaded CLOSED sessions only. Details: ${
               e?.message ?? "unknown"
             }`
           );
@@ -356,7 +356,7 @@ export default function ScheduleHistoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [clubId, supabase, checking, q, status, sort, effectiveFrom, effectiveTo]);
+  }, [clubId, supabase, checking, q, sort, effectiveFrom, effectiveTo]);
 
   async function loadMore() {
     if (!clubId || !supabase) return;
@@ -376,11 +376,11 @@ export default function ScheduleHistoryPage() {
         .from("v_session_metrics")
         .select("*")
         .eq("club_id", clubId)
+        .eq("status", "closed")
         .lt("starts_at", nowIso);
 
       if (from) baseQuery.gte("starts_at", from);
       if (to) baseQuery.lte("starts_at", to);
-      if (status !== "any") baseQuery.eq("status", status);
       if (q.trim()) baseQuery.ilike("title", `%${q.trim()}%`);
 
       baseQuery.order("starts_at", { ascending: sort === "oldest" });
@@ -423,29 +423,22 @@ export default function ScheduleHistoryPage() {
     }
   }
 
-  async function openAiReplay(sessionId: string) {
-    setAiOpen(true);
-    setAiSessionId(sessionId);
-    setAiText(null);
+  async function openPostSessionReport(sessionId: string) {
+    setReportOpen(true);
+    setReportSessionId(sessionId);
+    setReportText(null);
 
-    if (!supabase) return;
+    const row = rows.find((r) => r.id === sessionId) ?? null;
+    if (!row) {
+      setReportText("No session selected.");
+      return;
+    }
 
-    setAiBusy(true);
+    // Build deterministic report
+    setReportBusy(true);
     try {
-      const bestEffort = await tryReadAiSummaryForSession(supabase, clubId, sessionId);
-      if (bestEffort?.summary) {
-        setAiText(bestEffort.summary);
-        return;
-      }
+      const { score, label, gaps } = computePostSessionQuality(row);
 
-      // If no AI tables / blocked by RLS, we provide an “AI-style” replay using metrics
-      const row = rows.find((r) => r.id === sessionId) ?? null;
-      if (!row) {
-        setAiText("No session selected.");
-        return;
-      }
-
-      const { score, label, flags } = computeOpsScore(row);
       const p = safeNum(row.participants, 0);
       const e = safeNum(row.evidence_items, 0);
       const aT = safeNum(row.activities_total, 0);
@@ -457,25 +450,50 @@ export default function ScheduleHistoryPage() {
 
       const completion = aT > 0 ? Math.round((aC / aT) * 100) : 0;
 
-      const replay = [
-        `OPS REPLAY (${label})`,
-        `Session: ${row.title || "Untitled session"} • ${fmtDateTime(row.starts_at)}`,
-        `Signals: participants=${p}, evidence=${e}, activities=${aT}, completed=${aC} (${completion}%)`,
+      // Optional AI summary preview (only if it exists AND RLS allows reading)
+      let aiBlock = "";
+      if (supabase) {
+        const ai = await tryReadAiSummaryForSession(supabase, clubId, sessionId);
+        if (ai?.summary) {
+          aiBlock =
+            "\n\nPOST-SESSION SUMMARY (if enabled)\n" +
+            "--------------------------------\n" +
+            ai.summary;
+        }
+      }
+
+      const report = [
+        "POST-SESSION REPORT",
+        "===================",
+        `Session: ${row.title || "Untitled session"}`,
+        `When: ${fmtDateTime(row.starts_at)} • ${row.duration_minutes ?? 60}m`,
+        `Status: CLOSED`,
+        "",
+        `Quality: ${label} (${Math.round(score * 100)}%)`,
+        "",
+        "Signals",
+        "-------",
+        `Participants: ${p}`,
+        `Evidence items: ${e}`,
+        `Checklist: ${aT ? `${aC}/${aT} completed (${completion}%)` : "0 (none attached)"}`,
         `Attendance: present=${present}, late=${late}, absent=${absent}`,
         "",
-        flags.length ? `Flags: ${flags.map((x) => `• ${x}`).join(" ")}` : "Flags: none",
+        "Gaps / Risks",
+        "-----------",
+        gaps.length ? gaps.map((g) => `• ${g}`).join("\n") : "• None detected",
         "",
-        "Recommended next actions:",
-        e === 0 ? "• Add at least 1 photo + 1 note evidence next time." : "• Keep evidence cadence consistent.",
-        aT === 0 ? "• Add a checklist template (activities) for repeatable delivery." : "• Raise completion by tightening activity scope and timing.",
+        "Next-session improvements",
+        "-------------------------",
+        e === 0 ? "• Capture at least 1 photo/video + 1 note evidence next time." : "• Maintain evidence consistency and labeling.",
+        aT === 0 ? "• Attach a template checklist so outcomes are repeatable." : "• Improve completion by reducing scope and tightening timings.",
         (p === 0 && present + late === 0)
-          ? "• Capture attendance early (first 5 mins) to improve accountability and analytics."
-          : "• Maintain attendance capture for operational traceability.",
+          ? "• Ensure attendance is recorded early for better accountability + analytics."
+          : "• Keep attendance recording consistent (start + end).",
       ].join("\n");
 
-      setAiText(replay);
+      setReportText(report + aiBlock);
     } finally {
-      setAiBusy(false);
+      setReportBusy(false);
     }
   }
 
@@ -486,9 +504,11 @@ export default function ScheduleHistoryPage() {
       {/* Top navigation */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-slate-900">Schedule History</div>
+          <div className="text-sm font-semibold text-slate-900">
+            Schedule History (Closed sessions)
+          </div>
           <div className="mt-0.5 text-xs text-slate-600">
-            Past sessions • RLS-safe reads • Metrics-first operational replay • AI-ready (best-effort)
+            Closed-only timeline • RLS-safe reads • Post-session reports • Metrics-first
           </div>
         </div>
 
@@ -504,7 +524,7 @@ export default function ScheduleHistoryPage() {
 
       <SectionCard
         title="History Console"
-        subtitle="Search + filters + timeline pagination. Uses v_session_metrics when available; falls back to sessions."
+        subtitle="Closed sessions only. Uses v_session_metrics when available; falls back to sessions (still RLS-safe)."
         right={
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-slate-700">
             Loaded: {totalLoaded}
@@ -513,28 +533,14 @@ export default function ScheduleHistoryPage() {
       >
         {/* Filters */}
         <div className="grid gap-3 lg:grid-cols-12">
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-6">
             <div className="text-xs font-semibold text-slate-700">Search title</div>
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="e.g., Build → Test → Iterate"
+              placeholder="e.g., LEGO sensors, build challenge, teamwork demo"
               className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
             />
-          </div>
-
-          <div className="lg:col-span-2">
-            <div className="text-xs font-semibold text-slate-700">Status</div>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-            >
-              <option value="any">Any</option>
-              <option value="planned">Planned</option>
-              <option value="open">Open</option>
-              <option value="closed">Closed</option>
-            </select>
           </div>
 
           <div className="lg:col-span-2">
@@ -549,7 +555,7 @@ export default function ScheduleHistoryPage() {
             </select>
           </div>
 
-          <div className="lg:col-span-3 grid grid-cols-2 gap-3">
+          <div className="lg:col-span-4 grid grid-cols-2 gap-3">
             <div>
               <div className="text-xs font-semibold text-slate-700">From</div>
               <input
@@ -572,7 +578,7 @@ export default function ScheduleHistoryPage() {
 
           <div className="lg:col-span-12 flex flex-wrap items-center justify-between gap-2 pt-1">
             <div className="text-xs text-slate-600">
-              RLS note: if AI summary tables are locked (no policy), the UI auto-falls back to rule-based “AI replay”.
+              History is strictly <span className="font-semibold">CLOSED</span> sessions (completed outcomes).
             </div>
 
             <button
@@ -603,7 +609,7 @@ export default function ScheduleHistoryPage() {
                   EMPTY
                 </div>
                 <div className="mt-2 text-sm font-semibold text-slate-900">
-                  No history matches your filters
+                  No closed sessions match your filters
                 </div>
                 <div className="mt-1 text-sm text-slate-700">
                   Try widening the date range or clearing the search.
@@ -612,8 +618,8 @@ export default function ScheduleHistoryPage() {
             ) : (
               <div className="divide-y divide-slate-200/70 rounded-2xl border border-slate-200/80 bg-white/60 overflow-hidden">
                 {rows.map((s) => {
-                  const { score, label, flags } = computeOpsScore(s);
-                  const tone = scoreCardTone(score);
+                  const { score, label, gaps } = computePostSessionQuality(s);
+                  const tone = scoreTone(score);
 
                   const p = safeNum(s.participants, 0);
                   const e = safeNum(s.evidence_items, 0);
@@ -624,6 +630,8 @@ export default function ScheduleHistoryPage() {
                   const late = safeNum(s.late_count, 0);
                   const absent = safeNum(s.absent_count, 0);
 
+                  const completion = aT > 0 ? Math.round((aC / aT) * 100) : 0;
+
                   return (
                     <div key={s.id} className="px-4 py-4 sm:px-5">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -632,10 +640,10 @@ export default function ScheduleHistoryPage() {
                             <span
                               className={cx(
                                 "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                                statusChip(s.status)
+                                statusChip("closed")
                               )}
                             >
-                              {(s.status ?? "planned").toUpperCase()}
+                              CLOSED
                             </span>
 
                             <span
@@ -643,7 +651,7 @@ export default function ScheduleHistoryPage() {
                                 "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
                                 tone
                               )}
-                              title={flags.length ? flags.join(" • ") : "No flags"}
+                              title={gaps.length ? gaps.join(" • ") : "No gaps"}
                             >
                               {label} • {Math.round(score * 100)}%
                             </span>
@@ -665,9 +673,9 @@ export default function ScheduleHistoryPage() {
                               Evidence: <span className="text-slate-900">{e}</span>
                             </span>
                             <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
-                              Activities:{" "}
+                              Checklist:{" "}
                               <span className="text-slate-900">
-                                {aT ? `${aC}/${aT}` : "0"}
+                                {aT ? `${aC}/${aT} (${completion}%)` : "0"}
                               </span>
                             </span>
                             <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
@@ -678,12 +686,12 @@ export default function ScheduleHistoryPage() {
                             </span>
                           </div>
 
-                          {flags.length ? (
+                          {gaps.length ? (
                             <div className="mt-3 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3 text-xs text-amber-950">
-                              <div className="font-semibold">Ops flags</div>
+                              <div className="font-semibold">Quality gaps</div>
                               <ul className="mt-1 list-disc pl-5">
-                                {flags.map((f) => (
-                                  <li key={f}>{f}</li>
+                                {gaps.map((g) => (
+                                  <li key={g}>{g}</li>
                                 ))}
                               </ul>
                             </div>
@@ -700,10 +708,10 @@ export default function ScheduleHistoryPage() {
 
                           <button
                             type="button"
-                            onClick={() => openAiReplay(s.id)}
+                            onClick={() => openPostSessionReport(s.id)}
                             className="rounded-xl border border-indigo-200/80 bg-indigo-50/70 px-3 py-2 text-xs font-semibold text-indigo-950 hover:bg-indigo-50 transition"
                           >
-                            AI replay
+                            Post-session report
                           </button>
                         </div>
                       </div>
@@ -740,42 +748,45 @@ export default function ScheduleHistoryPage() {
         )}
       </SectionCard>
 
-      {/* AI Drawer */}
-      {aiOpen ? (
+      {/* Report Drawer */}
+      {reportOpen ? (
         <div className="fixed inset-0 z-[70]">
           <div
             className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
-            onClick={() => setAiOpen(false)}
+            onClick={() => setReportOpen(false)}
           />
           <div className="absolute right-0 top-0 h-full w-full max-w-[560px] border-l border-slate-200/70 bg-white/85 backdrop-blur-xl shadow-[0_24px_80px_-56px_rgba(2,6,23,0.55)]">
             <div className="border-b border-slate-200/70 px-5 py-4">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-slate-900">AI Ops Replay</div>
+                <div className="text-sm font-semibold text-slate-900">
+                  Post-Session Report
+                </div>
                 <button
                   type="button"
-                  onClick={() => setAiOpen(false)}
+                  onClick={() => setReportOpen(false)}
                   className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-white transition"
                 >
                   Close
                 </button>
               </div>
               <div className="mt-2 text-xs text-slate-600">
-                Session: <span className="font-mono text-slate-900">{aiSessionId ?? "—"}</span>
+                Session:{" "}
+                <span className="font-mono text-slate-900">{reportSessionId ?? "—"}</span>
               </div>
             </div>
 
             <div className="p-5">
               <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-4">
                 <div className="text-xs font-semibold tracking-widest text-slate-500">
-                  OUTPUT
+                  REPORT
                 </div>
 
                 <div className="mt-3 whitespace-pre-wrap text-sm text-slate-800">
-                  {aiBusy ? "Loading replay…" : aiText ?? "—"}
+                  {reportBusy ? "Generating report…" : reportText ?? "—"}
                 </div>
 
                 <div className="mt-3 text-xs text-slate-600">
-                  If AI tables are blocked by RLS, this drawer automatically generates a deterministic ops replay using stored metrics.
+                  This is a deterministic post-session report using stored metrics. If an AI summary exists (and RLS permits), it appears as a preview.
                 </div>
               </div>
             </div>
