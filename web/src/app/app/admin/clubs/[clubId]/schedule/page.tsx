@@ -222,7 +222,7 @@ export default function ScheduleHomePage() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => router.push(`/app/admin/clubs/${clubId}`)}
+                onClick={() => router.push(`/app/admin/clubs/${clubId}/sessions`)}
                 className="rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white transition"
               >
                 Back
