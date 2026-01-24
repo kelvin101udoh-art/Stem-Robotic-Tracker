@@ -186,22 +186,67 @@ function Drawer(props: {
   );
 }
 
+// Helpers for datetime-local
+function isoToLocalInputValue(iso?: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  // local datetime-local format: YYYY-MM-DDTHH:MM
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+}
+
+function localInputValueToIso(v: string) {
+  // v like "2026-01-24T10:30" -> Date treats as local
+  const d = new Date(v);
+  if (!Number.isFinite(d.getTime())) throw new Error("Invalid date/time");
+  return d.toISOString();
+}
+
 export default function UpcomingSchedule({ clubId }: { clubId: string }) {
-  const { rows, booting } = useUpcomingSchedule(clubId);
+  const { rows, booting, refetch } = useUpcomingSchedule(clubId);
   const { supabase, checking } = useAdminGuard({ idleMinutes: 20 });
 
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // action states
   const [actionErr, setActionErr] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
+  // Edit form states (backend-wired)
+  const [editTitle, setEditTitle] = useState("");
+  const [editDuration, setEditDuration] = useState<number>(60);
+  const [editStartsLocal, setEditStartsLocal] = useState<string>(""); // datetime-local string
+  const [editSaving, setEditSaving] = useState(false);
+
+  const selectedSession = useMemo(() => {
+    if (!selectedId) return null;
+    return rows.find((r) => r.id === selectedId) ?? null;
+  }, [rows, selectedId]);
+
+  // auto-clear errors
   useEffect(() => {
     if (!actionErr) return;
-    const t = window.setTimeout(() => setActionErr(null), 4000);
+    const t = window.setTimeout(() => setActionErr(null), 4500);
     return () => window.clearTimeout(t);
   }, [actionErr]);
 
+  function openDrawer(mode: DrawerMode, id: string) {
+    setSelectedId(id);
+    setDrawerMode(mode);
+
+    // preload edit fields
+    if (mode === "edit") {
+      const s = rows.find((r) => r.id === id);
+      setEditTitle(s?.title ?? "");
+      setEditDuration(Number(s?.duration_minutes ?? 60));
+      setEditStartsLocal(isoToLocalInputValue(s?.starts_at ?? null));
+    }
+  }
+
+  // atomic backend status update + optimistic UI
   async function setStatusAtomic(sessionId: string, nextStatus: SessionStatus) {
     if (checking) {
       setActionErr("Auth/session still checking. Try again in a moment.");
@@ -219,6 +264,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
     setActionErr(null);
     setActionBusyId(sessionId);
 
+    // optimistic flip
     optimisticUpdateSessionStatus(clubId, sessionId, nextStatus);
 
     try {
@@ -233,11 +279,71 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         setActionErr(error?.message ?? "Failed to update status.");
         return;
       }
+
+      // server-truth refresh
+      await refetch?.();
     } catch (e: any) {
       rollbackSessionStatus(clubId, sessionId, prev);
       setActionErr(e?.message ?? "Failed to update status.");
     } finally {
       setActionBusyId(null);
+    }
+  }
+
+  // Edit: backend write (sessions.update)
+  async function saveEdit() {
+    if (!selectedSession || !selectedId) return;
+
+    if (checking) {
+      setActionErr("Auth/session still checking. Try again in a moment.");
+      return;
+    }
+    if (!supabase) {
+      setActionErr("Supabase client not ready yet. Refresh and try again.");
+      return;
+    }
+
+    setActionErr(null);
+    setEditSaving(true);
+
+    try {
+      const cleanTitle = editTitle.trim();
+      if (!cleanTitle) {
+        setActionErr("Title is required.");
+        return;
+      }
+      if (!Number.isFinite(editDuration) || editDuration < 15) {
+        setActionErr("Duration must be at least 15 minutes.");
+        return;
+      }
+      if (!editStartsLocal) {
+        setActionErr("Start date/time is required.");
+        return;
+      }
+
+      const starts_at = localInputValueToIso(editStartsLocal);
+
+      const { error } = await supabase
+        .from("sessions")
+        .update({
+          title: cleanTitle,
+          duration_minutes: editDuration,
+          starts_at,
+        })
+        .eq("club_id", clubId)
+        .eq("id", selectedId);
+
+      if (error) {
+        setActionErr(error.message ?? "Failed to update session.");
+        return;
+      }
+
+      await refetch?.();
+      setDrawerMode(null);
+    } catch (e: any) {
+      setActionErr(e?.message ?? "Failed to update session.");
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -278,11 +384,6 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
     return false;
   }, [grouped, rangeDays]);
 
-  function openDrawer(mode: DrawerMode, id: string) {
-    setSelectedId(id);
-    setDrawerMode(mode);
-  }
-
   if (booting) {
     return (
       <div className="h-[420px] rounded-[26px] border border-slate-200/70 bg-white/60 animate-pulse" />
@@ -298,8 +399,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
               Upcoming Schedule
             </div>
             <div className="mt-0.5 text-xs text-slate-600">
-              Next 7 days • Grouped by day • Week separators • Inline ops actions
-              (status is backend-wired)
+              Next 7 days • Grouped by day • Week separators • Open/Cancel are backend-wired • Edit writes to sessions table
             </div>
           </div>
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-slate-700">
@@ -477,8 +577,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
                       <div className="px-5 py-4 text-sm text-slate-700">
                         No sessions planned for this day.
                         <div className="mt-1 text-xs text-slate-600">
-                          Use “New session” to add one (optimistic rows appear
-                          instantly).
+                          Use “New session” to add one (optimistic rows appear instantly).
                         </div>
                       </div>
                     )}
@@ -490,82 +589,124 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         )}
       </div>
 
-      <Drawer
-        open={drawerMode === "open"}
-        title="Open session (UI-only)"
-        onClose={() => setDrawerMode(null)}
-      >
-        <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-4 text-sm text-slate-700">
-          This drawer is UI-only for now. In enterprise systems, “Open” would
-          update status → OPEN and activate live analytics.
-          <div className="mt-3 text-xs text-slate-600">
-            Selected session:{" "}
-            <span className="font-mono text-slate-900">
-              {selectedId ?? "—"}
-            </span>
-          </div>
-        </div>
-        <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50/60 p-4 text-xs text-slate-700">
-          Next wiring: status update RPC + optimistic status transition.
-        </div>
-      </Drawer>
-
+      {/* Drawer: Edit (NOW WRITES TO BACKEND) */}
       <Drawer
         open={drawerMode === "edit"}
-        title="Edit session (UI-only)"
+        title="Edit session"
         onClose={() => setDrawerMode(null)}
       >
-        <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-4 text-sm text-slate-700">
-          This is a read-only edit drawer for enterprise feel (no backend
-          writes).
-          <div className="mt-3 text-xs text-slate-600">
+        <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-4">
+          <div className="text-xs text-slate-600">
             Selected session:{" "}
-            <span className="font-mono text-slate-900">
-              {selectedId ?? "—"}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50/60 p-4">
-          <div className="text-xs font-semibold tracking-widest text-slate-500">
-            TEMPLATE APPLY (UI)
-          </div>
-          <div className="mt-2 text-sm font-semibold text-slate-900">
-            Apply a template
-          </div>
-          <div className="mt-1 text-xs text-slate-600">
-            This would prefill title + duration + suggested checklist preview
-            (ready for wiring).
+            <span className="font-mono text-slate-900">{selectedId ?? "—"}</span>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-800">
-              Build + Test Loop
-            </span>
-            <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-800">
-              Skills Ladder
-            </span>
-            <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-800">
-              Evidence-First Delivery
-            </span>
+          <div className="mt-4 space-y-3">
+            <div>
+              <div className="text-xs font-semibold text-slate-700">Title</div>
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
+                placeholder="Session title"
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <div className="text-xs font-semibold text-slate-700">
+                  Start (local)
+                </div>
+                <input
+                  type="datetime-local"
+                  value={editStartsLocal}
+                  onChange={(e) => setEditStartsLocal(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
+                />
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold text-slate-700">
+                  Duration (min)
+                </div>
+                <input
+                  type="number"
+                  min={15}
+                  step={5}
+                  value={editDuration}
+                  onChange={(e) => setEditDuration(Math.max(15, Number(e.target.value) || 0))}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDrawerMode(null)}
+                className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-white transition"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={editSaving}
+                className={cx(
+                  "rounded-xl border px-3 py-2 text-xs font-semibold transition",
+                  editSaving
+                    ? "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
+                    : "border-slate-900/10 bg-slate-900 text-white hover:bg-slate-800"
+                )}
+              >
+                {editSaving ? "Saving…" : "Save changes"}
+              </button>
+            </div>
           </div>
         </div>
       </Drawer>
 
+      {/* Drawer: Cancel (NOW WRITES TO BACKEND via status=closed) */}
       <Drawer
         open={drawerMode === "cancel"}
-        title="Cancel session (UI-only)"
+        title="Cancel session"
         onClose={() => setDrawerMode(null)}
       >
         <div className="rounded-2xl border border-rose-200/80 bg-rose-50/70 p-4 text-sm text-rose-950">
-          Cancellation is UI-only for now (no backend edits).
+          This will mark the session as <span className="font-semibold">CLOSED</span>.
           <div className="mt-3 text-xs text-rose-900/80">
             Selected session:{" "}
             <span className="font-mono">{selectedId ?? "—"}</span>
           </div>
         </div>
-        <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50/60 p-4 text-xs text-slate-700">
-          Next wiring: soft-delete or status update → canceled + audit trail.
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setDrawerMode(null)}
+            className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-white transition"
+          >
+            Keep session
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              if (!selectedId) return;
+              await setStatusAtomic(selectedId, "closed");
+              setDrawerMode(null);
+            }}
+            disabled={actionBusyId === selectedId}
+            className={cx(
+              "rounded-xl border px-3 py-2 text-xs font-semibold transition",
+              actionBusyId === selectedId
+                ? "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
+                : "border-rose-200/80 bg-rose-50/70 text-rose-950 hover:bg-rose-50"
+            )}
+          >
+            {actionBusyId === selectedId ? "Cancelling…" : "Confirm cancel"}
+          </button>
         </div>
       </Drawer>
     </div>
