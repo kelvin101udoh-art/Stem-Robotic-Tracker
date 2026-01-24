@@ -119,6 +119,33 @@ export function addOptimisticSession(clubId: string, row: ScheduleSessionRow) {
   broadcast(clubId);
 }
 
+export function optimisticUpdateSessionStatus(clubId: string, sessionId: string, nextStatus: SessionStatus) {
+  const entry = ensureEntry(clubId);
+  entry.rows = upsertSorted(
+    entry.rows.map((r) =>
+      r.id === sessionId ? { ...r, status: nextStatus } : r
+    )
+  );
+  entry.sig = computeSig(entry.rows);
+  broadcast(clubId);
+}
+
+export function rollbackSessionStatus(
+  clubId: string,
+  sessionId: string,
+  prevStatus: SessionStatus | null | undefined
+) {
+  const entry = ensureEntry(clubId);
+  entry.rows = upsertSorted(
+    entry.rows.map((r) =>
+      r.id === sessionId ? { ...r, status: prevStatus ?? "planned" } : r
+    )
+  );
+  entry.sig = computeSig(entry.rows);
+  broadcast(clubId);
+}
+
+
 export function confirmOptimisticSession(clubId: string, tempId: string, realRow: ScheduleSessionRow) {
   const entry = ensureEntry(clubId);
   const next = entry.rows

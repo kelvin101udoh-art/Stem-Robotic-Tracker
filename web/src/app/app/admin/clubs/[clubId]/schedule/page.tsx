@@ -1,3 +1,5 @@
+// web/src/app/app/admin/clubs/[clubId]/schedule/page.tsx
+
 "use client";
 
 import Link from "next/link";
