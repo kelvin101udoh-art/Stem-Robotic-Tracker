@@ -1,7 +1,7 @@
 // web/src/app/app/admin/clubs/[clubId]/schedule/_islands/UpcomingSchedule.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 
 import { useAdminGuard } from "@/lib/admin/admin-guard";
@@ -72,7 +72,6 @@ function opsQualityForDay(
     activities_total?: number | null;
   }>
 ) {
-  // UI-only score: planned/open mix and whether core signals exist
   if (!rows.length) {
     return {
       label: "NO PLAN",
@@ -87,7 +86,6 @@ function opsQualityForDay(
   const withChecklist = rows.filter((r) => (r.activities_total ?? 0) > 0).length;
   const withPeople = rows.filter((r) => (r.participants ?? 0) > 0).length;
 
-  // simple blended score
   const score = Math.max(
     0,
     Math.min(
@@ -157,7 +155,7 @@ function SkeletonMicroCharts() {
 function Drawer(props: {
   open: boolean;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   onClose: () => void;
 }) {
   if (!props.open) return null;
@@ -176,6 +174,7 @@ function Drawer(props: {
             <button
               onClick={props.onClose}
               className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-white transition"
+              type="button"
             >
               Close
             </button>
@@ -194,24 +193,20 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // action states
   const [actionErr, setActionErr] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
-  // auto-clear errors
   useEffect(() => {
     if (!actionErr) return;
     const t = window.setTimeout(() => setActionErr(null), 4000);
     return () => window.clearTimeout(t);
   }, [actionErr]);
 
-  // atomic backend status update + optimistic UI
   async function setStatusAtomic(sessionId: string, nextStatus: SessionStatus) {
     if (checking) {
       setActionErr("Auth/session still checking. Try again in a moment.");
       return;
     }
-
     if (!supabase) {
       setActionErr("Supabase client not ready yet. Refresh and try again.");
       return;
@@ -224,7 +219,6 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
     setActionErr(null);
     setActionBusyId(sessionId);
 
-    // optimistic flip
     optimisticUpdateSessionStatus(clubId, sessionId, nextStatus);
 
     try {
@@ -239,8 +233,6 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         setActionErr(error?.message ?? "Failed to update status.");
         return;
       }
-
-      // Success: keep optimistic state (or refetch later if you want server-truth)
     } catch (e: any) {
       rollbackSessionStatus(clubId, sessionId, prev);
       setActionErr(e?.message ?? "Failed to update status.");
@@ -267,7 +259,6 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         : null;
       if (dt && byDay.has(dt)) byDay.get(dt)!.push(r);
     }
-    // sort sessions per day
     for (const [k, list] of byDay) {
       list.sort(
         (a, b) =>
@@ -347,7 +338,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
               const dayLabel = labelTodayTomorrow(day);
               const weekSep =
                 idx > 0 &&
-                day.getDay() === 1 && // Monday
+                day.getDay() === 1 &&
                 !isSameDay(rangeDays[idx - 1], day);
 
               const quality = opsQualityForDay(list);
@@ -499,7 +490,6 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         )}
       </div>
 
-      {/* Drawers */}
       <Drawer
         open={drawerMode === "open"}
         title="Open session (UI-only)"
