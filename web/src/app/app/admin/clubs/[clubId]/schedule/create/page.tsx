@@ -524,9 +524,10 @@ export default function CreateSessionPage() {
           p_duration_minutes: durationMinutes,
           p_status: status,
           p_location_id: opsDraft.locationId || null,
-          p_teacher_id: opsDraft.teacherId || null,
+          p_lead_teacher_id: opsDraft.teacherId || null, // ✅ FIXED
         }
       );
+
 
       if (rpcErr || !session) {
         revertOptimisticSession(clubId, tempId);
