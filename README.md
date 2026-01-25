@@ -24,7 +24,7 @@
 
 ## 📖 About the Project
 
-**STEM Robotic Tracker** is an educational technology platform designed to help STEM clubs, robotics instructors, and mentors record learning activities, track student progress, and generate clear evidence of improvement over time.
+**STEMTrack** is an educational technology platform designed to help STEM clubs, robotics instructors, and mentors record learning activities, track student progress, and generate clear evidence of improvement over time.
 
 The platform reduces paperwork for instructors while giving parents and students meaningful, easy-to-understand progress insights.
 
