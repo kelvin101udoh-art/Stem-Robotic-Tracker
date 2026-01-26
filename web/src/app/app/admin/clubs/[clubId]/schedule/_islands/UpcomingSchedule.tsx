@@ -1,8 +1,8 @@
 // web/src/app/app/admin/clubs/[clubId]/schedule/_islands/UpcomingSchedule.tsx
+
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-
 import { useAdminGuard } from "@/lib/admin/admin-guard";
 import {
   useUpcomingSchedule,
@@ -54,122 +54,50 @@ function fmtTime(iso?: string | null) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
+function statusLabel(status?: string | null) {
+  const k = status ?? "planned";
+  if (k === "open") return "In progress";
+  if (k === "closed") return "Completed";
+  return "Planned";
+}
+
 function statusChip(status?: string | null) {
   const k = status ?? "planned";
-  if (k === "open")
-    return "border-emerald-200/80 bg-emerald-50/70 text-emerald-950";
-  if (k === "closed")
-    return "border-slate-200/80 bg-slate-50/70 text-slate-800";
+  if (k === "open") return "border-emerald-200/80 bg-emerald-50/70 text-emerald-950";
+  if (k === "closed") return "border-slate-200/80 bg-slate-50/70 text-slate-800";
   return "border-indigo-200/80 bg-indigo-50/70 text-indigo-950";
 }
 
-function opsQualityForDay(
-  rows: Array<{
-    status?: string | null;
-    participants?: number | null;
-    evidence_items?: number | null;
-    activities_total?: number | null;
-  }>
-) {
+/**
+ * Simple “day readiness” signal a business owner can understand.
+ * (Not “AI”, not “enterprise jargon”.)
+ */
+function dayReadiness(rows: Array<{ status?: string | null; activities_total?: number | null }>) {
   if (!rows.length) {
-    return {
-      label: "NO PLAN",
-      cls: "border-slate-200/80 bg-white/70 text-slate-700",
-      score: 0,
-    };
+    return { label: "No sessions", cls: "border-slate-200/80 bg-white/70 text-slate-700" };
   }
 
   const total = rows.length;
-  const open = rows.filter((r) => (r.status ?? "planned") === "open").length;
-  const withEvidence = rows.filter((r) => (r.evidence_items ?? 0) > 0).length;
-  const withChecklist = rows.filter((r) => (r.activities_total ?? 0) > 0).length;
-  const withPeople = rows.filter((r) => (r.participants ?? 0) > 0).length;
+  const inProgress = rows.filter((r) => (r.status ?? "planned") === "open").length;
+  const withPlan = rows.filter((r) => (r.activities_total ?? 0) > 0).length;
 
-  const score = Math.max(
-    0,
-    Math.min(
-      1,
-      0.35 * (open / total) +
-        0.25 * (withEvidence / total) +
-        0.25 * (withChecklist / total) +
-        0.15 * (withPeople / total)
-    )
-  );
+  // Bias toward “do we have a plan and are we running on time?”
+  const score = Math.max(0, Math.min(1, 0.6 * (withPlan / total) + 0.4 * (inProgress / total)));
 
-  if (score >= 0.75)
-    return {
-      label: "OPS READY",
-      cls: "border-emerald-200/80 bg-emerald-50/70 text-emerald-950",
-      score,
-    };
-  if (score >= 0.45)
-    return {
-      label: "PARTIAL",
-      cls: "border-indigo-200/80 bg-indigo-50/70 text-indigo-950",
-      score,
-    };
-  return {
-    label: "LOW SIGNAL",
-    cls: "border-rose-200/80 bg-rose-50/70 text-rose-950",
-    score,
-  };
+  if (score >= 0.75) return { label: "Ready", cls: "border-emerald-200/80 bg-emerald-50/70 text-emerald-950" };
+  if (score >= 0.45) return { label: "Partly ready", cls: "border-indigo-200/80 bg-indigo-50/70 text-indigo-950" };
+  return { label: "Needs setup", cls: "border-rose-200/80 bg-rose-50/70 text-rose-950" };
 }
 
-function SkeletonMicroCharts() {
-  return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-semibold tracking-widest text-slate-500">
-          LIVE PLACEHOLDERS
-        </div>
-        <span className="rounded-full border border-slate-200/80 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-          UI-only
-        </span>
-      </div>
-
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3"
-          >
-            <div className="h-3 w-28 rounded bg-slate-200/70 animate-pulse" />
-            <div className="mt-3 flex items-end gap-1">
-              {Array.from({ length: 10 }).map((__, j) => (
-                <div
-                  key={j}
-                  className="w-2 rounded bg-slate-200/70 animate-pulse"
-                  style={{ height: `${10 + (i + 2) * (j % 5)}px` }}
-                />
-              ))}
-            </div>
-            <div className="mt-3 h-2 w-40 rounded bg-slate-200/60 animate-pulse" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Drawer(props: {
-  open: boolean;
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-}) {
+function Drawer(props: { open: boolean; title: string; children: ReactNode; onClose: () => void }) {
   if (!props.open) return null;
   return (
     <div className="fixed inset-0 z-[60]">
-      <div
-        className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
-        onClick={props.onClose}
-      />
-      <div className="absolute right-0 top-0 h-full w-full max-w-[520px] border-l border-slate-200/70 bg-white/85 backdrop-blur-xl shadow-[0_24px_80px_-56px_rgba(2,6,23,0.55)]">
+      <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={props.onClose} />
+      <div className="absolute right-0 top-0 h-full w-full max-w-[560px] border-l border-slate-200/70 bg-white/90 backdrop-blur-xl shadow-[0_24px_80px_-56px_rgba(2,6,23,0.55)]">
         <div className="border-b border-slate-200/70 px-5 py-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold text-slate-900">
-              {props.title}
-            </div>
+            <div className="text-sm font-semibold text-slate-900">{props.title}</div>
             <button
               onClick={props.onClose}
               className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-white transition"
@@ -179,7 +107,7 @@ function Drawer(props: {
             </button>
           </div>
         </div>
-        <div className="p-5">{props.children}</div>
+        <div className="p-5 overflow-auto h-[calc(100%-72px)]">{props.children}</div>
       </div>
     </div>
   );
@@ -190,38 +118,15 @@ function isoToLocalInputValue(iso?: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+    d.getMinutes()
+  )}`;
 }
 
 function localInputValueToIso(v: string) {
-  const d = new Date(v); // treats input as local
+  const d = new Date(v); // input treated as local
   if (!Number.isFinite(d.getTime())) throw new Error("Invalid date/time");
   return d.toISOString();
-}
-
-function computeAutoBadges(s: {
-  starts_at?: string | null;
-  duration_minutes?: number | null;
-  status?: string | null;
-}) {
-  const status = (s.status ?? "planned") as SessionStatus;
-  const startsAt = s.starts_at ? new Date(s.starts_at).getTime() : null;
-  const dur = Number(s.duration_minutes ?? 60);
-  const now = Date.now();
-
-  if (!startsAt) return { badge: null as null | "AUTO-OPEN" | "AUTO-CLOSE" };
-
-  const endsAt = startsAt + Math.max(0, dur) * 60000;
-
-  // If planned but already past start time -> should be auto-opened by backend job
-  if (status === "planned" && now >= startsAt) return { badge: "AUTO-OPEN" as const };
-
-  // If open but already past end time -> should be auto-closed by backend job
-  if (status === "open" && now >= endsAt) return { badge: "AUTO-CLOSE" as const };
-
-  return { badge: null };
 }
 
 export default function UpcomingSchedule({ clubId }: { clubId: string }) {
@@ -235,7 +140,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
   const [actionErr, setActionErr] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
-  // Edit form states (backend-wired)
+  // Edit form states
   const [editTitle, setEditTitle] = useState("");
   const [editDuration, setEditDuration] = useState<number>(60);
   const [editStartsLocal, setEditStartsLocal] = useState<string>("");
@@ -243,7 +148,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
 
   const selectedSession = useMemo(() => {
     if (!selectedId) return null;
-    return rows.find((r) => r.id === selectedId) ?? null;
+    return rows.find((r: any) => r.id === selectedId) ?? null;
   }, [rows, selectedId]);
 
   // auto-clear errors
@@ -258,27 +163,26 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
     setDrawerMode(mode);
 
     if (mode === "edit") {
-      const s = rows.find((r) => r.id === id);
+      const s: any = rows.find((r: any) => r.id === id);
       setEditTitle(s?.title ?? "");
       setEditDuration(Number(s?.duration_minutes ?? 60));
       setEditStartsLocal(isoToLocalInputValue(s?.starts_at ?? null));
     }
   }
 
-  // Status update via your RPC (used only for Cancel now)
+  // Status update via RPC (used for Cancel)
   async function setStatusAtomic(sessionId: string, nextStatus: SessionStatus) {
     if (checking) {
-      setActionErr("Auth/session still checking. Try again in a moment.");
+      setActionErr("Please wait — signing in is still completing.");
       return;
     }
     if (!supabase) {
-      setActionErr("Supabase client not ready yet. Refresh and try again.");
+      setActionErr("System is not ready yet. Refresh and try again.");
       return;
     }
 
     const prev: SessionStatus =
-      ((rows.find((r) => r.id === sessionId)?.status ?? "planned") as SessionStatus) ??
-      "planned";
+      (((rows.find((r: any) => r.id === sessionId)?.status ?? "planned") as SessionStatus) ?? "planned");
 
     setActionErr(null);
     setActionBusyId(sessionId);
@@ -295,29 +199,29 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
 
       if (error || !data) {
         rollbackSessionStatus(clubId, sessionId, prev);
-        setActionErr(error?.message ?? "Failed to update status.");
+        setActionErr(error?.message ?? "Could not update the session.");
         return;
       }
 
       await refetch?.();
     } catch (e: any) {
       rollbackSessionStatus(clubId, sessionId, prev);
-      setActionErr(e?.message ?? "Failed to update status.");
+      setActionErr(e?.message ?? "Could not update the session.");
     } finally {
       setActionBusyId(null);
     }
   }
 
-  // Edit: backend write (sessions.update)
+  // Edit: backend write
   async function saveEdit() {
     if (!selectedSession || !selectedId) return;
 
     if (checking) {
-      setActionErr("Auth/session still checking. Try again in a moment.");
+      setActionErr("Please wait — signing in is still completing.");
       return;
     }
     if (!supabase) {
-      setActionErr("Supabase client not ready yet. Refresh and try again.");
+      setActionErr("System is not ready yet. Refresh and try again.");
       return;
     }
 
@@ -352,14 +256,14 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         .eq("id", selectedId);
 
       if (error) {
-        setActionErr(error.message ?? "Failed to update session.");
+        setActionErr(error.message ?? "Could not save changes.");
         return;
       }
 
       await refetch?.();
       setDrawerMode(null);
     } catch (e: any) {
-      setActionErr(e?.message ?? "Failed to update session.");
+      setActionErr(e?.message ?? "Could not save changes.");
     } finally {
       setEditSaving(false);
     }
@@ -375,19 +279,15 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
   }, []);
 
   const grouped = useMemo(() => {
-    const byDay = new Map<string, typeof rows>();
+    const byDay = new Map<string, any[]>();
     for (const d of rangeDays) byDay.set(startOfDayLocal(d).toISOString(), []);
-    for (const r of rows) {
-      const dt = r.starts_at
-        ? startOfDayLocal(new Date(r.starts_at)).toISOString()
-        : null;
+    for (const r of rows as any[]) {
+      const dt = r.starts_at ? startOfDayLocal(new Date(r.starts_at)).toISOString() : null;
       if (dt && byDay.has(dt)) byDay.get(dt)!.push(r);
     }
     for (const [k, list] of byDay) {
       list.sort(
-        (a, b) =>
-          new Date(a.starts_at ?? 0).getTime() -
-          new Date(b.starts_at ?? 0).getTime()
+        (a, b) => new Date(a.starts_at ?? 0).getTime() - new Date(b.starts_at ?? 0).getTime()
       );
       byDay.set(k, list);
     }
@@ -403,9 +303,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
   }, [grouped, rangeDays]);
 
   if (booting) {
-    return (
-      <div className="h-[420px] rounded-[26px] border border-slate-200/70 bg-white/60 animate-pulse" />
-    );
+    return <div className="h-[420px] rounded-[26px] border border-slate-200/70 bg-white/60 animate-pulse" />;
   }
 
   return (
@@ -413,11 +311,9 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
       <div className="border-b border-slate-200/70 bg-[radial-gradient(1000px_260px_at_10%_0%,rgba(99,102,241,0.10),transparent_60%),radial-gradient(900px_240px_at_90%_0%,rgba(34,211,238,0.08),transparent_55%)] px-5 py-5 sm:px-7">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-900">
-              Upcoming Schedule
-            </div>
+            <div className="text-sm font-semibold text-slate-900">This week’s timetable</div>
             <div className="mt-0.5 text-xs text-slate-600">
-              Enterprise-grade automation: sessions are planned → auto-open at start time → auto-close at end time (backend scheduler). UI has no manual Open.
+              Plan sessions ahead. Sessions change automatically as time passes (planned → in progress → completed).
             </div>
           </div>
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-slate-700">
@@ -434,19 +330,12 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         ) : null}
 
         {!anyInNext7 ? (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-5">
-              <div className="text-xs font-semibold tracking-widest text-slate-500">
-                EMPTY
-              </div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">
-                No sessions in the next 7 days
-              </div>
-              <div className="mt-1 text-sm text-slate-700">
-                Create a session to populate this schedule view.
-              </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-5">
+            <div className="text-xs font-semibold tracking-widest text-slate-500">EMPTY</div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">No sessions planned in the next 7 days</div>
+            <div className="mt-1 text-sm text-slate-700">
+              Create a session to build your timetable for the week.
             </div>
-            <SkeletonMicroCharts />
           </div>
         ) : (
           <div className="space-y-4">
@@ -454,10 +343,9 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
               const key = startOfDayLocal(day).toISOString();
               const list = grouped.get(key) ?? [];
               const dayLabel = labelTodayTomorrow(day);
-              const weekSep =
-                idx > 0 && day.getDay() === 1 && !isSameDay(rangeDays[idx - 1], day);
 
-              const quality = opsQualityForDay(list);
+              const weekSep = idx > 0 && day.getDay() === 1 && !isSameDay(rangeDays[idx - 1], day);
+              const readiness = dayReadiness(list);
 
               return (
                 <div key={key} className="space-y-2">
@@ -473,9 +361,7 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
 
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="text-sm font-semibold text-slate-900">
-                        {fmtDay(day)}
-                      </div>
+                      <div className="text-sm font-semibold text-slate-900">{fmtDay(day)}</div>
                       {dayLabel ? (
                         <span className="rounded-full border border-indigo-200/80 bg-indigo-50/70 px-2.5 py-1 text-[11px] font-semibold text-indigo-950">
                           {dayLabel}
@@ -485,12 +371,10 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
 
                     <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className={cx(
-                          "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                          quality.cls
-                        )}
+                        className={cx("rounded-full border px-2.5 py-1 text-[11px] font-semibold", readiness.cls)}
+                        title="A simple signal based on whether sessions have a plan and are currently running"
                       >
-                        {quality.label}
+                        {readiness.label}
                       </span>
                       <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
                         Sessions: <span className="text-slate-900">{list.length}</span>
@@ -501,102 +385,73 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
                   <div className="rounded-2xl border border-slate-200/80 bg-white/60 overflow-hidden">
                     {list.length ? (
                       <div className="divide-y divide-slate-200/70">
-                        {list.map((s) => {
-                          const { badge } = computeAutoBadges(s);
+                        {list.map((s: any) => (
+                          <div key={s.id} className="px-4 py-3 sm:px-5">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={cx(
+                                      "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                                      statusChip(s.status)
+                                    )}
+                                  >
+                                    {statusLabel(s.status).toUpperCase()}
+                                  </span>
 
-                          return (
-                            <div key={s.id} className="px-4 py-3 sm:px-5">
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="min-w-0">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span
-                                      className={cx(
-                                        "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                                        statusChip(s.status)
-                                      )}
-                                    >
-                                      {(s.status ?? "planned").toUpperCase()}
+                                  {s.__optimistic ? (
+                                    <span className="rounded-full border border-amber-200/80 bg-amber-50/70 px-2.5 py-1 text-[11px] font-semibold text-amber-950">
+                                      Updating…
                                     </span>
+                                  ) : null}
 
-                                    {badge ? (
-                                      <span
-                                        className={cx(
-                                          "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                                          badge === "AUTO-OPEN"
-                                            ? "border-amber-200/80 bg-amber-50/70 text-amber-950"
-                                            : "border-rose-200/80 bg-rose-50/70 text-rose-950"
-                                        )}
-                                      >
-                                        {badge}
-                                      </span>
-                                    ) : null}
-
-                                    {s.__optimistic ? (
-                                      <span className="rounded-full border border-amber-200/80 bg-amber-50/70 px-2.5 py-1 text-[11px] font-semibold text-amber-950">
-                                        PENDING
-                                      </span>
-                                    ) : null}
-
-                                    <div className="truncate text-sm font-semibold text-slate-900">
-                                      {s.title || "Untitled session"}
-                                    </div>
-                                  </div>
-
-                                  <div className="mt-1 text-xs text-slate-600">
-                                    {fmtTime(s.starts_at)} • {s.duration_minutes ?? 60}m
-                                  </div>
-
-                                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                                    <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
-                                      Participants:{" "}
-                                      <span className="text-slate-900">
-                                        {s.participants ?? 0}
-                                      </span>
-                                    </span>
-                                    <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
-                                      Evidence:{" "}
-                                      <span className="text-slate-900">
-                                        {s.evidence_items ?? 0}
-                                      </span>
-                                    </span>
-                                    <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
-                                      Checklist:{" "}
-                                      <span className="text-slate-900">
-                                        {s.activities_total ?? 0}
-                                      </span>
-                                    </span>
+                                  <div className="truncate text-sm font-semibold text-slate-900">
+                                    {s.title || "Untitled session"}
                                   </div>
                                 </div>
 
-                                {/* Actions: Edit + Cancel only */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <button
-                                    onClick={() => openDrawer("edit", s.id)}
-                                    className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-white transition"
-                                    type="button"
-                                  >
-                                    Edit
-                                  </button>
+                                <div className="mt-1 text-xs text-slate-600">
+                                  {fmtTime(s.starts_at)} • {s.duration_minutes ?? 60} minutes
+                                </div>
 
-                                  <button
-                                    onClick={() => openDrawer("cancel", s.id)}
-                                    className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-2 text-xs font-semibold text-rose-950 hover:bg-rose-50 transition"
-                                    type="button"
-                                  >
-                                    Cancel
-                                  </button>
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                                  <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
+                                    Participants: <span className="text-slate-900">{s.participants ?? 0}</span>
+                                  </span>
+                                  <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
+                                    Evidence items: <span className="text-slate-900">{s.evidence_items ?? 0}</span>
+                                  </span>
+                                  <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-semibold text-slate-700">
+                                    Checklist items: <span className="text-slate-900">{s.activities_total ?? 0}</span>
+                                  </span>
                                 </div>
                               </div>
+
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  onClick={() => openDrawer("edit", s.id)}
+                                  className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-white transition"
+                                  type="button"
+                                >
+                                  Edit
+                                </button>
+
+                                <button
+                                  onClick={() => openDrawer("cancel", s.id)}
+                                  className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-2 text-xs font-semibold text-rose-950 hover:bg-rose-50 transition"
+                                  type="button"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
-                          );
-                        })}
+                          </div>
+                        ))}
                       </div>
                     ) : (
                       <div className="px-5 py-4 text-sm text-slate-700">
                         No sessions planned for this day.
-                        <div className="mt-1 text-xs text-slate-600">
-                          Use “New session” to add one.
-                        </div>
+                        <div className="mt-1 text-xs text-slate-600">Use “New session” to add one.</div>
                       </div>
                     )}
                   </div>
@@ -607,34 +462,27 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
         )}
       </div>
 
-      {/* Drawer: Edit (backend write) */}
-      <Drawer
-        open={drawerMode === "edit"}
-        title="Edit session"
-        onClose={() => setDrawerMode(null)}
-      >
+      {/* Drawer: Edit */}
+      <Drawer open={drawerMode === "edit"} title="Edit session" onClose={() => setDrawerMode(null)}>
         <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-4">
           <div className="text-xs text-slate-600">
-            Selected session:{" "}
-            <span className="font-mono text-slate-900">{selectedId ?? "—"}</span>
+            Session ID: <span className="font-mono text-slate-900">{selectedId ?? "—"}</span>
           </div>
 
           <div className="mt-4 space-y-3">
             <div>
-              <div className="text-xs font-semibold text-slate-700">Title</div>
+              <div className="text-xs font-semibold text-slate-700">Session title</div>
               <input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
-                placeholder="Session title"
+                placeholder="e.g., Robotics build (Sensors)"
               />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <div className="text-xs font-semibold text-slate-700">
-                  Start (local)
-                </div>
+                <div className="text-xs font-semibold text-slate-700">Start time</div>
                 <input
                   type="datetime-local"
                   value={editStartsLocal}
@@ -644,17 +492,13 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
               </div>
 
               <div>
-                <div className="text-xs font-semibold text-slate-700">
-                  Duration (min)
-                </div>
+                <div className="text-xs font-semibold text-slate-700">Duration (minutes)</div>
                 <input
                   type="number"
                   min={15}
                   step={5}
                   value={editDuration}
-                  onChange={(e) =>
-                    setEditDuration(Math.max(15, Number(e.target.value) || 0))
-                  }
+                  onChange={(e) => setEditDuration(Math.max(15, Number(e.target.value) || 0))}
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
@@ -685,18 +529,18 @@ export default function UpcomingSchedule({ clubId }: { clubId: string }) {
             </div>
           </div>
         </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50/60 p-4 text-xs text-slate-700">
+          Tip: Keeping titles consistent (e.g., “Week 3 – Sensors Build”) makes reports easier to understand later.
+        </div>
       </Drawer>
 
-      {/* Drawer: Cancel (backend write: status -> closed) */}
-      <Drawer
-        open={drawerMode === "cancel"}
-        title="Cancel session"
-        onClose={() => setDrawerMode(null)}
-      >
+      {/* Drawer: Cancel */}
+      <Drawer open={drawerMode === "cancel"} title="Cancel session" onClose={() => setDrawerMode(null)}>
         <div className="rounded-2xl border border-rose-200/80 bg-rose-50/70 p-4 text-sm text-rose-950">
-          This will mark the session as <span className="font-semibold">CLOSED</span>.
+          This will mark the session as <span className="font-semibold">Completed</span> (cancelled).
           <div className="mt-3 text-xs text-rose-900/80">
-            Selected session: <span className="font-mono">{selectedId ?? "—"}</span>
+            Session ID: <span className="font-mono">{selectedId ?? "—"}</span>
           </div>
         </div>
 

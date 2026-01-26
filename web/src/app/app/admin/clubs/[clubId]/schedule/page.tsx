@@ -20,6 +20,7 @@ function fmtDayHeader(d: Date) {
     weekday: "long",
     day: "2-digit",
     month: "short",
+    year: "numeric",
   });
 }
 
@@ -41,11 +42,11 @@ function fmtRelative(iso?: string | null) {
   const abs = Math.abs(mins);
 
   if (abs < 2) return "just now";
-  if (abs < 60) return mins > 0 ? `in ${abs}m` : `${abs}m ago`;
+  if (abs < 60) return mins > 0 ? `in ${abs} min` : `${abs} min ago`;
   const hrs = Math.round(abs / 60);
-  if (hrs < 48) return mins > 0 ? `in ${hrs}h` : `${hrs}h ago`;
+  if (hrs < 48) return mins > 0 ? `in ${hrs} hours` : `${hrs} hours ago`;
   const days = Math.round(hrs / 24);
-  return mins > 0 ? `in ${days}d` : `${days}d ago`;
+  return mins > 0 ? `in ${days} days` : `${days} days ago`;
 }
 
 type AiInsightRow = {
@@ -53,7 +54,7 @@ type AiInsightRow = {
   club_id: string;
   period_start: string;
   period_end: string;
-  source: "rules" | "azure";
+  source: "rules" | "azure" | string;
   summary: string;
   created_at: string;
 };
@@ -65,27 +66,85 @@ type NextSessionRow = {
   status: string | null;
 };
 
+function Badge(props: { text: string; cls: string; title?: string }) {
+  return (
+    <span
+      title={props.title}
+      className={cx(
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+        props.cls
+      )}
+    >
+      {props.text}
+    </span>
+  );
+}
+
+function StatTile(props: { label: string; value: React.ReactNode; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-4">
+      <div className="text-xs font-semibold tracking-widest text-slate-500">{props.label}</div>
+      <div className="mt-2 text-2xl font-semibold text-slate-900">{props.value}</div>
+      {props.hint ? <div className="mt-1 text-xs text-slate-600">{props.hint}</div> : null}
+    </div>
+  );
+}
+
+function SectionCard(props: {
+  title: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[28px] border border-slate-200/70 bg-white/55 shadow-[0_24px_80px_-56px_rgba(2,6,23,0.45)] backdrop-blur-xl overflow-hidden">
+      <div className="border-b border-slate-200/70 bg-[radial-gradient(1000px_260px_at_10%_0%,rgba(99,102,241,0.14),transparent_60%),radial-gradient(900px_240px_at_90%_0%,rgba(34,211,238,0.10),transparent_55%)] px-5 py-5 sm:px-7">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-900">{props.title}</div>
+            {props.subtitle ? <div className="mt-0.5 text-xs text-slate-600">{props.subtitle}</div> : null}
+          </div>
+          {props.right ? props.right : null}
+        </div>
+      </div>
+      <div className="px-5 py-5 sm:px-7">{props.children}</div>
+    </div>
+  );
+}
+
 export default function ScheduleHomePage() {
   const { clubId } = useParams<{ clubId: string }>();
   const router = useRouter();
   const { supabase, checking } = useAdminGuard({ idleMinutes: 20 });
+
+  const now = useMemo(() => new Date(), []);
+  const dayTag = useMemo(() => todayTomorrowLabel(now), [now]);
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
     return `${window.location.origin}/app/admin/clubs/${clubId}/schedule`;
   }, [clubId]);
 
-  const now = useMemo(() => new Date(), []);
-  const label = useMemo(() => todayTomorrowLabel(now), [now]);
-
-  // ===== Live backend proof (RLS-gated reads) =====
-  const [backendOk, setBackendOk] = useState<"idle" | "ok" | "err">("idle");
-  const [backendErr, setBackendErr] = useState<string | null>(null);
+  // Business-friendly health + highlights
+  const [systemState, setSystemState] = useState<"connecting" | "ready" | "issue">("connecting");
+  const [systemNote, setSystemNote] = useState<string | null>(null);
 
   const [next7Count, setNext7Count] = useState<number | null>(null);
   const [nextSession, setNextSession] = useState<NextSessionRow | null>(null);
-
   const [latestInsight, setLatestInsight] = useState<AiInsightRow | null>(null);
+
+  const [copied, setCopied] = useState(false);
+
+  async function copyShareLink() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     if (!clubId) return;
@@ -95,36 +154,34 @@ export default function ScheduleHomePage() {
     let cancelled = false;
 
     (async () => {
-      setBackendErr(null);
-      setBackendOk("idle");
+      setSystemState("connecting");
+      setSystemNote(null);
 
       try {
         const nowIso = new Date().toISOString();
         const in7 = new Date(Date.now() + 7 * 86400000).toISOString();
 
-        // 1) Next upcoming session (RLS protected)
-        const nextRes = await supabase
-          .from("sessions")
-          .select("id, title, starts_at, status")
-          .eq("club_id", clubId)
-          .gte("starts_at", nowIso)
-          .order("starts_at", { ascending: true })
-          .limit(1);
+        const [nextRes, countRes] = await Promise.all([
+          supabase
+            .from("sessions")
+            .select("id, title, starts_at, status")
+            .eq("club_id", clubId)
+            .gte("starts_at", nowIso)
+            .order("starts_at", { ascending: true })
+            .limit(1),
+
+          supabase
+            .from("sessions")
+            .select("id", { count: "exact", head: true })
+            .eq("club_id", clubId)
+            .gte("starts_at", nowIso)
+            .lte("starts_at", in7),
+        ]);
 
         if (nextRes.error) throw nextRes.error;
-
-        // 2) Count of sessions next 7 days (cheap proof of backend)
-        const countRes = await supabase
-          .from("sessions")
-          .select("id", { count: "exact", head: true })
-          .eq("club_id", clubId)
-          .gte("starts_at", nowIso)
-          .lte("starts_at", in7);
-
         if (countRes.error) throw countRes.error;
 
-        // 3) Latest AI insight (RLS protected)
-        // If you later want: filter by period_end >= now etc.
+        // Insight is optional — don’t break schedule if unavailable
         const aiRes = await supabase
           .from("session_ai_insights")
           .select("id, club_id, period_start, period_end, source, summary, created_at")
@@ -132,30 +189,24 @@ export default function ScheduleHomePage() {
           .order("created_at", { ascending: false })
           .limit(1);
 
-        // NOTE: if your RLS currently blocks this table, you'll get an error here.
-        // That's GOOD: it proves RLS is working; we surface it as "AI locked by RLS".
-        if (aiRes.error) {
-          // Don’t fail whole page; schedule still works even if AI is locked.
-          // But show it clearly.
-          if (!cancelled) {
-            setLatestInsight(null);
-            setBackendOk("ok");
-            setBackendErr(`AI insight is locked by RLS (or no policy): ${aiRes.error.message}`);
-          }
-          return;
-        }
-
         if (cancelled) return;
 
         setNextSession((nextRes.data?.[0] as any) ?? null);
         setNext7Count(countRes.count ?? 0);
-        setLatestInsight((aiRes.data?.[0] as any) ?? null);
 
-        setBackendOk("ok");
+        if (aiRes.error) {
+          setLatestInsight(null);
+          setSystemState("ready");
+          setSystemNote("Insights are not enabled for this club yet. Your schedule still works normally.");
+          return;
+        }
+
+        setLatestInsight((aiRes.data?.[0] as any) ?? null);
+        setSystemState("ready");
       } catch (e: any) {
         if (cancelled) return;
-        setBackendOk("err");
-        setBackendErr(e?.message ?? "Backend read failed.");
+        setSystemState("issue");
+        setSystemNote(e?.message ?? "We couldn’t load schedule data right now.");
       }
     })();
 
@@ -164,191 +215,156 @@ export default function ScheduleHomePage() {
     };
   }, [clubId, supabase, checking]);
 
-  const backendChip =
-    backendOk === "ok"
-      ? { tone: "emerald", text: "Backend + RLS: OK" }
-      : backendOk === "err"
-        ? { tone: "rose", text: "Backend: Error" }
-        : { tone: "neutral", text: checking ? "Auth: checking…" : "Backend: connecting…" };
-
-  const chipCls =
-    backendChip.tone === "emerald"
-      ? "border-emerald-200/80 bg-emerald-50/70 text-emerald-950"
-      : backendChip.tone === "rose"
-        ? "border-rose-200/80 bg-rose-50/70 text-rose-950"
-        : "border-slate-200 bg-white/70 text-slate-700";
+  const systemBadge =
+    systemState === "ready"
+      ? { text: "System: Connected", cls: "border-emerald-200/80 bg-emerald-50/70 text-emerald-950" }
+      : systemState === "issue"
+        ? { text: "System: Needs attention", cls: "border-rose-200/80 bg-rose-50/70 text-rose-950" }
+        : { text: checking ? "Signing in…" : "Connecting…", cls: "border-slate-200 bg-white/70 text-slate-700" };
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
-      {/* Header frame */}
-      <div className="mb-6 rounded-[28px] border border-slate-200/70 bg-white/55 shadow-[0_24px_80px_-56px_rgba(2,6,23,0.45)] backdrop-blur-xl overflow-hidden">
-        {/* Top band */}
-        <div className="border-b border-slate-200/70 bg-[radial-gradient(1000px_260px_at_10%_0%,rgba(99,102,241,0.14),transparent_60%),radial-gradient(900px_240px_at_90%_0%,rgba(34,211,238,0.10),transparent_55%)] px-5 py-5 sm:px-7">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+      <SectionCard
+        title="Schedule & Operations"
+        subtitle="Plan sessions, keep delivery consistent, and build evidence that parents and stakeholders understand."
+        right={
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge text={systemBadge.text} cls={systemBadge.cls} title={systemNote ?? "Live connection status"} />
+            {dayTag ? (
+              <Badge
+                text={dayTag}
+                cls="border-indigo-200/80 bg-indigo-50/70 text-indigo-950"
+                title="Quick reference"
+              />
+            ) : null}
+            <Badge
+              text={fmtDayHeader(now)}
+              cls="border-slate-200 bg-white/70 text-slate-700"
+              title="Today"
+            />
+          </div>
+        }
+      >
+        {/* Action row */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-900">What would you like to do?</div>
+            <div className="mt-1 text-xs text-slate-600">
+              Create a new session, review past sessions, or manage your timetable for the week.
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => router.push(`/app/admin/clubs/${clubId}/sessions`)}
+              className="rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white transition"
+            >
+              Sessions
+            </button>
+
+            <Link
+              href={`/app/admin/clubs/${clubId}/schedule/history`}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white transition"
+            >
+              Reports
+            </Link>
+
+            <Link
+              href={`/app/admin/clubs/${clubId}/schedule/create`}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition"
+            >
+              New session
+            </Link>
+          </div>
+        </div>
+
+        {/* Highlights */}
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <StatTile
+            label="NEXT 7 DAYS"
+            value={next7Count === null ? "—" : next7Count}
+            hint="How many sessions are planned this week"
+          />
+
+          <StatTile
+            label="NEXT SESSION"
+            value={nextSession?.starts_at ? (nextSession.title || "Untitled") : "—"}
+            hint={nextSession?.starts_at ? `Starts ${fmtRelative(nextSession.starts_at)}` : "No upcoming sessions found"}
+          />
+
+          <StatTile
+            label="LATEST INSIGHT"
+            value={latestInsight?.created_at ? fmtRelative(latestInsight.created_at) : "—"}
+            hint={latestInsight?.summary ? "A short summary based on your club signals" : "Insights appear after sessions & evidence"}
+          />
+        </div>
+
+        {/* Share link */}
+        <div className="mt-4 rounded-2xl border border-slate-200/70 bg-white/60 p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                  Planner
-                </span>
-
-                <span
-                  className={cx(
-                    "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                    chipCls
-                  )}
-                  title={backendErr ?? "Live reads via Supabase + RLS"}
-                >
-                  {backendChip.text}
-                </span>
-
-                {label ? (
-                  <span className="inline-flex items-center rounded-full border border-indigo-200/80 bg-indigo-50/70 px-2.5 py-1 text-[11px] font-semibold text-indigo-950">
-                    {label}
-                  </span>
-                ) : null}
-
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                  {fmtDayHeader(now)}
-                </span>
-              </div>
-
-              <div className="mt-2 text-sm font-semibold text-slate-900">Schedule Sessions</div>
-
-              <div className="mt-0.5 text-xs text-slate-600">
-                Plan sessions fast • Standardize outcomes with templates • Improve evidence + analytics quality
+              <div className="text-xs font-semibold tracking-widest text-slate-500">SHARE</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">Schedule link</div>
+              <div className="mt-1 text-xs text-slate-600">
+                Share this link with staff/admins who need to view the timetable.
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <div
+                className={cx(
+                  "rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700",
+                  "max-w-[520px]"
+                )}
+                title={shareUrl || "—"}
+              >
+                <span className="text-slate-600">Link:</span>{" "}
+                <span className="ml-1 truncate font-mono text-slate-900">{shareUrl || "—"}</span>
+              </div>
+
               <button
                 type="button"
-                onClick={() => router.push(`/app/admin/clubs/${clubId}/sessions`)}
-                className="rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white transition"
-              >
-                Back
-              </button>
-
-              <Link
-                href={`/app/admin/clubs/${clubId}/schedule/history`}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white transition"
-              >
-                History
-              </Link>
-
-
-              <Link
-                href={`/app/admin/clubs/${clubId}/schedule/create`}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition"
-              >
-                New session
-              </Link>
-
-              <span
+                onClick={copyShareLink}
                 className={cx(
-                  "hidden md:inline-flex items-center rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700",
-                  "max-w-[460px]"
+                  "rounded-xl border px-3 py-2 text-xs font-semibold transition",
+                  copied
+                    ? "border-emerald-200/80 bg-emerald-50/70 text-emerald-950"
+                    : "border-slate-200 bg-white/70 text-slate-900 hover:bg-white"
                 )}
-                title={shareUrl || "Shareable schedule link"}
+                disabled={!shareUrl}
               >
-                Shareable link:
-                <span className="ml-2 truncate font-mono text-slate-900">
-                  {shareUrl || "—"}
-                </span>
-              </span>
+                {copied ? "Copied" : "Copy link"}
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Secondary strip (now LIVE, not static) */}
-        <div className="px-5 py-4 sm:px-7">
-          <div className="grid gap-3 md:grid-cols-3">
-            {/* SYSTEM */}
-            <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-4">
-              <div className="text-xs font-semibold tracking-widest text-slate-500">SYSTEM</div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">Ops-first scheduling</div>
-              <div className="mt-1 text-xs text-slate-600">
-                Next 7 days:{" "}
-                <span className="font-semibold text-slate-900">
-                  {next7Count === null ? "—" : next7Count}
-                </span>{" "}
-                session(s)
-              </div>
-
-              <div className="mt-3 rounded-xl border border-slate-200/70 bg-white/70 p-3">
-                <div className="text-[11px] font-semibold text-slate-700">Next session</div>
-                <div className="mt-1 text-xs text-slate-600">
-                  {nextSession?.starts_at ? (
-                    <>
-                      <span className="font-semibold text-slate-900">
-                        {nextSession.title || "Untitled"}
-                      </span>
-                      <span className="mx-2 text-slate-400">•</span>
-                      <span>{fmtRelative(nextSession.starts_at)}</span>
-                    </>
-                  ) : (
-                    "No upcoming sessions found."
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* AI AUTOMATION */}
-            <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-4">
-              <div className="text-xs font-semibold tracking-widest text-slate-500">AI AUTOMATION</div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">Signal-driven insight</div>
-              <div className="mt-1 text-xs text-slate-600">
-                Latest insight:{" "}
-                <span className="font-semibold text-slate-900">
-                  {latestInsight?.created_at ? fmtRelative(latestInsight.created_at) : "—"}
-                </span>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-slate-200/70 bg-white/70 p-3">
-                <div className="text-[11px] font-semibold text-slate-700">AI summary preview</div>
-                <div className="mt-1 text-xs text-slate-600 line-clamp-3">
-                  {latestInsight?.summary
-                    ? latestInsight.summary
-                    : backendErr?.includes("AI insight is locked")
-                      ? "AI insights are protected by RLS (policy required)."
-                      : "No insights yet — create sessions and evidence to generate insights."}
-                </div>
-              </div>
-            </div>
-
-            {/* ENTERPRISE FLOW */}
-            <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-4">
-              <div className="text-xs font-semibold tracking-widest text-slate-500">ENTERPRISE FLOW</div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">Fast creation</div>
-              <div className="mt-1 text-xs text-slate-600">
-                Templates apply instantly • Optimistic schedule updates • Low friction ops.
-              </div>
-
-              <div className="mt-3 rounded-xl border border-slate-200/70 bg-white/70 p-3">
-                <div className="text-[11px] font-semibold text-slate-700">Backend guarantees</div>
-                <div className="mt-1 text-xs text-slate-600">
-                  Session reads are RLS-gated (owner/member). Create flow remains atomic via RPC.
-                </div>
-              </div>
+        {/* Notice */}
+        {systemState === "issue" && systemNote ? (
+          <div className="mt-4 rounded-2xl border border-rose-200/80 bg-rose-50/70 p-4 text-sm text-rose-950">
+            <div className="font-semibold">We couldn’t load everything</div>
+            <div className="mt-1">{systemNote}</div>
+            <div className="mt-2 text-xs text-rose-900/80">
+              Tip: Refresh the page. If it continues, check your club access permissions.
             </div>
           </div>
+        ) : null}
 
-          {backendOk === "err" && backendErr ? (
-            <div className="mt-3 rounded-2xl border border-rose-200/80 bg-rose-50/70 p-4 text-xs text-rose-950">
-              <div className="font-semibold">Backend status</div>
-              <div className="mt-1">{backendErr}</div>
-            </div>
-          ) : null}
-        </div>
-      </div>
+        {systemState === "ready" && systemNote ? (
+          <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50/60 p-4 text-sm text-slate-700">
+            <div className="font-semibold text-slate-900">Note</div>
+            <div className="mt-1">{systemNote}</div>
+          </div>
+        ) : null}
+      </SectionCard>
 
       {/* Main grid */}
       <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left */}
         <div className="lg:col-span-8 space-y-6">
           <UpcomingSchedule clubId={clubId} />
         </div>
 
-        {/* Right */}
         <div className="lg:col-span-4 space-y-6">
           <AiOpsCoachPanel clubId={clubId} />
           <QualityChecklistPanel />
