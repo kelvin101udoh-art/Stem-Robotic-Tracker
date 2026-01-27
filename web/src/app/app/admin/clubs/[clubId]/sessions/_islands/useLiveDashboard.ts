@@ -1,8 +1,7 @@
 // web/src/app/app/admin/clubs/[clubId]/sessions/_islands/useLiveDashboard.ts
-
 "use client";
 
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useAdminGuard } from "@/lib/admin/admin-guard";
 
 export type SessionStatus = "planned" | "open" | "closed";
@@ -16,7 +15,7 @@ export type SessionRow = {
   status?: SessionStatus | null;
 
   // returned by RPC
-  participants?: number;
+  participants?: number; // high-level signal only (attendance has its own module)
   evidence_items?: number;
   last_evidence_at?: string | null;
   activities_total?: number;
@@ -40,11 +39,37 @@ export type LiveDashboardPayload = {
   latest_ai?: SessionAiInsight | null;
 };
 
+function ymdLocal() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function storageKey(clubId: string) {
+  // This is the key part that makes “Schedule home page” and “Sessions analytics page”
+  // co-work: both pages can read the same stored snapshot instantly on load.
+  return `stemtrack:today_live_dashboard:${clubId}:${ymdLocal()}`;
+}
+
+function safeJsonParse<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 function computeSignature(p: LiveDashboardPayload | null) {
   if (!p) return "";
   const s = p.sessions ?? [];
   const per = s
-    .map((x) => `${x.id}:${x.status ?? ""}:${x.last_evidence_at ?? ""}:${x.activities_done ?? 0}:${x.evidence_items ?? 0}`)
+    .map(
+      (x) =>
+        `${x.id}:${x.status ?? ""}:${x.last_evidence_at ?? ""}:${x.activities_done ?? 0}:${x.evidence_items ?? 0}:${x.participants ?? 0}`
+    )
     .join("|");
   return `${p.last_updated_at ?? ""}::${p.latest_ai?.created_at ?? ""}::${s.length}::${per}`;
 }
@@ -62,11 +87,28 @@ const CACHE = new Map<
   }
 >();
 
+function hydrateFromStorage(clubId: string) {
+  try {
+    const raw = window.localStorage.getItem(storageKey(clubId));
+    const parsed = safeJsonParse<LiveDashboardPayload>(raw);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function persistToStorage(clubId: string, payload: LiveDashboardPayload) {
+  try {
+    window.localStorage.setItem(storageKey(clubId), JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
+
 async function fetchAndBroadcast(args: {
   clubId: string;
   supabase: any;
   checking: boolean;
-  silent?: boolean;
 }) {
   const { clubId, supabase, checking } = args;
   if (checking) return;
@@ -91,6 +133,9 @@ async function fetchAndBroadcast(args: {
     entry.payload = payload;
     entry.sig = nextSig;
 
+    // ✅ Persist snapshot so other pages (e.g., schedule) can instantly load it too.
+    persistToStorage(clubId, payload);
+
     for (const fn of entry.listeners) fn(payload);
   } finally {
     entry.inflight = false;
@@ -102,12 +147,26 @@ export function useLiveDashboard(clubId: string) {
 
   const [payload, setPayload] = useState<LiveDashboardPayload | null>(() => {
     const entry = CACHE.get(clubId);
-    return entry?.payload ?? null;
+    if (entry?.payload) return entry.payload;
+
+    // If cache is empty (first visit on this route), hydrate from storage.
+    // This is what makes “session_ai co-working” across pages feel instant.
+    if (typeof window !== "undefined") {
+      const stored = hydrateFromStorage(clubId);
+      if (stored) return stored;
+    }
+    return null;
   });
 
   const [booting, setBooting] = useState(() => {
     const entry = CACHE.get(clubId);
-    return !entry?.payload;
+    if (entry?.payload) return false;
+    // If we have a stored snapshot, we are not booting (we can render immediately).
+    if (typeof window !== "undefined") {
+      const stored = hydrateFromStorage(clubId);
+      return !stored;
+    }
+    return true;
   });
 
   const [refreshing, setRefreshing] = useState(false);
@@ -117,9 +176,13 @@ export function useLiveDashboard(clubId: string) {
     if (!clubId) return;
 
     if (!CACHE.has(clubId)) {
+      // try to seed cache from storage
+      const stored = typeof window !== "undefined" ? hydrateFromStorage(clubId) : null;
+      const seeded = stored ?? null;
+
       CACHE.set(clubId, {
-        payload: null,
-        sig: "",
+        payload: seeded,
+        sig: computeSignature(seeded),
         listeners: new Set(),
         timer: null,
         channel: null,
@@ -128,6 +191,13 @@ export function useLiveDashboard(clubId: string) {
     }
 
     const entry = CACHE.get(clubId)!;
+
+    // if this component has payload but cache doesn't, sync it
+    if (!entry.payload && payload) {
+      entry.payload = payload;
+      entry.sig = computeSignature(payload);
+    }
+
     const listener = (p: LiveDashboardPayload | null) => {
       startTransition(() => setPayload(p));
     };
@@ -137,14 +207,17 @@ export function useLiveDashboard(clubId: string) {
     return () => {
       entry.listeners.delete(listener);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId]);
 
   // start polling + realtime once (per clubId)
   useEffect(() => {
     if (!clubId) return;
+    if (!supabase) return;
+
     const entry = CACHE.get(clubId)!;
 
-    // initial fetch (only once)
+    // initial fetch
     (async () => {
       setRefreshing(true);
       await fetchAndBroadcast({ clubId, supabase, checking });
@@ -156,7 +229,7 @@ export function useLiveDashboard(clubId: string) {
     if (!entry.timer) {
       entry.timer = window.setInterval(async () => {
         setRefreshing(true);
-        await fetchAndBroadcast({ clubId, supabase, checking, silent: true });
+        await fetchAndBroadcast({ clubId, supabase, checking });
         setRefreshing(false);
       }, 25000);
     }
@@ -171,26 +244,48 @@ export function useLiveDashboard(clubId: string) {
           if (t) window.clearTimeout(t);
           t = window.setTimeout(async () => {
             setRefreshing(true);
-            await fetchAndBroadcast({ clubId, supabase, checking, silent: true });
+            await fetchAndBroadcast({ clubId, supabase, checking });
             setRefreshing(false);
           }, 650);
         };
       })();
 
-      ch.on("postgres_changes", { event: "*", schema: "public", table: "sessions", filter: `club_id=eq.${clubId}` }, debounced);
-      ch.on("postgres_changes", { event: "*", schema: "public", table: "session_participants", filter: `club_id=eq.${clubId}` }, debounced);
-      ch.on("postgres_changes", { event: "*", schema: "public", table: "session_evidence", filter: `club_id=eq.${clubId}` }, debounced);
-      ch.on("postgres_changes", { event: "*", schema: "public", table: "session_activities", filter: `club_id=eq.${clubId}` }, debounced);
-      ch.on("postgres_changes", { event: "*", schema: "public", table: "session_ai_insights", filter: `club_id=eq.${clubId}` }, debounced);
+      // Sessions + proof + outcomes + AI insight.
+      // Attendance has its own module, but we still listen to participant table
+      // because the “engagement signal” number shown here depends on it.
+      ch.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sessions", filter: `club_id=eq.${clubId}` },
+        debounced
+      );
+      ch.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "session_participants", filter: `club_id=eq.${clubId}` },
+        debounced
+      );
+      ch.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "session_evidence", filter: `club_id=eq.${clubId}` },
+        debounced
+      );
+      ch.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "session_activities", filter: `club_id=eq.${clubId}` },
+        debounced
+      );
+      ch.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "session_ai_insights", filter: `club_id=eq.${clubId}` },
+        debounced
+      );
 
       ch.subscribe();
       entry.channel = ch;
     }
 
     return () => {
-      // DO NOT clear timer/channel here (islands can mount/unmount).
-      // Keep a single live pipeline while user is on the route.
-      // Optional: implement ref-count cleanup later.
+      // Keep a single pipeline while user is navigating within the club area.
+      // Optional: ref-count cleanup later.
     };
   }, [clubId, supabase, checking]);
 
