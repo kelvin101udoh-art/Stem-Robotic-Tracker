@@ -123,7 +123,19 @@ async function fetchAndBroadcast(args: {
       p_club_id: clubId,
     });
 
-    if (error || !data) return;
+    if (error) {
+      console.error("[get_today_live_dashboard] RPC error:", error);
+      // Optional: broadcast a payload-like error object if you want UI to show it
+      return;
+    }
+
+    if (!data) {
+      console.warn("[get_today_live_dashboard] RPC returned null/empty payload");
+      return;
+    }
+
+    console.log("[get_today_live_dashboard] payload:", data);
+
 
     const payload = data as LiveDashboardPayload;
     const nextSig = computeSignature(payload);
