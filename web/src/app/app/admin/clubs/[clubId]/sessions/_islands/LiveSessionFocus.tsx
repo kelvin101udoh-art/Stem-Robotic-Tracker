@@ -254,7 +254,7 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
               title="Data Coverage (Today)"
               sessionsCount={0}
               openCount={0}
-              withParticipantsCount={0}
+
               withEvidenceCount={0}
               withChecklistCount={0}
             />
@@ -328,7 +328,7 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
               title="Data Coverage (Today)"
               sessionsCount={coverage.sessionsCount}
               openCount={coverage.openCount}
-              withParticipantsCount={coverage.withParticipantsCount}
+
               withEvidenceCount={coverage.withEvidenceCount}
               withChecklistCount={coverage.withChecklistCount}
             />
