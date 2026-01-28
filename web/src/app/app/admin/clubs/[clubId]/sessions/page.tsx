@@ -1,3 +1,5 @@
+// web/src/app/app/admin/clubs/[clubId]/sessions/page.tsx
+
 "use client";
 
 import { useParams } from "next/navigation";
@@ -24,7 +26,7 @@ export default function SessionsPage() {
                   Sessions Analytics
                 </div>
                 <div className="mt-1 text-xs text-slate-600">
-                  Execution clarity for business owners — checklist delivery, evidence proof, and AI actions (live only).
+                  Owner view: delivery execution + proof quality. Live window only.
                 </div>
               </div>
 
@@ -42,19 +44,17 @@ export default function SessionsPage() {
 
           {/* Body */}
           <div className="p-5 sm:p-7 space-y-6">
-            {/* Executive overview: “are we delivering + proving?” */}
+            {/* KPI cockpit */}
             <ExecutionOverview clubId={clubId} />
 
             <div className="grid gap-6 lg:grid-cols-12">
-              {/* Operations / table */}
+              {/* Left: Exceptions / risk / ops */}
               <div className="lg:col-span-8 space-y-6">
                 <SessionTable clubId={clubId} />
-
-                {/* Coverage panel (analytics-only: no attendance) */}
                 <EvidenceCoveragePanel clubId={clubId} />
               </div>
 
-              {/* AI actions */}
+              {/* Right: AI executive insight */}
               <div className="lg:col-span-4">
                 <AiInsightPanel clubId={clubId} />
               </div>
@@ -63,7 +63,7 @@ export default function SessionsPage() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-white/60 px-4 py-3 text-xs text-slate-600">
               <div className="font-semibold text-slate-700">System notes</div>
               <div className="text-slate-600">
-                Live refresh: ~25s + realtime subscriptions (debounced). One RPC payload → consistent analytics.
+                Realtime + 25s polling • single RPC payload • optimized for owner decisions
               </div>
             </div>
           </div>

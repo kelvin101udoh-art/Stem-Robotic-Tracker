@@ -59,32 +59,13 @@ export default function AiInsightPanel({ clubId }: { clubId: string }) {
 
   const coverage = useMemo(() => {
     const sessionsCount = sessions.length;
-    const openCount = sessions.filter(
-      (s) => (s.status ?? "planned") === "open"
-    ).length;
+    const openCount = sessions.filter((s) => (s.status ?? "planned") === "open").length;
+    const withEvidenceCount = sessions.filter((s) => (s.evidence_items ?? 0) > 0).length;
+    const withChecklistCount = sessions.filter((s) => (s.activities_total ?? 0) > 0).length;
 
-    // NOTE: This view is not the attendance module.
-    // We treat “participants” here as a high-level engagement signal only.
-    const withParticipantsCount = sessions.filter(
-      (s) => (s.participants ?? 0) > 0
-    ).length;
-
-    const withEvidenceCount = sessions.filter(
-      (s) => (s.evidence_items ?? 0) > 0
-    ).length;
-
-    const withChecklistCount = sessions.filter(
-      (s) => (s.activities_total ?? 0) > 0
-    ).length;
-
-    return {
-      sessionsCount,
-      openCount,
-      withParticipantsCount,
-      withEvidenceCount,
-      withChecklistCount,
-    };
+    return { sessionsCount, openCount, withEvidenceCount, withChecklistCount };
   }, [sessions]);
+
 
   if (booting) {
     return (
@@ -218,7 +199,7 @@ export default function AiInsightPanel({ clubId }: { clubId: string }) {
               title="Health check (why insight is empty)"
               sessionsCount={coverage.sessionsCount}
               openCount={coverage.openCount}
-              withParticipantsCount={coverage.withParticipantsCount}
+
               withEvidenceCount={coverage.withEvidenceCount}
               withChecklistCount={coverage.withChecklistCount}
             />

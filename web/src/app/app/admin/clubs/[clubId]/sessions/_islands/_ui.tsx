@@ -102,7 +102,6 @@ export function EvidenceCoveragePanel(props: {
   title?: string;
   sessionsCount: number;
   openCount: number;
-  withParticipantsCount: number;
   withEvidenceCount: number;
   withChecklistCount: number;
 }) {
@@ -110,7 +109,6 @@ export function EvidenceCoveragePanel(props: {
     title = "Coverage Signals",
     sessionsCount,
     openCount,
-    withParticipantsCount,
     withEvidenceCount,
     withChecklistCount,
   } = props;
@@ -132,22 +130,14 @@ export function EvidenceCoveragePanel(props: {
       label: "Checklist attached",
       value: `${withChecklistCount}/${sessionsCount} (${pct(withChecklistCount)})`,
       ok: sessionsCount > 0 && withChecklistCount > 0,
-      why: "Checklists measure execution: what was planned vs what was delivered.",
-      fix: "Attach 4–6 outcomes and tick progress live.",
-    },
-    {
-      label: "Participants recorded",
-      value: `${withParticipantsCount}/${sessionsCount} (${pct(withParticipantsCount)})`,
-      ok: sessionsCount > 0 && withParticipantsCount > 0,
-      why:
-        "Attendance is the foundation for accurate analytics and reporting across sessions.",
-      fix: "Add participants early (even rough count) to activate attendance insights.",
+      why: "Checklist = execution tracking (what was planned vs delivered).",
+      fix: "Attach 4–6 outcomes and update during delivery.",
     },
     {
       label: "Evidence captured",
       value: `${withEvidenceCount}/${sessionsCount} (${pct(withEvidenceCount)})`,
       ok: sessionsCount > 0 && withEvidenceCount > 0,
-      why: "Evidence stabilizes AI insights and creates verifiable proof for parents/stakeholders.",
+      why: "Evidence = proof quality (stabilizes AI and stakeholder reporting).",
       fix: "Capture at least 2 items per session (photo + note).",
     },
   ];
@@ -196,5 +186,6 @@ export function EvidenceCoveragePanel(props: {
     </div>
   );
 }
+
 
 

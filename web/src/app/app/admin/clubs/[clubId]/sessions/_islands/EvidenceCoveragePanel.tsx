@@ -1,3 +1,5 @@
+// web/src/app/app/admin/clubs/[clubId]/sessions/_islands/EvidenceCoveragePanel.tsx
+
 "use client";
 
 import { useMemo } from "react";
@@ -10,11 +12,10 @@ export default function EvidenceCoveragePanel({ clubId }: { clubId: string }) {
   const coverage = useMemo(() => {
     const sessionsCount = sessions.length;
     const openCount = sessions.filter((s) => (s.status ?? "planned") === "open").length;
-    const withParticipantsCount = sessions.filter((s) => (s.participants ?? 0) > 0).length;
     const withEvidenceCount = sessions.filter((s) => (s.evidence_items ?? 0) > 0).length;
     const withChecklistCount = sessions.filter((s) => (s.activities_total ?? 0) > 0).length;
 
-    return { sessionsCount, openCount, withParticipantsCount, withEvidenceCount, withChecklistCount };
+    return { sessionsCount, openCount, withEvidenceCount, withChecklistCount };
   }, [sessions]);
 
   if (booting) return null;
@@ -24,7 +25,6 @@ export default function EvidenceCoveragePanel({ clubId }: { clubId: string }) {
       title="Coverage signals (Today)"
       sessionsCount={coverage.sessionsCount}
       openCount={coverage.openCount}
-      withParticipantsCount={coverage.withParticipantsCount}
       withEvidenceCount={coverage.withEvidenceCount}
       withChecklistCount={coverage.withChecklistCount}
     />
