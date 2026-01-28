@@ -5,7 +5,7 @@
 
 import { useMemo } from "react";
 import { useLiveDashboard, SessionRow } from "./useLiveDashboard";
-import { DataCoveragePanel, SkeletonMicroCharts, cx } from "./_ui";
+import { EvidenceCoveragePanel, SkeletonMicroCharts, cx } from "./_ui";
 
 function pct(n: number) {
   if (!Number.isFinite(n)) return "0%";
@@ -250,7 +250,7 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
 
             <SkeletonMicroCharts />
 
-            <DataCoveragePanel
+            <EvidenceCoveragePanel
               title="Data Coverage (Today)"
               sessionsCount={0}
               openCount={0}
@@ -324,7 +324,7 @@ export default function LiveSessionFocus({ clubId }: { clubId: string }) {
             </div>
 
             {/* Always show coverage when sessions exist (enterprise monitoring vibe) */}
-            <DataCoveragePanel
+            <EvidenceCoveragePanel
               title="Data Coverage (Today)"
               sessionsCount={coverage.sessionsCount}
               openCount={coverage.openCount}
