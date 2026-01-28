@@ -98,7 +98,7 @@ export function SkeletonMicroCharts() {
  * Data Coverage Panel
  * Explains what’s missing & why, based on existing session metrics only.
  */
-export function DataCoveragePanel(props: {
+export function EvidenceCoveragePanel(props: {
   title?: string;
   sessionsCount: number;
   openCount: number;
@@ -107,7 +107,7 @@ export function DataCoveragePanel(props: {
   withChecklistCount: number;
 }) {
   const {
-    title = "Data Coverage",
+    title = "Coverage Signals",
     sessionsCount,
     openCount,
     withParticipantsCount,
@@ -125,9 +125,15 @@ export function DataCoveragePanel(props: {
       label: "Sessions marked OPEN",
       value: `${openCount}/${sessionsCount} (${pct(openCount)})`,
       ok: sessionsCount > 0 && openCount > 0,
-      why:
-        "OPEN status increases live signal quality and makes the dashboard reflect real delivery.",
-      fix: "Mark today’s session OPEN while teaching.",
+      why: "OPEN status improves live monitoring and makes the dashboard reflect real delivery.",
+      fix: "Mark the active session OPEN while delivering.",
+    },
+    {
+      label: "Checklist attached",
+      value: `${withChecklistCount}/${sessionsCount} (${pct(withChecklistCount)})`,
+      ok: sessionsCount > 0 && withChecklistCount > 0,
+      why: "Checklists measure execution: what was planned vs what was delivered.",
+      fix: "Attach 4–6 outcomes and tick progress live.",
     },
     {
       label: "Participants recorded",
@@ -141,17 +147,8 @@ export function DataCoveragePanel(props: {
       label: "Evidence captured",
       value: `${withEvidenceCount}/${sessionsCount} (${pct(withEvidenceCount)})`,
       ok: sessionsCount > 0 && withEvidenceCount > 0,
-      why:
-        "Evidence items (photo/note) stabilize AI insight and create verifiable learning proof.",
-      fix: "Capture at least 2 items: 1 photo + 1 note.",
-    },
-    {
-      label: "Checklist attached",
-      value: `${withChecklistCount}/${sessionsCount} (${pct(withChecklistCount)})`,
-      ok: sessionsCount > 0 && withChecklistCount > 0,
-      why:
-        "Checklists measure execution: what was planned vs what was delivered.",
-      fix: "Attach 4–6 outcomes and tick progress live.",
+      why: "Evidence stabilizes AI insights and creates verifiable proof for parents/stakeholders.",
+      fix: "Capture at least 2 items per session (photo + note).",
     },
   ];
 
@@ -168,22 +165,15 @@ export function DataCoveragePanel(props: {
 
       <div className="mt-3 space-y-2">
         {rows.map((r) => (
-          <div
-            key={r.label}
-            className="rounded-xl border border-slate-200 bg-slate-50/70 p-3"
-          >
+          <div key={r.label} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-900">
-                  {r.label}
-                </div>
+                <div className="text-sm font-semibold text-slate-900">{r.label}</div>
                 <div className="mt-1 text-xs text-slate-600">{r.why}</div>
               </div>
 
               <div className="shrink-0 text-right">
-                <div className="text-xs font-semibold text-slate-900">
-                  {r.value}
-                </div>
+                <div className="text-xs font-semibold text-slate-900">{r.value}</div>
                 <span
                   className={cx(
                     "mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold",
@@ -198,8 +188,7 @@ export function DataCoveragePanel(props: {
             </div>
 
             <div className="mt-3 rounded-lg border border-slate-200 bg-white/70 p-2 text-xs text-slate-700">
-              <span className="font-semibold text-slate-900">Fix:</span>{" "}
-              {r.fix}
+              <span className="font-semibold text-slate-900">Fix:</span> {r.fix}
             </div>
           </div>
         ))}
@@ -207,3 +196,5 @@ export function DataCoveragePanel(props: {
     </div>
   );
 }
+
+

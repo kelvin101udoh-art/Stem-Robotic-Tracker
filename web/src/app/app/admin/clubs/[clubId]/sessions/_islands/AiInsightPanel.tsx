@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import { useLiveDashboard } from "./useLiveDashboard";
-import { DataCoveragePanel, SkeletonMicroCharts, cx } from "./_ui";
+import { EvidenceCoveragePanel, SkeletonMicroCharts, cx } from "./_ui";
 
 function fmtDateTimeShort(iso?: string | null) {
   if (!iso) return "—";
@@ -214,7 +214,7 @@ export default function AiInsightPanel({ clubId }: { clubId: string }) {
 
             <SkeletonMicroCharts />
 
-            <DataCoveragePanel
+            <EvidenceCoveragePanel
               title="Health check (why insight is empty)"
               sessionsCount={coverage.sessionsCount}
               openCount={coverage.openCount}
