@@ -7,7 +7,6 @@ import SessionTable from "./_islands/SessionTable";
 import AiInsightPanel from "./_islands/AiInsightPanel";
 import EvidenceCoveragePanel from "./_islands/EvidenceCoveragePanel";
 
-
 export default function SessionsPage() {
   const { clubId } = useParams<{ clubId: string }>();
 
