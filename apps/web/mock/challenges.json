@@ -1,0 +1,5 @@
+[
+{"name":"Line Follower Time Trial","type":"time_trial","rubric":{"criteria":[{"key":"design","max":5},{"key":"code","max":5},{"key":"teamwork","max":5}]},"is_active":true},
+{"name":"Maze Solve","type":"maze","rubric":{"criteria":[{"key":"planning","max":5},{"key":"sensors","max":5},{"key":"collab","max":5}]},"is_active":true},
+{"name":"Sumo Bot","type":"sumo","rubric":{"criteria":[{"key":"build","max":5},{"key":"control","max":5},{"key":"strategy","max":5}]},"is_active":true}
+]
