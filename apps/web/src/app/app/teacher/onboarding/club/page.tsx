@@ -56,7 +56,7 @@ export default function ClubPage() {
         console.error(error);
         setClubs([]);
       } else {
-        setClubs((rows ?? []) as ClubTeacherRow[]);
+        setClubs((rows ?? []) as unknown as ClubTeacherRow[]);
       }
 
       setLoading(false);
