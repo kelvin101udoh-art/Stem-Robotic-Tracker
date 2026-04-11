@@ -26,13 +26,17 @@ export function Field({
         autoCapitalize="none"
         autoCorrect={false}
         style={styles.input}
+        placeholderTextColor={theme.color.muted}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  label: { color: theme.color.subtext, fontWeight: "600" },
+  label: {
+    color: theme.color.subtext,
+    fontWeight: "600",
+  },
   input: {
     borderWidth: 1,
     borderColor: theme.color.border,
@@ -40,5 +44,6 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 16,
     backgroundColor: theme.color.surface,
+    color: theme.color.text,
   },
 });

@@ -1,15 +1,13 @@
-export type CaptureStatus =
-  | "uploaded"
-  | "processing"
-  | "completed"
+export type CaptureSubmissionStatus =
+  | "idle"
+  | "recording"
+  | "review"
+  | "submitting"
+  | "submitted"
   | "failed";
 
-export interface VoiceCapture {
-  id: string;
-  clubId: string;
-  createdAt: string;
-  status: CaptureStatus;
-  durationMs?: number;
-  transcript?: string | null;
-  audioPath?: string | null;
+export interface SubmitLearningCaptureResponse {
+  capture_id: string;
+  status: "queued" | "processing" | "accepted";
+  created_at?: string;
 }

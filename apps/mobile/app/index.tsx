@@ -1,12 +1,17 @@
+// apps/mobile/app/index.tsx
+
+
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Text, View, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { Screen } from "../src/ui/components/Screen";
+import { AppShell } from "../src/ui/components/AppShell";
 import { Card } from "../src/ui/components/Card";
 import { Field } from "../src/ui/components/Field";
 import { Button } from "../src/ui/components/Button";
+import { SectionLabel } from "../src/ui/components/SectionLabel";
+import { InfoBanner } from "../src/ui/components/InfoBanner";
 import { theme } from "../src/ui/theme";
-import { exchangeAccessKey } from "../src/api/auth";
+import { exchangeAccessKey } from "../src/api/client/auth-client";
 import { saveSession } from "../src/core/session";
 
 export default function AccessKeyScreen() {
@@ -18,6 +23,7 @@ export default function AccessKeyScreen() {
   async function onContinue() {
     setErr(null);
     const trimmed = key.trim();
+
     if (trimmed.length < 8) {
       setErr("Please enter a valid Access Key.");
       return;
@@ -26,8 +32,14 @@ export default function AccessKeyScreen() {
     setLoading(true);
     try {
       const res = await exchangeAccessKey(trimmed);
-      await saveSession(res.session_token, res.expires_at);
-      router.replace("/capture");
+      await saveSession({
+        token: res.session_token,
+        expiresAtIso: res.expires_at,
+        clubId: res.club_id,
+        clubName: res.club_name ?? null,
+        sessionId: res.session_id ?? null,
+      });
+      router.replace("/home");
     } catch (e: any) {
       setErr(e?.message ?? "Access denied.");
     } finally {
@@ -36,15 +48,18 @@ export default function AccessKeyScreen() {
   }
 
   return (
-    <Screen>
+    <AppShell centered>
       <Card>
-        <View style={{ gap: theme.spacing.md }}>
-          <Text style={{ fontSize: 22, fontWeight: "800", color: theme.color.text }}>
-            Session Capture
-          </Text>
-          <Text style={{ color: theme.color.subtext, lineHeight: 20 }}>
-            Secure access is required. Captures are processed by STEMTrack to generate session reports.
-          </Text>
+        <View style={styles.stack}>
+          <SectionLabel>Secure Session Access</SectionLabel>
+
+          <View style={styles.header}>
+            <Text style={styles.title}>STEMTrack Capture</Text>
+            <Text style={styles.subtitle}>
+              Authorised teaching access is required before using voice capture,
+              attendance workflows, and evidence collection.
+            </Text>
+          </View>
 
           <Field
             label="Access Key"
@@ -54,14 +69,33 @@ export default function AccessKeyScreen() {
             secureTextEntry
           />
 
-          {err ? <Text style={{ color: theme.color.danger }}>{err}</Text> : null}
+          {err ? <InfoBanner tone="danger" text={err} /> : null}
 
           <Button label="Continue" onPress={onContinue} loading={loading} />
-          <Text style={{ color: theme.color.muted, fontSize: 12, lineHeight: 18 }}>
-            This app captures session reflections only. Reports appear in STEMTrack.
-          </Text>
+
+          <InfoBanner
+            tone="info"
+            text="This environment is restricted to approved STEMTrack teaching sessions. Activity may be validated against your session context."
+          />
         </View>
       </Card>
-    </Screen>
+    </AppShell>
   );
 }
+
+const styles = StyleSheet.create({
+  stack: {
+    gap: theme.spacing.lg,
+  },
+  header: {
+    gap: 6,
+  },
+  title: {
+    color: theme.color.text,
+    ...theme.typography.title,
+  },
+  subtitle: {
+    color: theme.color.subtext,
+    ...theme.typography.body,
+  },
+});
