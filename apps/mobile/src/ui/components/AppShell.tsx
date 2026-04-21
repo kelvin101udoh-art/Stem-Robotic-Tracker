@@ -1,3 +1,5 @@
+//  apps/mobile/src/ui/components/AppShell.tsx
+
 import React from "react";
 import { View, StyleSheet, useWindowDimensions } from "react-native";
 import { theme } from "../theme";
@@ -21,12 +23,12 @@ export function AppShell({
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1,
-    backgroundColor: theme.color.bg,
+    width: "100%",
     padding: theme.spacing.lg,
     alignItems: "center",
   },
   centered: {
+    flex: 1,
     justifyContent: "center",
   },
   inner: {
