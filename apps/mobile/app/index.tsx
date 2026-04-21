@@ -38,7 +38,11 @@ export default function AccessKeyScreen() {
         clubId: res.club_id,
         clubName: res.club_name ?? null,
         sessionId: res.session_id ?? null,
+        teacherId: res.teacher_id ?? null,
+        teacherName: res.teacher_name ?? null,
+        teacherRoleTitle: res.teacher_role_title ?? null,
       });
+
       router.replace("/home");
     } catch (e: any) {
       setErr(e?.message ?? "Access denied.");
