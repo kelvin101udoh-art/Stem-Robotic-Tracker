@@ -20,23 +20,23 @@ export function DashboardTopBar(props: DashboardTopBarProps) {
     const onPressNotifications = props.onPressNotifications
     return (
         <View
-            style={style.container}>
+            style={styles.container}>
             <View
-               style={style.leftHeader}>
+                style={styles.leftHeader}>
                 <Image
                     source={require("../../../image/stemtrack-logo.png")}
-                    style={style.logo}
+                    style={styles.logo}
                 />
-                <Text style={style.teacherName}>
+                <Text style={styles.teacherName}>
                     {teacherName ?? "Unknown Teacher"}
                 </Text>
-                <Text style={style.teacherRoleTitle}>
+                <Text style={styles.teacherRoleTitle}>
                     {teacherRoleTitle ?? "Teaching Session"}
                 </Text>
             </View>
 
             <View >
-                <Pressable onPress={onPressNotifications} style={style.notificationButton}>
+                <Pressable onPress={onPressNotifications} style={styles.notificationButton}>
 
                     <Icon
                         name="notifications-outline" // or "notifications" for filled
@@ -54,7 +54,7 @@ export function DashboardTopBar(props: DashboardTopBarProps) {
 
 
 
-const style = StyleSheet.create(
+const styles = StyleSheet.create(
     {
         container: {
             flexDirection: "row",
@@ -66,29 +66,29 @@ const style = StyleSheet.create(
             gap: 10
         },
         logo: {
-            width: 50,
-            height: 40,
+            width: 120,
+            height: 42,
             resizeMode: "contain"
         },
         teacherName: {
-  fontSize: 20,
-  fontWeight: "800",
-  color: theme.color.text,
-},
-teacherRoleTitle: {
-  fontSize: 13,
-  fontWeight: "500",
-  color: theme.color.subtext,
-},
-notificationButton: {
-  width: 42,
-  height: 42,
-  borderRadius: 999,
-  alignItems: "center",
-  justifyContent: "center",
-  backgroundColor: "rgba(255,255,255,0.08)",
-  borderWidth: 1,
-  borderColor: "rgba(255,255,255,0.12)",
-},
+            fontSize: 20,
+            fontWeight: "800",
+            color: theme.color.text,
+        },
+        teacherRoleTitle: {
+            fontSize: 13,
+            fontWeight: "500",
+            color: theme.color.subtext,
+        },
+        notificationButton: {
+            width: 42,
+            height: 42,
+            borderRadius: 999,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(255,255,255,0.08)",
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.12)",
+        },
     }
 )
