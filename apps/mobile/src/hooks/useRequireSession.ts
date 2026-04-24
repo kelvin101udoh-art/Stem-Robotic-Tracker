@@ -1,8 +1,12 @@
+//  apps/mobile/src/hooks/useRequireSession.ts
+
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { clearSession, getSession, isExpired } from "../core/session";
 
 type GuardState = {
+  teacherName: string | null;
+  teacherRoleTitle: string | null;
   sessionToken: string | null;
   clubId: string | null;
   expiresAt: string | null;
@@ -12,6 +16,8 @@ type GuardState = {
 export function useRequireSession() {
   const router = useRouter();
   const [state, setState] = useState<GuardState>({
+    teacherName: null,
+    teacherRoleTitle: null,
     sessionToken: null,
     clubId: null,
     expiresAt: null,
@@ -28,6 +34,8 @@ export function useRequireSession() {
         await clearSession();
         if (mounted) {
           setState({
+            teacherName: null,
+            teacherRoleTitle: null,
             sessionToken: null,
             clubId: null,
             expiresAt: null,
@@ -40,6 +48,8 @@ export function useRequireSession() {
 
       if (mounted) {
         setState({
+          teacherName: session.teacherName ?? null,
+          teacherRoleTitle: session.teacherRoleTitle ?? null,
           sessionToken: session.token,
           clubId: session.clubId ?? null,
           expiresAt: session.expiresAt,

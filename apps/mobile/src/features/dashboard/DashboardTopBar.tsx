@@ -12,12 +12,11 @@ type DashboardTopBarProps = {
     teacherName?: string | null;
     teacherRoleTitle?: string | null;
     onPressNotifications?: () => void
-}
+};
 
 export function DashboardTopBar(props: DashboardTopBarProps) {
-    const teacherName = props.teacherName;
-    const teacherRoleTitle = props.teacherRoleTitle;
-    const onPressNotifications = props.onPressNotifications
+    const { teacherName, teacherRoleTitle, onPressNotifications } = props;
+
     return (
         <View
             style={styles.container}>
@@ -35,17 +34,21 @@ export function DashboardTopBar(props: DashboardTopBarProps) {
                 </Text>
             </View>
 
-            <View >
-                <Pressable onPress={onPressNotifications} style={styles.notificationButton}>
 
-                    <Icon
-                        name="notifications-outline" // or "notifications" for filled
-                        size={20}
-                        color="#FFFFFF"
-                    />
+            <Pressable onPress={onPressNotifications ?? (() => { })}
+                style={styles.notificationButton}
+                accessibilityRole="button"
+                accessibilityLabel="Open notifications"
+            >
 
-                </Pressable>
-            </View>
+                <Icon
+                    name="notifications-outline" // or "notifications" for filled
+                    size={20}
+                    color="#FFFFFF"
+                />
+
+            </Pressable>
+
 
         </View>
     )
@@ -57,13 +60,17 @@ export function DashboardTopBar(props: DashboardTopBarProps) {
 const styles = StyleSheet.create(
     {
         container: {
+            marginBottom: theme.spacing.sm,
+            paddingVertical: theme.spacing.sm,
             flexDirection: "row",
             justifyContent: "space-between",
-            alignItems: "flex-start"
+            alignItems: "center",
+
         },
         leftHeader: {
             flex: 1,
-            gap: 10
+            gap: 6,
+            alignSelf: "flex-start"
         },
         logo: {
             width: 120,
@@ -91,4 +98,4 @@ const styles = StyleSheet.create(
             borderColor: "rgba(255,255,255,0.12)",
         },
     }
-)
+);

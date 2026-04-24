@@ -2,7 +2,7 @@
 import { ImageBackground, ScrollView, View, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { AppShell } from "../src/ui/components/AppShell";
-import { AppHeader } from "../src/ui/components/AppHeader";
+
 import { ModeTile } from "../src/ui/components/ModeTile";
 import { Button } from "../src/ui/components/Button";
 import { InfoBanner } from "../src/ui/components/InfoBanner";
@@ -10,10 +10,13 @@ import { clearSession } from "../src/core/session";
 import { useRequireSession } from "../src/hooks/useRequireSession";
 import { SessionContextCard } from "../src/features/dashboard/SessionContextCard";
 import { theme } from "../src/ui/theme";
+import { DashboardTopBar } from "../src/features/dashboard/DashboardTopBar";
+
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { sessionToken, clubId, expiresAt, isChecking } = useRequireSession();
+  const { teacherName,
+    teacherRoleTitle, sessionToken, clubId, expiresAt, isChecking } = useRequireSession();
 
   async function onChangeKey() {
     await clearSession();
@@ -36,10 +39,10 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
         >
           <AppShell>
-            <AppHeader
-              eyebrow="Capture Workspace"
-              title="Session Operations"
-              subtitle="Select the workflow you need for this session."
+            <DashboardTopBar
+              teacherName={teacherName}
+              teacherRoleTitle={teacherRoleTitle}
+              onPressNotifications={() => { }}
             />
 
             <SessionContextCard clubId={clubId} expiresAt={expiresAt} />
