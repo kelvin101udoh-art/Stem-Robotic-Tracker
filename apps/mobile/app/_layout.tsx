@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 
-export default function Layout() {
+/* export default function Layout() {
   return (
     <Stack
       screenOptions={{
@@ -17,5 +17,16 @@ export default function Layout() {
       <Stack.Screen name="attendance" options={{ title: "Attendance" }} />
       <Stack.Screen name="evidence" options={{ title: "Capture Evidence" }} />
     </Stack>
+  );
+} */
+
+ 
+export default function Layout() {
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+      }}
+    />
   );
 }

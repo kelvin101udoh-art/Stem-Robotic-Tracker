@@ -3,7 +3,8 @@
 
 import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { theme } from "../../ui/theme";
-import Icon from 'react-native-vector-icons/Ionicons';
+// import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from "@expo/vector-icons";
 
 
 
@@ -41,7 +42,7 @@ export function DashboardTopBar(props: DashboardTopBarProps) {
                 accessibilityLabel="Open notifications"
             >
 
-                <Icon
+                <Ionicons
                     name="notifications-outline" // or "notifications" for filled
                     size={20}
                     color="#FFFFFF"
