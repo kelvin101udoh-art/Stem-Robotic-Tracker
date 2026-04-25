@@ -5,6 +5,7 @@ import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { theme } from "../../ui/theme";
 // import Icon from 'react-native-vector-icons/Ionicons';
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 
 
@@ -19,39 +20,41 @@ export function DashboardTopBar(props: DashboardTopBarProps) {
     const { teacherName, teacherRoleTitle, onPressNotifications } = props;
 
     return (
-        <View
-            style={styles.container}>
+        <SafeAreaView edges={["top"]}>
             <View
-                style={styles.leftHeader}>
-                <Image
-                    source={require("../../../image/stemtrack-logo.png")}
-                    style={styles.logo}
-                />
-                <Text style={styles.teacherName}>
-                    {teacherName ?? "Unknown Teacher"}
-                </Text>
-                <Text style={styles.teacherRoleTitle}>
-                    {teacherRoleTitle ?? "Teaching Session"}
-                </Text>
+                style={styles.container}>
+                <View
+                    style={styles.leftHeader}>
+                    <Image
+                        source={require("../../../image/stemtrack-logo.png")}
+                        style={styles.logo}
+                    />
+                    <Text style={styles.teacherName}>
+                        {teacherName ?? "Unknown Teacher"}
+                    </Text>
+                    <Text style={styles.teacherRoleTitle}>
+                        {teacherRoleTitle ?? "Teaching Session"}
+                    </Text>
+                </View>
+
+
+                <Pressable onPress={onPressNotifications ?? (() => { })}
+                    style={styles.notificationButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open notifications"
+                >
+
+                    <Ionicons
+                        name="notifications-outline" // or "notifications" for filled
+                        size={20}
+                        color="#0F172A"
+                    />
+
+                </Pressable>
+
+
             </View>
-
-
-            <Pressable onPress={onPressNotifications ?? (() => { })}
-                style={styles.notificationButton}
-                accessibilityRole="button"
-                accessibilityLabel="Open notifications"
-            >
-
-                <Ionicons
-                    name="notifications-outline" // or "notifications" for filled
-                    size={20}
-                    color="#FFFFFF"
-                />
-
-            </Pressable>
-
-
-        </View>
+        </SafeAreaView>
     )
 }
 
@@ -61,12 +64,12 @@ export function DashboardTopBar(props: DashboardTopBarProps) {
 const styles = StyleSheet.create(
     {
         container: {
-            marginBottom: theme.spacing.sm,
-            paddingVertical: theme.spacing.sm,
+            marginBottom: theme.spacing.md,
+            paddingTop: theme.spacing.sm,
+            paddingBottom: theme.spacing.md,
             flexDirection: "row",
             justifyContent: "space-between",
-            alignItems: "center",
-
+            alignItems: "flex-start",
         },
         leftHeader: {
             flex: 1,
@@ -74,9 +77,10 @@ const styles = StyleSheet.create(
             alignSelf: "flex-start"
         },
         logo: {
-            width: 120,
-            height: 42,
-            resizeMode: "contain"
+            width: 96,
+            height: 36,
+            resizeMode: "contain",
+            marginBottom: 4,
         },
         teacherName: {
             fontSize: 20,
@@ -94,9 +98,10 @@ const styles = StyleSheet.create(
             borderRadius: 999,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "rgba(255,255,255,0.08)",
+            backgroundColor: "rgba(15,23,42,0.08)",
             borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.12)",
+            borderColor: "rgba(15,23,42,0.10)",
+            marginTop: 18,
         },
     }
 );
