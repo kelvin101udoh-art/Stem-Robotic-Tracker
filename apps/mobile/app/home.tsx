@@ -1,5 +1,5 @@
 // apps/mobile/app/home.tsx
-import { ScrollView, View, StyleSheet } from "react-native";
+import { ScrollView, View, StyleSheet, ImageBackground } from "react-native";
 import { useRouter } from "expo-router";
 import { AppShell } from "../src/ui/components/AppShell";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,15 +10,19 @@ import { clearSession } from "../src/core/session";
 import { useRequireSession } from "../src/hooks/useRequireSession";
 import { SessionContextCard } from "../src/features/dashboard/SessionContextCard";
 import { theme } from "../src/ui/theme";
-import { DashboardTopBar } from "../src/features/dashboard/DashboardTopBar";
+import { DashboardBrandBar, DashboardIdentityHeader } from "../src/features/dashboard/DashboardTopBar";
+import { useState } from "react";
+import { ResponsiveContainer } from "../src/ui/components/ResponsiveContainer";
+
 
 
 export default function HomeScreen() {
+  const [showIdentityHeader, setShowIdentityHeader] = useState(true);
   const router = useRouter();
   const { teacherName,
-    teacherRoleTitle, sessionToken, clubId, expiresAt, isChecking } = useRequireSession();
+    sessionToken, clubId, expiresAt, isChecking } = useRequireSession();
 
-  async function onChangeKey() {
+  async function onLogout() {
     await clearSession();
     router.replace("/");
   }
@@ -28,75 +32,149 @@ export default function HomeScreen() {
   }
 
   return (
-  <LinearGradient
-    colors={["#F8FAFC", "#EEF2F7", "#E6ECF5"]}
-    style={styles.background}
-  >
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      <AppShell>
-        <DashboardTopBar
-          teacherName={teacherName}
-          teacherRoleTitle={teacherRoleTitle}
-          onPressNotifications={() => {}}
-        />
 
-        <SessionContextCard clubId={clubId} expiresAt={expiresAt} />
 
-        <InfoBanner
-          tone="info"
-          text="Learning capture, attendance, and evidence collection are separated into dedicated workflows to improve reliability, auditability, and classroom usability."
-        />
+    <LinearGradient colors={["#F8FAFC", "#E6ECF5"]} style={styles.background}>
 
-        <View style={styles.tiles}>
-          <ModeTile
-            icon="🎤"
-            title="Capture Learning"
-            description="Record in-session observations and end-of-session reflections."
-            onPress={() => router.push("/capture-learning")}
-          />
+      <ImageBackground
+        source={require("../image/background-image.jpg")}
+        style={styles.fullScreenImage}
+        resizeMode="cover"
+      >
+        {/* The Overlay makes sure the image doesn't distract from the text */}
+        <View style={styles.mainOverlay}>
 
-          <ModeTile
-            icon="✅"
-            title="Attendance"
-            description="Mark attendance manually or review voice-assisted matches before final save."
-            onPress={() => router.push("/attendance")}
-          />
+          <View style={styles.stickyHeader}>
+            <DashboardBrandBar onPressNotifications={() => { }} />
+          </View>
 
-          <ModeTile
-            icon="📷"
-            title="Capture Evidence"
-            description="Attach photo and video evidence with session metadata."
-            onPress={() => router.push("/evidence")}
-          />
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}
+            onScroll={(event) => {
+              const y = event.nativeEvent.contentOffset.y;
+
+              if (y > 20) {
+                setShowIdentityHeader(false);
+              }
+            }}
+            scrollEventThrottle={16}
+          >
+            <AppShell>
+              <ResponsiveContainer>
+
+                {showIdentityHeader && (
+                  <DashboardIdentityHeader teacherName={teacherName} />
+                )}
+                <View style={styles.tilesContainer}>
+                  <ModeTile
+                    icon="🎤"
+                    title="Capture Learning"
+                    description="Record in-session observations..."
+                    onPress={() => router.push("/capture-learning")}
+                  />
+                  <ModeTile
+                    icon="✅"
+                    title="Attendance"
+                    description="Mark attendance manually..."
+                    onPress={() => router.push("/attendance")}
+                  />
+                  <ModeTile
+                    icon="📷"
+                    title="Capture Evidence"
+                    description="Attach photo and video..."
+                    onPress={() => router.push("/evidence")}
+                  />
+                </View>
+
+                <Button
+                  label="Log Out"
+                  variant="secondary"
+                  onPress={onLogout}
+                />
+              </ResponsiveContainer>
+
+            </AppShell>
+
+          </ScrollView>
         </View>
+      </ImageBackground>
 
-        <Button
-          label="Change Access Key"
-          variant="secondary"
-          onPress={onChangeKey}
-        />
-      </AppShell>
-    </ScrollView>
-  </LinearGradient>
-);
+    </LinearGradient>
+
+
+  );
+
+
 }
+
+/*
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    backgroundColor: "#EEF3F8",
+  },
+
+  stickyHeader: {
+    paddingTop: 36,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.sm,
+    backgroundColor: "rgba(238,243,248,0.96)",
+    zIndex: 10,
+  },
+
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: theme.spacing.xl,
+  },
+
+
+  // In your StyleSheet
+  overlay: {
+    flex: 1,
+    padding: 16, // This is the secret! It gives space between the image edge and your cards
+    gap: 12,     // Adds space between the tiles themselves
+    backgroundColor: "rgba(0,0,0,0.05)", // Very subtle tint to make the white cards "pop"
+  },
+
+  backgroundImage: {
+    flex: 1, // Ensures it covers the whole screen
+    resizeMode: "cover",
+
+  },
+
+
+  tiles: {
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.xxl,
+    marginTop: theme.spacing.xxl,
+
+  },
+});
+*/
 
 const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
-  overlay: {
+  fullScreenImage: {
     flex: 1,
-    backgroundColor: "rgba(8, 12, 20, 0.75)",
+  },
+  mainOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(42, 21, 233, 0.18)", // This lightens the image so text is easy to read
+  },
+  stickyHeader: {
+    paddingTop: 50,
+    paddingHorizontal: theme.spacing.lg,
+    // Remove solid background to let the image show through
+    backgroundColor: "transparent",
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingVertical: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
   },
-  tiles: {
-    gap: theme.spacing.md,
+
+  tilesContainer: {
+    gap: 20, // More space between the three cards
+    marginVertical: 30, // Pushes the cards away from the Header and the Logout button
+    paddingHorizontal: 4, // Keeps cards wide but away from screen edges
   },
 });

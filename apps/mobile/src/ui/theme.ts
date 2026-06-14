@@ -35,6 +35,7 @@ export const theme = {
   },
 
   spacing: {
+    s: 5,
     xs: 8,
     sm: 12,
     md: 16,

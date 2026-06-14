@@ -13,6 +13,9 @@ import { InfoBanner } from "../src/ui/components/InfoBanner";
 import { theme } from "../src/ui/theme";
 import { exchangeAccessKey } from "../src/api/client/auth-client";
 import { saveSession } from "../src/core/session";
+import { ResponsiveContainer } from "../src/ui/components/ResponsiveContainer";
+
+
 
 export default function AccessKeyScreen() {
   const router = useRouter();
@@ -53,6 +56,7 @@ export default function AccessKeyScreen() {
 
   return (
     <AppShell centered>
+      <ResponsiveContainer>
       <Card>
         <View style={styles.stack}>
           <SectionLabel>Secure Session Access</SectionLabel>
@@ -83,6 +87,7 @@ export default function AccessKeyScreen() {
           />
         </View>
       </Card>
+      </ResponsiveContainer>
     </AppShell>
   );
 }
