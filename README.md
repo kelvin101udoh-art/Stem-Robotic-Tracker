@@ -1,12 +1,24 @@
 # 🌟 STEMTrack (STEM Robotics Progress Tracker)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status: Active](https://img.shields.io/badge/status-active-success.svg)]()
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Next JS](https://img.shields.io/badge/Next-black?style=for-the-badge&logo=next.js&logoColor=white)
+![Expo](https://img.shields.io/badge/expo-1C1E24?style=for-the-badge&logo=expo&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 
-> **A production-minded EdTech platform for capturing, structuring, and analysing real-world STEM learning.**
+A production-minded EdTech platform for capturing, structuring, and analysing real-world STEM learning.
+
+### 🚀 Quick Links
+* **🌍 Live Platform:** [stem-robotics-platform.vercel.app](https://stem-robotics-platform.vercel.app)
+* **📺 Architecture & UI Walkthrough:** [Watch on YouTube](https://youtu.be/rh31fEKTTfY)
+* **📱 Mobile App Demo:** [Watch on YouTube](https://youtu.be/6JccBOGK6K4)
 
 ---
 
+[![STEMTrack Demo](https://img.youtube.com/vi/rh31fEKTTfY/maxresdefault.jpg)](https://youtu.be/rh31fEKTTfY)
+
+> *Click the image above to watch the 2-minute product and architecture walkthrough.*
+
+---
 
 ## 📌 Table of Contents
 
