@@ -1,169 +1,218 @@
 // stem-robotic-tracker-monorepo/apps/mobile/app/capture-learning.tsx
 
-import { useEffect, useMemo, useState } from "react";
-import { Text, View, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
-import { AppShell } from "../src/ui/components/AppShell";
-import { AppHeader } from "../src/ui/components/AppHeader";
-import { Card } from "../src/ui/components/Card";
-import { Button } from "../src/ui/components/Button";
-import { StatusPill } from "../src/ui/components/StatusPill";
-import { InfoBanner } from "../src/ui/components/InfoBanner";
-import { theme } from "../src/ui/theme";
-import { clearSession, getSession, isExpired } from "../src/core/session";
-import { CaptureFile, VoiceRecorder } from "../src/core/recorder";
-import { submitCapture } from "../src/api/captures";
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  StatusBar,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { SessionStorageService } from '../src/core/session';
+import {
+  SessionContextDTO,
+  BranchConfig,
+  IngestEvidenceRequestDTO,
+  IngestEvidenceResponseDTO,
+} from 'stemtrack-sdk';
 
-type UIState = "READY" | "CAPTURING" | "REVIEW" | "UPLOADING" | "SUBMITTED" | "FAILED";
-
-export default function CaptureLearningScreen() {
+export default function UnifiedCaptureScreen() {
   const router = useRouter();
-  const recorder = useMemo(() => new VoiceRecorder(), []);
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [ui, setUi] = useState<UIState>("READY");
-  const [file, setFile] = useState<CaptureFile | null>(null);
-  const [message, setMessage] = useState("");
+  const [session, setSession] = useState<SessionContextDTO | null>(null);
+  const [config, setConfig] = useState<BranchConfig | null>(null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const s = await getSession();
-      if (!s || isExpired(s.expiresAt)) {
-        await clearSession();
-        router.replace("/");
+    SessionStorageService.getSession().then((active) => {
+      if (!active) {
+        router.replace('/');
         return;
       }
-      setSessionToken(s.token);
-    })();
+      setSession(active);
+      setConfig(SessionStorageService.getBranchConfig(active.branch));
+    });
   }, [router]);
 
-  async function onStart() {
-    setMessage("");
-    try {
-      await recorder.start();
-      setUi("CAPTURING");
-    } catch (e: any) {
-      setMessage(e?.message ?? "Unable to start recording.");
-      setUi("FAILED");
-    }
-  }
+  const toggleStudentSelection = (id: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
-  async function onStop() {
-    setMessage("");
+  const handleExecuteVoiceCapture = async () => {
+    if (!isRecording) {
+      // Start recording immediately without blocking on roster selection
+      setIsRecording(true);
+      return;
+    }
+
+    // Stop recording and trigger ingestion payload dispatch
+    setIsRecording(false);
+    setIsUploading(true);
+
     try {
-      const f = await recorder.stop();
-      if (f.durationMs > 3 * 60 * 1000) {
-        await recorder.discard(f.uri);
-        setMessage("Please keep voice captures under 3 minutes.");
-        setUi("FAILED");
-        return;
+      if (!session || !config) return;
+
+      const payload: IngestEvidenceRequestDTO = {
+        sessionId: session.sessionId,
+        organizationId: session.organizationId,
+        branch: session.branch,
+        taggedStudentIds: selectedStudentIds, // Optional at capture time; AI or post-tagging can expand
+        manualNote: `Verbal learning observation recorded via mobile terminal for ${config.displayName}.`,
+        metadata: {
+          captureMode: 'LIVE_VOICE',
+          clientTimestamp: new Date().toISOString(),
+          branch: session.branch,
+        } as IngestEvidenceRequestDTO['metadata'],
+      };
+
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/submit-evidence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Cloud ingest error: status ${response.status}`);
       }
-      setFile(f);
-      setUi("REVIEW");
-    } catch (e: any) {
-      setMessage(e?.message ?? "Unable to stop recording.");
-      setUi("FAILED");
+
+      const result: IngestEvidenceResponseDTO = await response.json();
+      Alert.alert('Insight Processed Successfully', result.structuredInsight.summary, [
+        { text: 'Done', onPress: () => setSelectedStudentIds([]) },
+      ]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Transmission failed.';
+      Alert.alert('Processing Error', msg);
+    } finally {
+      setIsUploading(false);
     }
-  }
+  };
 
-  async function onDiscard() {
-    setMessage("");
-    if (file) await recorder.discard(file.uri);
-    setFile(null);
-    setUi("READY");
-  }
-
-  async function onSubmit() {
-    if (!file || !sessionToken) return;
-
-    setUi("UPLOADING");
-    setMessage("Submitting capture securely…");
-
-    try {
-      const res = await submitCapture({ sessionToken, file });
-      await recorder.discard(file.uri);
-      setFile(null);
-      setMessage(`Submitted successfully. Ref: ${res.capture_id}`);
-      setUi("SUBMITTED");
-    } catch (e: any) {
-      setMessage(e?.message ?? "Submit failed.");
-      setUi("FAILED");
-    }
-  }
-
-  const status =
-    ui === "CAPTURING"
-      ? "CAPTURING"
-      : ui === "UPLOADING"
-      ? "UPLOADING"
-      : ui === "SUBMITTED"
-      ? "SUBMITTED"
-      : ui === "FAILED"
-      ? "FAILED"
-      : "READY";
+  if (!session || !config) return null;
 
   return (
-    <AppShell>
-      <AppHeader
-        eyebrow="Voice Reflection"
-        title="Capture Learning"
-        subtitle="Record natural learning observations during or after the session."
-        rightSlot={<StatusPill status={status} />}
-      />
-
-      <Card>
-        <View style={styles.stack}>
-          <Text style={styles.body}>
-            This workflow is designed for low-friction voice capture. STEMTrack will structure submitted observations into session reporting outputs.
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#020617" />
+      
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+        <View style={[styles.branchPill, { borderColor: config.accentColor }]}>
+          <Text style={[styles.branchPillText, { color: config.accentColor }]}>
+            {config.displayName}
           </Text>
+        </View>
+      </View>
 
-          {ui === "READY" && (
-            <Button label="Start Recording" onPress={onStart} />
-          )}
+      <Text style={styles.title}>Capture Observation</Text>
+      <Text style={styles.subtitle}>
+        Tap record instantly. Optionally tag active {config.learnerTerm.toLowerCase()}s before or after.
+      </Text>
 
-          {ui === "CAPTURING" && (
-            <Button label="Stop Recording" onPress={onStop} />
-          )}
+      {/* Optional Roster Multi-Tag Chips */}
+      <View style={styles.rosterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rosterScroll}>
+          {session.activeRoster.map((student) => {
+            const isSelected = selectedStudentIds.includes(student.id);
+            return (
+              <TouchableOpacity
+                key={student.id}
+                style={[
+                  styles.chip,
+                  isSelected && { backgroundColor: config.accentColor, borderColor: config.accentColor },
+                ]}
+                onPress={() => toggleStudentSelection(student.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                  {student.firstName} {student.lastName}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-          {ui === "REVIEW" && (
-            <View style={{ gap: theme.spacing.sm }}>
-              <Button label="Submit to STEMTrack" onPress={onSubmit} />
-              <Button label="Discard Recording" variant="secondary" onPress={onDiscard} />
+      {/* Mode A: Instant Live Voice Trigger */}
+      <View style={styles.controlBox}>
+        <TouchableOpacity
+          style={[
+            styles.recordTrigger,
+            isRecording && styles.recordTriggerActive,
+            !isRecording && { borderColor: config.accentColor },
+          ]}
+          onPress={handleExecuteVoiceCapture}
+          disabled={isUploading}
+          activeOpacity={0.85}
+        >
+          {isUploading ? (
+            <ActivityIndicator color="#ffffff" size="large" />
+          ) : (
+            <View style={styles.triggerInner}>
+              <Text style={styles.triggerIcon}>{isRecording ? '⏹' : '🎙'}</Text>
+              <Text style={styles.triggerText}>
+                {isRecording ? 'Complete & Synthesize' : '1-Tap Voice Log'}
+              </Text>
             </View>
           )}
+        </TouchableOpacity>
+        <Text style={styles.recordingHint}>
+          {isRecording ? 'Recording active session audio... Tap to finish.' : 'Zero friction: start speaking immediately.'}
+        </Text>
+      </View>
 
-          {ui === "UPLOADING" && (
-            <Button label="Submitting…" onPress={() => {}} disabled loading />
-          )}
-
-          {!!message && (
-            <InfoBanner
-              tone={ui === "FAILED" ? "danger" : ui === "SUBMITTED" ? "success" : "info"}
-              text={message}
-            />
-          )}
-
-          <InfoBanner
-            tone="warning"
-            text="To preserve reliability and limit upload failure risk, voice captures should remain concise. For this version, keep recordings under 3 minutes."
-          />
-        </View>
-      </Card>
-
-      <Button
-        label="Back to Dashboard"
-        variant="secondary"
-        onPress={() => router.push("/home")}
-      />
-    </AppShell>
+      {/* Mode B: Retrospective Draft Queue Shortcut */}
+      {config.allowDraftQueue && (
+        <TouchableOpacity
+          style={styles.draftQueueBar}
+          onPress={() => router.push('/evidence')}
+          disabled={isRecording || isUploading}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.draftQueueEmoji}>📷</Text>
+          <View style={styles.draftQueueTextContainer}>
+            <Text style={styles.draftQueueTitle}>Retrospective Draft Queue</Text>
+            <Text style={styles.draftQueueSubtitle}>Snap photos now, attach voice notes later</Text>
+          </View>
+          <Text style={styles.draftQueueArrow}>→</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: {
-    gap: theme.spacing.md,
-  },
-  body: {
-    color: theme.color.subtext,
-    ...theme.typography.body,
-  },
+  container: { flex: 1, backgroundColor: '#020617', padding: 24, paddingTop: 50 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  backButton: { paddingVertical: 6, paddingRight: 12 },
+  backButtonText: { color: '#94a3b8', fontSize: 16, fontWeight: '600' },
+  branchPill: { backgroundColor: '#0f172a', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+  branchPillText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#f8fafc' },
+  subtitle: { fontSize: 14, color: '#94a3b8', marginTop: 4, marginBottom: 20, lineHeight: 20 },
+  rosterContainer: { maxHeight: 56, marginBottom: 30 },
+  rosterScroll: { gap: 10, alignItems: 'center' },
+  chip: { backgroundColor: '#0f172a', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, borderWidth: 1, borderColor: '#1e293b' },
+  chipText: { color: '#cbd5e1', fontSize: 14, fontWeight: '500' },
+  chipTextSelected: { color: '#ffffff', fontWeight: 'bold' },
+  controlBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 20 },
+  recordTrigger: { width: 230, height: 230, borderRadius: 115, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center', borderWidth: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 15, elevation: 10 },
+  recordTriggerActive: { backgroundColor: '#ef4444', borderColor: '#fca5a5' },
+  triggerInner: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  triggerIcon: { fontSize: 36, marginBottom: 8 },
+  triggerText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  recordingHint: { color: '#64748b', fontSize: 13, marginTop: 20, textAlign: 'center' },
+  draftQueueBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#1e293b', marginBottom: 10 },
+  draftQueueEmoji: { fontSize: 24, marginRight: 14 },
+  draftQueueTextContainer: { flex: 1 },
+  draftQueueTitle: { color: '#f8fafc', fontSize: 15, fontWeight: 'bold' },
+  draftQueueSubtitle: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
+  draftQueueArrow: { color: '#38bdf8', fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
 });

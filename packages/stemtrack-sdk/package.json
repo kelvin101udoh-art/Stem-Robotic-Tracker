@@ -1,7 +1,50 @@
 {
-  "name": "@stemtrack/sdk",
-  "version": "0.0.1",
-  "private": true,
-  "main": "src/index.ts",
-  "types": "src/index.ts"
+  "name": "stemtrack-sdk",
+  "version": "1.0.0",
+  "description": "Enterprise TypeScript SDK, shared DTOs, and API contracts for the STEMTrack Learning Evidence Engine.",
+  "author": "Kelvin Udoh <kelvin101udoh@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/kelvin101udoh-art/Stem-Robotic-Tracker#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kelvin101udoh-art/Stem-Robotic-Tracker.git",
+    "directory": "packages/stemtrack-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/kelvin101udoh-art/Stem-Robotic-Tracker/issues"
+  },
+  "keywords": [
+    "edtech",
+    "stem",
+    "stemtrack",
+    "learning-analytics",
+    "typescript-sdk",
+    "api-contracts",
+    "turborepo"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --sourcemap",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/ --ext .ts",
+    "prepublishOnly": "npm run typecheck && npm run build"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
 }

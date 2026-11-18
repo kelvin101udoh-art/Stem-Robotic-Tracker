@@ -21,14 +21,18 @@ export function AppShell({
   );
 }
 
+
+
 const styles = StyleSheet.create({
   root: {
+    flex: 1,
     width: "100%",
     padding: theme.spacing.lg,
     alignItems: "center",
+    justifyContent: "flex-start",
+    backgroundColor: "transparent"
   },
   centered: {
-    flex: 1,
     justifyContent: "center",
   },
   inner: {
