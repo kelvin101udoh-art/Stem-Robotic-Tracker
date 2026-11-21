@@ -1,127 +1,239 @@
 // supabase/functions/submit-evidence/index.ts
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { IngestEvidenceRequestDTO, IngestEvidenceResponseDTO } from '../../../packages/stemtrack-sdk/src/types/index.ts';
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+type TrackBranch = 'ROBOTICS_CLUB' | 'SEND_PROVISION' | 'EARLY_YEARS';
 
-const BRANCH_SYSTEM_PROMPTS: Record<string, string> = {
-  ROBOTICS_CLUB: `You are an expert UK STEM & Robotics Assessor. 
-Analyze the learning note. Extract:
-1. Computational/Mechanical thinking demonstration.
-2. Specific debugging steps and problem-solving resilience.
-3. Link to Computing National Curriculum competency.
-Output concise, objective summary.`,
+interface RosterCandidate {
+  id: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl?: string;
+}
 
-  SEND_PROVISION: `You are an expert UK SENCO and Educational Psychologist.
-Analyze the observation. Extract:
-1. Zones of Regulation state (Green, Yellow, Red, Blue) and transitions.
-2. De-escalation and co-regulation strategies employed.
-3. Verifiable evidence linking to EHCP social-emotional and independence outcomes.
-Output audit-safe clinical summary.`,
+interface IngestPayload {
+  sessionId: string;
+  organizationId: string;
+  branch: TrackBranch;
+  taggedStudentIds: string[];
+  transcriptionAudioBase64?: string;
+  mediaFileUrl?: string;
+  manualNote?: string;
+  metadata: Record<string, unknown>;
+}
 
-  EARLY_YEARS: `You are an expert Early Years Foundation Stage (EYFS) Practitioner.
-Analyze the observation. Extract:
-1. Relevant Development Matters Area (PSED, Communication & Language, Physical).
-2. Distinction between child-initiated discovery and adult-guided learning.
-3. Concrete progress milestone evidence.
-Output concise observational learning log.`,
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-serve(async (req: Request) => {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
+function buildBranchSystemPrompt(branch: TrackBranch): string {
+  switch (branch) {
+    case 'SEND_PROVISION':
+      return [
+        'You are a UK SEND & EHCP statutory behaviour analyst.',
+        'Analyze the educator note/media and extract objective, safeguarding-compliant behaviour & regulation evidence.',
+        'Return strict JSON with keys: matchedStudentIds (string[]), summary (string), curriculumTags (string[]), behaviorOrRegulationNote (string).',
+        'Frame behaviour neutrally (antecedent, observed action, regulation zone/co-regulation, and EHCP outcome alignment) without diagnosing.',
+      ].join(' ');
+    case 'EARLY_YEARS':
+      return [
+        'You are an Early Years Foundation Stage (EYFS) Development Matters specialist.',
+        'Analyze child-initiated play, communication, and continuous provision moments.',
+        'Return strict JSON with keys: matchedStudentIds (string[]), summary (string), curriculumTags (string[]), behaviorOrRegulationNote (string).',
+      ].join(' ');
+    case 'ROBOTICS_CLUB':
+    default:
+      return [
+        'You are a STEM & Robotics learning evidence engine aligned with UK Computing & Engineering Milestones.',
+        'Extract engineering concepts, iterative debugging, and collaborative problem-solving.',
+        'Return strict JSON with keys: matchedStudentIds (string[]), summary (string), curriculumTags (string[]), behaviorOrRegulationNote (string).',
+      ].join(' ');
+  }
+}
+
+async function runMultimodalBranchLLM(args: {
+  openAiApiKey: string;
+  branch: TrackBranch;
+  manualNote?: string;
+  mediaBase64?: string;
+  roster: RosterCandidate[];
+  preselectedStudentIds: string[];
+}) {
+  const userContent: Array<Record<string, unknown>> = [
+    {
+      type: 'text',
+      text: JSON.stringify({
+        branch: args.branch,
+        preselectedStudentIds: args.preselectedStudentIds,
+        manualNote: args.manualNote ?? '',
+        rosterCandidates: args.roster.map((r) => ({
+          id: r.id,
+          name: `${r.firstName} ${r.lastName}`,
+          hasOnboardingPortrait: Boolean(r.avatarUrl),
+        })),
+        instruction:
+          args.preselectedStudentIds.length > 0
+            ? 'Use preselectedStudentIds as the pinned students.'
+            : 'Identify any visible/mentioned roster learners from the media/onboarding context and return their IDs in matchedStudentIds.',
+      }),
+    },
+  ];
+
+  // Attach onboarding reference portraits when auto-pinning from media
+  if (args.preselectedStudentIds.length === 0) {
+    for (const member of args.roster) {
+      if (member.avatarUrl) {
+        userContent.push({
+          type: 'image_url',
+          image_url: { url: member.avatarUrl, detail: 'low' },
+        });
+      }
+    }
+  }
+
+  if (args.mediaBase64) {
+    userContent.push({
+      type: 'input_audio',
+      input_audio: {
+        data: args.mediaBase64,
+        format: 'mp4',
+      },
     });
   }
 
-  try {
-    const payload: IngestEvidenceRequestDTO = await req.json();
-    const systemPrompt = BRANCH_SYSTEM_PROMPTS[payload.branch] || BRANCH_SYSTEM_PROMPTS['ROBOTICS_CLUB'];
+  const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${args.openAiApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: buildBranchSystemPrompt(args.branch) },
+        { role: 'user', content: userContent },
+      ],
+    }),
+  });
 
-    // 1. Call OpenAI to structure the observation
-    const llmResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: payload.manualNote || 'Observed activity recorded via mobile terminal.' },
-        ],
-        temperature: 0.2,
-      }),
+  if (!aiRes.ok) {
+    const errText = await aiRes.text().catch(() => '');
+    throw new Error(`LLM processing failed (${aiRes.status}): ${errText}`);
+  }
+
+  const completion = await aiRes.json();
+  const rawContent = completion.choices?.[0]?.message?.content ?? '{}';
+  const parsed = JSON.parse(rawContent) as {
+    matchedStudentIds?: string[];
+    summary?: string;
+    curriculumTags?: string[];
+    behaviorOrRegulationNote?: string;
+  };
+
+  const resolvedIds =
+    args.preselectedStudentIds.length > 0
+      ? args.preselectedStudentIds
+      : Array.isArray(parsed.matchedStudentIds)
+        ? parsed.matchedStudentIds
+        : [];
+
+  return {
+    resolvedStudentIds: resolvedIds,
+    structuredInsight: {
+      summary: parsed.summary ?? 'Observation structured and saved.',
+      curriculumTags: Array.isArray(parsed.curriculumTags) ? parsed.curriculumTags : [],
+      behaviorOrRegulationNote: parsed.behaviorOrRegulationNote,
+    },
+  };
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const openAiApiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+
+    if (!supabaseUrl || !serviceRoleKey || !openAiApiKey) {
+      throw new Error('Missing required Edge Function environment secrets.');
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const payload = (await req.json()) as IngestPayload;
+
+    if (!payload.sessionId || !payload.organizationId || !payload.branch) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required sessionId, organizationId, or branch.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Fetch session roster + onboarding portraits (avatar_url) for automatic face/identity attribution
+    const { data: rosterRows } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, avatar_url')
+      .eq('club_id', payload.organizationId);
+
+    const roster: RosterCandidate[] = (rosterRows ?? []).map((row) => ({
+      id: String(row.id),
+      firstName: String(row.first_name ?? ''),
+      lastName: String(row.last_name ?? ''),
+      avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
+    }));
+
+    const { resolvedStudentIds, structuredInsight } = await runMultimodalBranchLLM({
+      openAiApiKey,
+      branch: payload.branch,
+      manualNote: payload.manualNote,
+      mediaBase64: payload.transcriptionAudioBase64,
+      roster,
+      preselectedStudentIds: payload.taggedStudentIds ?? [],
     });
 
-    const llmJson = await llmResponse.json();
-    const parsedSummary = llmJson.choices?.[0]?.message?.content || 'Observation processed successfully.';
-
-    // 2. Persist to Relational SQL Database (`evidence` table)
-    const { data: evidenceRow, error: insertError } = await supabase
-      .from('evidence_items')
+    // Persist sanitized evidence record (raw base64 media is never stored in DB)
+    const { data: inserted, error: insertError } = await supabase
+      .from('session_evidence')
       .insert({
         session_id: payload.sessionId,
-        organization_id: payload.organizationId,
+        club_id: payload.organizationId,
         branch: payload.branch,
-        media_url: payload.mediaFileUrl || null,
-        raw_transcription: payload.manualNote || null,
-        structured_summary: parsedSummary,
+        student_ids: resolvedStudentIds,
+        summary: structuredInsight.summary,
+        curriculum_tags: structuredInsight.curriculumTags,
+        ehcp_or_behaviour_note: structuredInsight.behaviorOrRegulationNote ?? null,
         metadata: payload.metadata,
-        verified_by_educator: true,
       })
       .select('id')
       .single();
 
     if (insertError) {
-      throw new Error(`Database persistence error: ${insertError.message}`);
+      throw new Error(`Database insert failed: ${insertError.message}`);
     }
 
-    const evidenceId = evidenceRow.id;
-
-    // 3. Persist student relations (`evidence_students` join table)
-    if (payload.taggedStudentIds && payload.taggedStudentIds.length > 0) {
-      const studentRelations = payload.taggedStudentIds.map((studentId) => ({
-        evidence_id: evidenceId,
-        student_id: studentId,
-      }));
-
-      const { error: relationError } = await supabase
-        .from('evidence_students')
-        .insert(studentRelations);
-
-      if (relationError) {
-        console.error('Failed to link tagged students:', relationError.message);
+    return new Response(
+      JSON.stringify({
+        success: true,
+        evidenceId: inserted?.id ?? crypto.randomUUID(),
+        structuredInsight,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    }
-
-    // 4. Return typed enterprise DTO response
-    const responsePayload: IngestEvidenceResponseDTO = {
-      success: true,
-      evidenceId,
-      structuredInsight: {
-        summary: parsedSummary,
-        curriculumTags: [payload.branch, payload.metadata.captureMode],
-      },
-    };
-
-    return new Response(JSON.stringify(responsePayload), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Internal server error during evidence ingestion';
-    return new Response(JSON.stringify({ error: msg }), {
+    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unexpected edge error.';
+    return new Response(JSON.stringify({ success: false, error: message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

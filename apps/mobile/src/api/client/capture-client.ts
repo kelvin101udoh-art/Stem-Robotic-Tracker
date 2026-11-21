@@ -1,4 +1,5 @@
-import type { SubmitLearningCaptureResponse } from "@stemtrack/sdk";
+// apps/mobile/src/api/client/capture-client.ts
+import type { SubmitLearningCaptureResponse } from "stemtrack-sdk";
 import type { CaptureFile } from "../../core/recorder";
 
 export async function submitLearningCapture(args: {
@@ -17,7 +18,7 @@ export async function submitLearningCapture(args: {
       uri: args.file.uri,
       name: args.file.filename,
       type: args.file.mimeType,
-    } as any
+    } as unknown as Blob
   );
 
   const response = await fetch(endpoint, {

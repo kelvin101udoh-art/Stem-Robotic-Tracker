@@ -1,18 +1,16 @@
+// apps/mobile/src/features/dashboard/SessionContextCard.tsx
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import type { BranchConfig, SessionContextDTO } from "stemtrack-sdk";
 import { Card } from "../../ui/components/Card";
 import { theme } from "../../ui/theme";
 
 export function SessionContextCard({
-  clubName,
-  clubId,
-  sessionId,
-  expiresAt,
+  session,
+  branchConfig,
 }: {
-  clubName?: string | null;
-  clubId?: string | null;
-  sessionId?: string | null;
-  expiresAt?: string | null;
+  session?: SessionContextDTO | null;
+  branchConfig?: BranchConfig | null;
 }) {
   return (
     <Card>
@@ -21,24 +19,32 @@ export function SessionContextCard({
 
         <View style={styles.grid}>
           <View style={styles.item}>
-            <Text style={styles.itemLabel}>Club</Text>
-            <Text style={styles.itemValue}>{clubName ?? "Unknown club"}</Text>
+            <Text style={styles.itemLabel}>Branch</Text>
+            <Text style={styles.itemValue}>
+              {branchConfig?.displayName ?? session?.branch ?? "Unassigned"}
+            </Text>
           </View>
 
           <View style={styles.item}>
-            <Text style={styles.itemLabel}>Club ID</Text>
-            <Text style={styles.itemValue}>{clubId ?? "Unavailable"}</Text>
+            <Text style={styles.itemLabel}>Organisation</Text>
+            <Text style={styles.itemValue}>
+              {session?.organizationName ?? "Unavailable"}
+            </Text>
+          </View>
+
+          <View style={styles.item}>
+            <Text style={styles.itemLabel}>
+              {branchConfig?.sessionTerm ?? "Session"} Name
+            </Text>
+            <Text style={styles.itemValue}>
+              {session?.sessionName ?? "Pending"}
+            </Text>
           </View>
 
           <View style={styles.item}>
             <Text style={styles.itemLabel}>Session ID</Text>
-            <Text style={styles.itemValue}>{sessionId ?? "Pending"}</Text>
-          </View>
-
-          <View style={styles.item}>
-            <Text style={styles.itemLabel}>Access Expires</Text>
             <Text style={styles.itemValue}>
-              {expiresAt ? new Date(expiresAt).toLocaleString() : "Unavailable"}
+              {session?.sessionId ?? "Unavailable"}
             </Text>
           </View>
         </View>

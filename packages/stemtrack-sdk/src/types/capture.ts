@@ -1,3 +1,5 @@
+// packages/stemtrack-sdk/src/types/capture.ts
+
 export type CaptureSubmissionStatus =
   | "idle"
   | "recording"

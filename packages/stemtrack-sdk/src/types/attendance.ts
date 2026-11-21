@@ -1,3 +1,5 @@
+// packages/stemtrack-sdk/src/types/attendance.ts
+
 export interface AttendanceStudentDto {
   id: string;
   full_name: string;

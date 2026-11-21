@@ -2,6 +2,8 @@
 
 export type TrackBranch = 'ROBOTICS_CLUB' | 'SEND_PROVISION' | 'EARLY_YEARS';
 
+export type CaptureMode = 'LIVE_MULTIMODAL' | 'MANUAL_NOTE';
+
 export interface BranchConfig {
   branch: TrackBranch;
   displayName: string;
@@ -46,8 +48,16 @@ export interface RosterMemberDTO {
   id: string;
   firstName: string;
   lastName: string;
-  avatarUrl?: string;
+  avatarUrl?: string;          // Onboarding portrait used by LLM/vision for auto-attribution
+  faceEmbeddingId?: string;    // Optional pre-indexed edge face signature
   externalIdentifier?: string;
+}
+
+export interface StudentAttributionDTO {
+  studentId: string;
+  studentName: string;
+  confidence: number;          // 0.0 - 1.0 match confidence
+  source: 'AUTO_FACE_MATCH' | 'VOICE_MENTION' | 'TEACHER_SELECTED';
 }
 
 export interface SessionContextDTO {
@@ -107,9 +117,22 @@ export interface IngestEvidenceRequestDTO {
 export interface IngestEvidenceResponseDTO {
   success: boolean;
   evidenceId: string;
+  attributions: StudentAttributionDTO[];
   structuredInsight: {
+    branch: TrackBranch;
     summary: string;
     curriculumTags: string[];
-    behaviorOrRegulationNote?: string;
+    ehcpBehaviourRecord?: {
+      regulationZone: 'BLUE' | 'GREEN' | 'YELLOW' | 'RED';
+      antecedentTrigger?: string;
+      observedBehaviour: string;
+      coRegulationResponse?: string;
+      ehcpOutcomeLink?: string;
+    };
+    eyfsObservation?: {
+      provisionArea: string;
+      developmentMattersBand: string;
+      childInitiated: boolean;
+    };
   };
 }

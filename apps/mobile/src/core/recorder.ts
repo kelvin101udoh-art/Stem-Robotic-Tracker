@@ -1,8 +1,11 @@
+// apps/mobile/src/core/recorder.ts
+
 import {
-  Audio,
-  InterruptionModeAndroid,
-  InterruptionModeIOS,
-} from "expo-av";
+  AudioModule,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Crypto from "expo-crypto";
 
@@ -14,18 +17,11 @@ export type CaptureFile = {
 };
 
 export class VoiceRecorder {
-  private recording: Audio.Recording | null = null;
+  private recording: InstanceType<typeof AudioModule.AudioRecorder> | null = null;
+  private startedAt = 0;
 
   async start(): Promise<void> {
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-      interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-      shouldDuckAndroid: true,
-    });
-
-    const perm = await Audio.requestPermissionsAsync();
+    const perm = await requestRecordingPermissionsAsync();
     if (!perm.granted) {
       throw new Error("Microphone permission not granted.");
     }
@@ -34,11 +30,17 @@ export class VoiceRecorder {
       throw new Error("Recording already in progress.");
     }
 
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.HIGH_QUALITY
-    );
+    await setAudioModeAsync({
+      allowsRecording: true,
+      playsInSilentMode: true,
+    });
 
-    this.recording = recording;
+    const rec = new AudioModule.AudioRecorder(RecordingPresets.HIGH_QUALITY);
+    await rec.prepareToRecordAsync();
+    rec.record();
+
+    this.recording = rec;
+    this.startedAt = Date.now();
   }
 
   async stop(): Promise<CaptureFile> {
@@ -49,19 +51,18 @@ export class VoiceRecorder {
     const rec = this.recording;
     this.recording = null;
 
-    await rec.stopAndUnloadAsync();
+    await rec.stop();
 
-    const uri = rec.getURI();
-    const status = await rec.getStatusAsync();
-
+    const uri = rec.uri;
     if (!uri) {
       throw new Error("Capture file missing.");
     }
 
+    const status = rec.getStatus();
     const durationMs =
-      "durationMillis" in status && typeof status.durationMillis === "number"
+      typeof status?.durationMillis === "number" && status.durationMillis > 0
         ? status.durationMillis
-        : 0;
+        : Math.max(1000, Date.now() - this.startedAt);
 
     const id = Crypto.randomUUID();
     const filename = `capture-${id}.m4a`;

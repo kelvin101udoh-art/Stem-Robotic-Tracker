@@ -1,142 +1,178 @@
-import { useEffect, useMemo, useState } from "react";
-import { Text, View } from "react-native";
-import { useRouter } from "expo-router";
-import { Screen } from "../src/ui/components/Screen";
-import { Card } from "../src/ui/components/Card";
-import { Button } from "../src/ui/components/Button";
-import { StatusPill } from "../src/ui/components/StatusPill";
-import { theme } from "../src/ui/theme";
-import { getSession, clearSession, isExpired } from "../src/core/session";
-import { VoiceRecorder, CaptureFile } from "../src/core/recorder";
-import { submitCapture } from "../src/api/captures";
+// apps/mobile/app/capture.tsx
 
-type UIState = "READY" | "CAPTURING" | "REVIEW" | "UPLOADING" | "SUBMITTED" | "FAILED";
+import { useEffect, useMemo, useState } from 'react';
+import { Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Screen } from '../src/ui/components/Screen';
+import { Card } from '../src/ui/components/Card';
+import { Button } from '../src/ui/components/Button';
+import { StatusPill } from '../src/ui/components/StatusPill';
+import { theme } from '../src/ui/theme';
+import { SessionStorageService } from '../src/core/session';
+import { VoiceRecorder, type CaptureFile } from '../src/core/recorder';
+import { submitCapture } from '../src/api/captures';
+import type { SessionContextDTO } from 'stemtrack-sdk';
+
+type UIState =
+  | 'READY'
+  | 'CAPTURING'
+  | 'REVIEW'
+  | 'UPLOADING'
+  | 'SUBMITTED'
+  | 'FAILED';
 
 export default function CaptureScreen() {
   const router = useRouter();
   const recorder = useMemo(() => new VoiceRecorder(), []);
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [session, setSession] = useState<SessionContextDTO | null>(null);
 
-  const [ui, setUi] = useState<UIState>("READY");
+  const [ui, setUi] = useState<UIState>('READY');
   const [file, setFile] = useState<CaptureFile | null>(null);
-  const [message, setMessage] = useState<string>("");
+  const [message, setMessage] = useState<string>('');
 
   useEffect(() => {
+    let mounted = true;
     (async () => {
-      const s = await getSession();
-      if (!s || isExpired(s.expiresAt)) {
-        await clearSession();
-        router.replace("/");
+      const s = await SessionStorageService.getSession();
+      if (!s) {
+        router.replace('/');
         return;
       }
-      setSessionToken(s.token);
+      if (mounted) {
+        setSession(s);
+      }
     })();
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
   async function onStart() {
-    setMessage("");
+    setMessage('');
     try {
       await recorder.start();
-      setUi("CAPTURING");
-    } catch (e: any) {
-      setMessage(e?.message ?? "Unable to start capture.");
-      setUi("FAILED");
+      setUi('CAPTURING');
+    } catch (e: unknown) {
+      setMessage(e instanceof Error ? e.message : 'Unable to start capture.');
+      setUi('FAILED');
     }
   }
 
   async function onStop() {
-    setMessage("");
+    setMessage('');
     try {
       const f = await recorder.stop();
-      // Optional enterprise constraint (v0): cap to 3 mins
       if (f.durationMs > 3 * 60 * 1000) {
         await recorder.discard(f.uri);
-        setMessage("Capture too long for v0. Please keep reflections under 3 minutes.");
-        setUi("FAILED");
+        setMessage('Please keep reflections under 3 minutes.');
+        setUi('FAILED');
         return;
       }
       setFile(f);
-      setUi("REVIEW");
-    } catch (e: any) {
-      setMessage(e?.message ?? "Unable to stop capture.");
-      setUi("FAILED");
+      setUi('REVIEW');
+    } catch (e: unknown) {
+      setMessage(e instanceof Error ? e.message : 'Unable to stop capture.');
+      setUi('FAILED');
     }
   }
 
   async function onDiscard() {
-    setMessage("");
+    setMessage('');
     if (file) await recorder.discard(file.uri);
     setFile(null);
-    setUi("READY");
+    setUi('READY');
   }
 
   async function onSubmit() {
-    if (!file || !sessionToken) return;
-    setUi("UPLOADING");
-    setMessage("Submitting capture securely…");
+    if (!file || !session) return;
+    setUi('UPLOADING');
+    setMessage('Submitting capture securely…');
 
     try {
-      const res = await submitCapture({ sessionToken, file });
-      setMessage(`Submitted. Report is generating in STEMTrack. Ref: ${res.capture_id}`);
-      await recorder.discard(file.uri); // remove local copy after submit
+      const res = await submitCapture({
+        sessionToken: session.sessionId,
+        file,
+      });
+      setMessage(
+        `Submitted. Report is generating in STEMTrack. Ref: ${res.capture_id}`
+      );
+      await recorder.discard(file.uri);
       setFile(null);
-      setUi("SUBMITTED");
-      // Auto-reset to ready after a short moment (optional)
-      setTimeout(() => setUi("READY"), 1800);
-    } catch (e: any) {
-      setMessage(e?.message ?? "Submit failed. Please try again.");
-      setUi("FAILED");
+      setUi('SUBMITTED');
+      setTimeout(() => setUi('READY'), 1800);
+    } catch (e: unknown) {
+      setMessage(
+        e instanceof Error ? e.message : 'Submit failed. Please try again.'
+      );
+      setUi('FAILED');
     }
   }
 
   async function onChangeKey() {
-    await clearSession();
-    router.replace("/");
+    await SessionStorageService.clearSession();
+    router.replace('/');
   }
 
-  const status: any =
-    ui === "CAPTURING" ? "CAPTURING" :
-    ui === "UPLOADING" ? "UPLOADING" :
-    ui === "SUBMITTED" ? "SUBMITTED" :
-    ui === "FAILED" ? "FAILED" :
-    "READY";
+  const pillStatus = ui === 'REVIEW' ? 'READY' : ui;
 
   return (
     <Screen>
       <Card>
         <View style={{ gap: theme.spacing.md }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ fontSize: 22, fontWeight: "800", color: theme.color.text }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: '800',
+                color: theme.color.text,
+              }}
+            >
               Session Capture
             </Text>
-            <StatusPill status={status} />
+            <StatusPill status={pillStatus as never} />
           </View>
 
           <Text style={{ color: theme.color.subtext, lineHeight: 20 }}>
-            Capture what happened during the session. STEMTrack will generate the report and evidence.
+            Capture what happened during the session. STEMTrack will generate
+            structured evidence.
           </Text>
 
-          {ui === "READY" && (
-            <Button label="Start Capture" onPress={onStart} />
-          )}
+          {ui === 'READY' && <Button label="Start Capture" onPress={onStart} />}
 
-          {ui === "CAPTURING" && (
-            <Button label="Stop" onPress={onStop} />
-          )}
+          {ui === 'CAPTURING' && <Button label="Stop" onPress={onStop} />}
 
-          {ui === "REVIEW" && (
+          {ui === 'REVIEW' && (
             <View style={{ gap: theme.spacing.sm }}>
               <Button label="Submit to STEMTrack" onPress={onSubmit} />
-              <Button label="Discard" onPress={onDiscard} variant="secondary" />
+              <Button
+                label="Discard"
+                onPress={onDiscard}
+                variant="secondary"
+              />
             </View>
           )}
 
-          {ui === "UPLOADING" && (
-            <Button label="Submitting…" onPress={() => {}} disabled loading />
+          {ui === 'UPLOADING' && (
+            <Button
+              label="Submitting…"
+              onPress={() => {}}
+              disabled
+              loading
+            />
           )}
 
-          {(message?.length ?? 0) > 0 && (
-            <Text style={{ color: ui === "FAILED" ? theme.color.danger : theme.color.text }}>
+          {message.length > 0 && (
+            <Text
+              style={{
+                color: ui === 'FAILED' ? theme.color.danger : theme.color.text,
+              }}
+            >
               {message}
             </Text>
           )}
@@ -148,8 +184,14 @@ export default function CaptureScreen() {
             Change Access Key
           </Text>
 
-          <Text style={{ color: theme.color.muted, fontSize: 12, lineHeight: 18 }}>
-            Note: No audio library is stored on device. Captures are submitted only for report generation.
+          <Text
+            style={{
+              color: theme.color.muted,
+              fontSize: 12,
+              lineHeight: 18,
+            }}
+          >
+            Raw captures are discarded from local storage after submission.
           </Text>
         </View>
       </Card>

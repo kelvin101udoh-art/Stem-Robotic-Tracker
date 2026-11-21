@@ -1,218 +1,507 @@
 // stem-robotic-tracker-monorepo/apps/mobile/app/capture-learning.tsx
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Alert,
   ActivityIndicator,
+  Alert,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { SessionStorageService } from '../src/core/session';
 import {
-  SessionContextDTO,
+  CameraView,
+  useCameraPermissions,
+  useMicrophonePermissions,
+} from 'expo-camera';
+import * as FileSystem from 'expo-file-system/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { SessionStorageService } from '../src/core/session';
+import type {
   BranchConfig,
-  IngestEvidenceRequestDTO,
+  EvidenceMetadata,
   IngestEvidenceResponseDTO,
+  SessionContextDTO,
 } from 'stemtrack-sdk';
 
-export default function UnifiedCaptureScreen() {
+const OUTBOX_INDEX_KEY = '@stemtrack:evidence_outbox_index:v2';
+
+interface QueuedEvidenceItem {
+  id: string;
+  localMediaUri: string;
+  sessionId: string;
+  organizationId: string;
+  branch: SessionContextDTO['branch'];
+  manualNote: string;
+  metadata: EvidenceMetadata;
+  queuedAt: string;
+}
+
+function createBranchMetadata(session: SessionContextDTO): EvidenceMetadata {
+  const base = {
+    captureMode: 'LIVE_VOICE' as const,
+    clientTimestamp: new Date().toISOString(),
+  };
+
+  switch (session.branch) {
+    case 'ROBOTICS_CLUB':
+      return { ...base, branch: 'ROBOTICS_CLUB' };
+    case 'SEND_PROVISION':
+      return { ...base, branch: 'SEND_PROVISION' };
+    case 'EARLY_YEARS':
+      return { ...base, branch: 'EARLY_YEARS' };
+  }
+}
+
+export default function LiveMediaCaptureScreen() {
   const router = useRouter();
+  const cameraRef = useRef<CameraView | null>(null);
+
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [micPermission, requestMicPermission] = useMicrophonePermissions();
+
   const [session, setSession] = useState<SessionContextDTO | null>(null);
-  const [config, setConfig] = useState<BranchConfig | null>(null);
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [branchConfig, setBranchConfig] = useState<BranchConfig | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    SessionStorageService.getSession().then((active) => {
+    let mounted = true;
+    (async () => {
+      const active = await SessionStorageService.getSession();
       if (!active) {
         router.replace('/');
         return;
       }
-      setSession(active);
-      setConfig(SessionStorageService.getBranchConfig(active.branch));
-    });
-  }, [router]);
-
-  const toggleStudentSelection = (id: string) => {
-    setSelectedStudentIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleExecuteVoiceCapture = async () => {
-    if (!isRecording) {
-      // Start recording immediately without blocking on roster selection
-      setIsRecording(true);
-      return;
-    }
-
-    // Stop recording and trigger ingestion payload dispatch
-    setIsRecording(false);
-    setIsUploading(true);
-
-    try {
-      if (!session || !config) return;
-
-      const payload: IngestEvidenceRequestDTO = {
-        sessionId: session.sessionId,
-        organizationId: session.organizationId,
-        branch: session.branch,
-        taggedStudentIds: selectedStudentIds, // Optional at capture time; AI or post-tagging can expand
-        manualNote: `Verbal learning observation recorded via mobile terminal for ${config.displayName}.`,
-        metadata: {
-          captureMode: 'LIVE_VOICE',
-          clientTimestamp: new Date().toISOString(),
-          branch: session.branch,
-        } as IngestEvidenceRequestDTO['metadata'],
-      };
-
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/submit-evidence`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Cloud ingest error: status ${response.status}`);
+      if (mounted) {
+        setSession(active);
+        setBranchConfig(SessionStorageService.getBranchConfig(active.branch));
       }
 
-      const result: IngestEvidenceResponseDTO = await response.json();
-      Alert.alert('Insight Processed Successfully', result.structuredInsight.summary, [
-        { text: 'Done', onPress: () => setSelectedStudentIds([]) },
-      ]);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Transmission failed.';
-      Alert.alert('Processing Error', msg);
-    } finally {
-      setIsUploading(false);
+      if (!cameraPermission?.granted) {
+        await requestCameraPermission();
+      }
+      if (!micPermission?.granted) {
+        await requestMicPermission();
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    router,
+    cameraPermission?.granted,
+    micPermission?.granted,
+    requestCameraPermission,
+    requestMicPermission,
+  ]);
+
+  const queueToFilesystemOutbox = async (
+    tempVideoUri: string,
+    activeSession: SessionContextDTO,
+    activeConfig: BranchConfig,
+    metadata: EvidenceMetadata
+  ) => {
+    const baseDir = FileSystem.documentDirectory;
+    if (!baseDir) {
+      throw new Error('Device document directory unavailable.');
+    }
+
+    const outboxDir = `${baseDir}outbox/`;
+    await FileSystem.makeDirectoryAsync(outboxDir, { intermediates: true });
+
+    const id = `ev-${Date.now()}`;
+    const persistedUri = `${outboxDir}${id}.mp4`;
+    await FileSystem.copyAsync({ from: tempVideoUri, to: persistedUri });
+
+    const item: QueuedEvidenceItem = {
+      id,
+      localMediaUri: persistedUri,
+      sessionId: activeSession.sessionId,
+      organizationId: activeSession.organizationId,
+      branch: activeSession.branch,
+      manualNote: `Live audio/video observation captured in ${activeConfig.displayName}.`,
+      metadata,
+      queuedAt: new Date().toISOString(),
+    };
+
+    const existingRaw = await AsyncStorage.getItem(OUTBOX_INDEX_KEY);
+    const existing: QueuedEvidenceItem[] = existingRaw
+      ? (JSON.parse(existingRaw) as QueuedEvidenceItem[])
+      : [];
+
+    existing.unshift(item);
+    await AsyncStorage.setItem(OUTBOX_INDEX_KEY, JSON.stringify(existing));
+  };
+
+  const uploadEvidenceMultipart = async (
+    videoUri: string,
+    activeSession: SessionContextDTO,
+    activeConfig: BranchConfig,
+    metadata: EvidenceMetadata
+  ): Promise<IngestEvidenceResponseDTO> => {
+    const endpoint = process.env.EXPO_PUBLIC_SUBMIT_EVIDENCE_URL?.trim();
+    if (!endpoint) {
+      throw new Error('Missing EXPO_PUBLIC_SUBMIT_EVIDENCE_URL');
+    }
+
+    const form = new FormData();
+    form.append('file', {
+      uri: videoUri,
+      name: `capture-${Date.now()}.mp4`,
+      type: 'video/mp4',
+    } as unknown as Blob);
+    form.append('sessionId', activeSession.sessionId);
+    form.append('organizationId', activeSession.organizationId);
+    form.append('branch', activeSession.branch);
+    form.append('taggedStudentIds', JSON.stringify([]));
+    form.append(
+      'manualNote',
+      `Live audio/video observation captured in ${activeConfig.displayName}.`
+    );
+    form.append('metadata', JSON.stringify(metadata));
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+      },
+      body: form,
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Upload failed (${res.status}). ${text}`);
+    }
+
+    return (await res.json()) as IngestEvidenceResponseDTO;
+  };
+
+  function createBranchMetadata(
+    branch: SessionContextDTO['branch'],
+    clientTimestamp: string
+  ): EvidenceMetadata {
+    const base = {
+      captureMode: 'LIVE_VOICE' as const,
+      clientTimestamp,
+    };
+
+    switch (branch) {
+      case 'ROBOTICS_CLUB':
+        return { ...base, branch: 'ROBOTICS_CLUB' };
+      case 'SEND_PROVISION':
+        return { ...base, branch: 'SEND_PROVISION' };
+      case 'EARLY_YEARS':
+        return { ...base, branch: 'EARLY_YEARS' };
+    }
+  }
+
+  const handleToggleRecording = async () => {
+    if (!session || !branchConfig || !cameraRef.current || isProcessing) return;
+
+    if (!isRecording) {
+      // Lock session context & timestamp at the exact moment capture begins
+      const immutableTimestamp = new Date().toISOString();
+      const lockedSession: SessionContextDTO = {
+        ...session,
+        sessionId: session.sessionId,
+        branch: session.branch,
+      };
+
+      try {
+        setIsRecording(true);
+        const videoResult = await cameraRef.current.recordAsync({
+          maxDuration: 180,
+        });
+
+        setIsRecording(false);
+        if (!videoResult?.uri) return;
+
+        setIsProcessing(true);
+        const metadata = createBranchMetadata(
+          lockedSession.branch,
+          immutableTimestamp
+        );
+
+        try {
+          const response = await uploadEvidenceMultipart(
+            videoResult.uri,
+            lockedSession,
+            branchConfig,
+            metadata
+          );
+
+          Alert.alert(
+            'Evidence Processed & Pinned',
+            response.structuredInsight.summary,
+            [{ text: 'Done' }]
+          );
+        } catch {
+          await queueToFilesystemOutbox(
+            videoResult.uri,
+            lockedSession,
+            branchConfig,
+            metadata
+          );
+          Alert.alert(
+            'Queued Offline',
+            'Saved to local device outbox. It will sync once the edge endpoint is reachable.'
+          );
+        } finally {
+          await FileSystem.deleteAsync(videoResult.uri, {
+            idempotent: true,
+          }).catch(() => { });
+          setIsProcessing(false);
+        }
+      } catch (err: unknown) {
+        setIsRecording(false);
+        setIsProcessing(false);
+        const message =
+          err instanceof Error ? err.message : 'Unable to capture video/audio.';
+        Alert.alert('Capture Error', message);
+      }
+    } else {
+      cameraRef.current.stopRecording();
     }
   };
 
-  if (!session || !config) return null;
+  if (!session || !branchConfig) return null;
+
+  const hasPermissions = Boolean(
+    cameraPermission?.granted && micPermission?.granted
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#020617" />
-      
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" />
+
+      <View style={styles.topHeader}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          disabled={isRecording || isProcessing}
+        >
+          <Ionicons name="chevron-back" size={20} color="#f8fafc" />
+          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        <View style={[styles.branchPill, { borderColor: config.accentColor }]}>
-          <Text style={[styles.branchPillText, { color: config.accentColor }]}>
-            {config.displayName}
+
+        <View
+          style={[styles.branchChip, { borderColor: branchConfig.accentColor }]}
+        >
+          <Text
+            style={[styles.branchChipText, { color: branchConfig.accentColor }]}
+          >
+            {branchConfig.displayName}
           </Text>
         </View>
       </View>
 
-      <Text style={styles.title}>Capture Observation</Text>
-      <Text style={styles.subtitle}>
-        Tap record instantly. Optionally tag active {config.learnerTerm.toLowerCase()}s before or after.
-      </Text>
+      <View style={styles.cameraWrapper}>
+        {hasPermissions ? (
+          <CameraView
+            ref={cameraRef}
+            style={styles.camera}
+            facing="back"
+            mode="video"
+          />
+        ) : (
+          <View style={styles.permissionFallback}>
+            <Ionicons name="camera-outline" size={36} color="#94a3b8" />
+            <Text style={styles.permissionTitle}>
+              Camera & Microphone Access Required
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.permissionBtn,
+                { backgroundColor: branchConfig.accentColor },
+              ]}
+              onPress={async () => {
+                await requestCameraPermission();
+                await requestMicPermission();
+              }}
+            >
+              <Text style={styles.permissionBtnText}>Grant Permissions</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {/* Optional Roster Multi-Tag Chips */}
-      <View style={styles.rosterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rosterScroll}>
-          {session.activeRoster.map((student) => {
-            const isSelected = selectedStudentIds.includes(student.id);
-            return (
-              <TouchableOpacity
-                key={student.id}
-                style={[
-                  styles.chip,
-                  isSelected && { backgroundColor: config.accentColor, borderColor: config.accentColor },
-                ]}
-                onPress={() => toggleStudentSelection(student.id)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                  {student.firstName} {student.lastName}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <View style={styles.overlayBanner}>
+          <Ionicons name="scan-outline" size={16} color="#38bdf8" />
+          <Text style={styles.overlayBannerText}>
+            Auto-identifying {branchConfig.learnerTerm.toLowerCase()} faces from
+            onboarding roster
+          </Text>
+        </View>
       </View>
 
-      {/* Mode A: Instant Live Voice Trigger */}
-      <View style={styles.controlBox}>
+      <View style={styles.controlsArea}>
         <TouchableOpacity
           style={[
-            styles.recordTrigger,
-            isRecording && styles.recordTriggerActive,
-            !isRecording && { borderColor: config.accentColor },
+            styles.captureTrigger,
+            isRecording
+              ? styles.captureTriggerActive
+              : { backgroundColor: branchConfig.accentColor },
           ]}
-          onPress={handleExecuteVoiceCapture}
-          disabled={isUploading}
+          onPress={handleToggleRecording}
+          disabled={!hasPermissions || isProcessing}
           activeOpacity={0.85}
         >
-          {isUploading ? (
+          {isProcessing ? (
             <ActivityIndicator color="#ffffff" size="large" />
           ) : (
-            <View style={styles.triggerInner}>
-              <Text style={styles.triggerIcon}>{isRecording ? '⏹' : '🎙'}</Text>
-              <Text style={styles.triggerText}>
-                {isRecording ? 'Complete & Synthesize' : '1-Tap Voice Log'}
+            <>
+              <Ionicons
+                name={isRecording ? 'stop' : 'videocam'}
+                size={28}
+                color="#ffffff"
+              />
+              <Text style={styles.captureLabel}>
+                {isRecording ? 'Stop & Analyze' : 'Capture Audio + Video'}
               </Text>
-            </View>
+            </>
           )}
         </TouchableOpacity>
-        <Text style={styles.recordingHint}>
-          {isRecording ? 'Recording active session audio... Tap to finish.' : 'Zero friction: start speaking immediately.'}
+
+        <Text style={styles.helperText}>
+          {isProcessing
+            ? 'Running edge face attribution & branch insight synthesis...'
+            : isRecording
+              ? 'Recording audio & video... Tap Stop when complete.'
+              : 'No student selection needed—AI pins evidence automatically.'}
         </Text>
       </View>
-
-      {/* Mode B: Retrospective Draft Queue Shortcut */}
-      {config.allowDraftQueue && (
-        <TouchableOpacity
-          style={styles.draftQueueBar}
-          onPress={() => router.push('/evidence')}
-          disabled={isRecording || isUploading}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.draftQueueEmoji}>📷</Text>
-          <View style={styles.draftQueueTextContainer}>
-            <Text style={styles.draftQueueTitle}>Retrospective Draft Queue</Text>
-            <Text style={styles.draftQueueSubtitle}>Snap photos now, attach voice notes later</Text>
-          </View>
-          <Text style={styles.draftQueueArrow}>→</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617', padding: 24, paddingTop: 50 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  backButton: { paddingVertical: 6, paddingRight: 12 },
-  backButtonText: { color: '#94a3b8', fontSize: 16, fontWeight: '600' },
-  branchPill: { backgroundColor: '#0f172a', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
-  branchPillText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  title: { fontSize: 26, fontWeight: 'bold', color: '#f8fafc' },
-  subtitle: { fontSize: 14, color: '#94a3b8', marginTop: 4, marginBottom: 20, lineHeight: 20 },
-  rosterContainer: { maxHeight: 56, marginBottom: 30 },
-  rosterScroll: { gap: 10, alignItems: 'center' },
-  chip: { backgroundColor: '#0f172a', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, borderWidth: 1, borderColor: '#1e293b' },
-  chipText: { color: '#cbd5e1', fontSize: 14, fontWeight: '500' },
-  chipTextSelected: { color: '#ffffff', fontWeight: 'bold' },
-  controlBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 20 },
-  recordTrigger: { width: 230, height: 230, borderRadius: 115, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center', borderWidth: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 15, elevation: 10 },
-  recordTriggerActive: { backgroundColor: '#ef4444', borderColor: '#fca5a5' },
-  triggerInner: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
-  triggerIcon: { fontSize: 36, marginBottom: 8 },
-  triggerText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
-  recordingHint: { color: '#64748b', fontSize: 13, marginTop: 20, textAlign: 'center' },
-  draftQueueBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#1e293b', marginBottom: 10 },
-  draftQueueEmoji: { fontSize: 24, marginRight: 14 },
-  draftQueueTextContainer: { flex: 1 },
-  draftQueueTitle: { color: '#f8fafc', fontSize: 15, fontWeight: 'bold' },
-  draftQueueSubtitle: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
-  draftQueueArrow: { color: '#38bdf8', fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#020617',
+  },
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingRight: 8,
+  },
+  backText: {
+    color: '#f8fafc',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  branchChip: {
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  branchChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  cameraWrapper: {
+    flex: 1,
+    marginHorizontal: 18,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  camera: {
+    flex: 1,
+  },
+  overlayBanner: {
+    position: 'absolute',
+    bottom: 14,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(2, 6, 23, 0.82)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.25)',
+  },
+  overlayBannerText: {
+    color: '#e2e8f0',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  permissionFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  permissionTitle: {
+    color: '#f8fafc',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  permissionBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  permissionBtnText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  controlsArea: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 20,
+    alignItems: 'center',
+    gap: 12,
+  },
+  captureTrigger: {
+    width: '100%',
+    paddingVertical: 18,
+    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  captureTriggerActive: {
+    backgroundColor: '#dc2626',
+  },
+  captureLabel: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  helperText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 });

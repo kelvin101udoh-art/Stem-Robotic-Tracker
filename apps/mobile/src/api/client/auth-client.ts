@@ -1,10 +1,9 @@
 // apps/mobile/src/api/client/auth-client.ts
-
 import { http } from "../http";
 import type {
   AccessKeyExchangeRequest,
   AccessKeyExchangeResponse,
-} from "@stemtrack/sdk";
+} from "stemtrack-sdk";
 
 export async function exchangeAccessKey(
   accessKey: string
@@ -15,7 +14,7 @@ export async function exchangeAccessKey(
   }
 
   const body: AccessKeyExchangeRequest = {
-    access_key: accessKey,
+    access_key: accessKey.trim(),
   };
 
   return http<AccessKeyExchangeResponse>(endpoint, {

@@ -1,32 +1,23 @@
-import { Stack } from "expo-router";
+// apps/mobile/app/_layout.tsx
 
-/* export default function Layout() {
-  return (
-    <Stack
-      screenOptions={{
-        headerTitleAlign: "center",
-        headerShadowVisible: false,
-      }}
-    >
-      <Stack.Screen name="index" options={{ title: "STEMTrack" }} />
-      <Stack.Screen name="home" options={{ title: "Capture Dashboard" }} />
-      <Stack.Screen
-        name="capture-learning"
-        options={{ title: "Capture Learning" }}
-      />
-      <Stack.Screen name="attendance" options={{ title: "Attendance" }} />
-      <Stack.Screen name="evidence" options={{ title: "Capture Evidence" }} />
-    </Stack>
-  );
-} */
+import React from 'react';
+import { Stack } from 'expo-router';
 
- 
-export default function Layout() {
+export default function RootLayout() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
+        contentStyle: { backgroundColor: '#020617' },
+        animation: 'slide_from_right',
       }}
-    />
+    >
+      <Stack.Screen name="index" options={{ animation: 'fade' }} />
+      <Stack.Screen name="home" />
+      <Stack.Screen name="capture-learning" />
+      <Stack.Screen name="capture" />
+      <Stack.Screen name="evidence" />
+      <Stack.Screen name="manual-entry"/>
+    </Stack>
   );
 }

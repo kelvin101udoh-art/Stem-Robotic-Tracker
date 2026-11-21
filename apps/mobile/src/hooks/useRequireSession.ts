@@ -1,26 +1,20 @@
-//  apps/mobile/src/hooks/useRequireSession.ts
-
+// apps/mobile/src/hooks/useRequireSession.ts
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
-import { clearSession, getSession, isExpired } from "../core/session";
+import type { BranchConfig, SessionContextDTO } from "stemtrack-sdk";
+import { SessionStorageService } from "../core/session";
 
 type GuardState = {
-  teacherName: string | null;
-  teacherRoleTitle: string | null;
-  sessionToken: string | null;
-  clubId: string | null;
-  expiresAt: string | null;
+  session: SessionContextDTO | null;
+  branchConfig: BranchConfig | null;
   isChecking: boolean;
 };
 
 export function useRequireSession() {
   const router = useRouter();
   const [state, setState] = useState<GuardState>({
-    teacherName: null,
-    teacherRoleTitle: null,
-    sessionToken: null,
-    clubId: null,
-    expiresAt: null,
+    session: null,
+    branchConfig: null,
     isChecking: true,
   });
 
@@ -28,17 +22,14 @@ export function useRequireSession() {
     let mounted = true;
 
     (async () => {
-      const session = await getSession();
+      const session = await SessionStorageService.getSession();
 
-      if (!session || isExpired(session.expiresAt)) {
-        await clearSession();
+      if (!session) {
+        await SessionStorageService.clearSession();
         if (mounted) {
           setState({
-            teacherName: null,
-            teacherRoleTitle: null,
-            sessionToken: null,
-            clubId: null,
-            expiresAt: null,
+            session: null,
+            branchConfig: null,
             isChecking: false,
           });
           router.replace("/");
@@ -46,13 +37,12 @@ export function useRequireSession() {
         return;
       }
 
+      const branchConfig = SessionStorageService.getBranchConfig(session.branch);
+
       if (mounted) {
         setState({
-          teacherName: session.teacherName ?? null,
-          teacherRoleTitle: session.teacherRoleTitle ?? null,
-          sessionToken: session.token,
-          clubId: session.clubId ?? null,
-          expiresAt: session.expiresAt,
+          session,
+          branchConfig,
           isChecking: false,
         });
       }

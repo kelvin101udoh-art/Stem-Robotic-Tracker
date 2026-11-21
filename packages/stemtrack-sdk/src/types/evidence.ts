@@ -1,3 +1,5 @@
+// packages/stemtrack-sdk/src/types/evidence.ts
+
 export type EvidenceKind = "photo" | "video";
 
 export interface EvidenceMetadataDto {
