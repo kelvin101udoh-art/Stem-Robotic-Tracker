@@ -1,6 +1,7 @@
 // apps/mobile/app/manual-entry.tsx
 
 
+import { getAuthenticatedUploadHeaders, http } from '../src/api/http';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
@@ -17,12 +18,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as FileSystem from 'expo-file-system/legacy';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { SessionStorageService } from '../src/core/session';
 import { VoiceRecorder, type CaptureFile } from '../src/core/recorder';
-import { http } from '../src/api/http';
+import { OutboxSyncService } from '../src/core/outbox';
+
+import {
+  InsightReviewModal,
+  type ReviewableInsight,
+} from '../src/ui/components/InsightReviewModal';
 import type {
   BranchConfig,
   EvidenceMetadata,
@@ -31,21 +35,6 @@ import type {
   SessionContextDTO,
   TrackBranch,
 } from 'stemtrack-sdk';
-
-const VOICE_DEBRIEF_OUTBOX_KEY = '@stemtrack:voice_debrief_outbox:v1';
-
-interface QueuedDebriefItem {
-  id: string;
-  sessionId: string;
-  organizationId: string;
-  branch: TrackBranch;
-  autoSplit: boolean;
-  taggedStudentIds: string[];
-  manualNote: string;
-  localAudioUri?: string;
-  metadata: EvidenceMetadata;
-  queuedAt: string;
-}
 
 interface ChipOption {
   id: string;
@@ -149,7 +138,6 @@ export default function SettledDebriefScreen() {
   const [session, setSession] = useState<SessionContextDTO | null>(null);
   const [branchConfig, setBranchConfig] = useState<BranchConfig | null>(null);
 
-  // Default to AI Auto-Split so tutors don't have to pick 20 students manually
   const [autoSplitMode, setAutoSplitMode] = useState(true);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
@@ -162,6 +150,9 @@ export default function SettledDebriefScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedAudio, setRecordedAudio] = useState<CaptureFile | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reviewInsight, setReviewInsight] = useState<ReviewableInsight | null>(
+    null
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -192,14 +183,16 @@ export default function SettledDebriefScreen() {
     if (!isRecording) {
       try {
         if (recordedAudio) {
-          await recorder.discard(recordedAudio.uri).catch(() => {});
+          await recorder.discard(recordedAudio.uri).catch(() => { });
           setRecordedAudio(null);
         }
         await recorder.start();
         setIsRecording(true);
       } catch (err: unknown) {
         const msg =
-          err instanceof Error ? err.message : 'Unable to start voice recorder.';
+          err instanceof Error
+            ? err.message
+            : 'Unable to start voice recorder.';
         Alert.alert('Microphone Error', msg);
       }
     } else {
@@ -218,52 +211,8 @@ export default function SettledDebriefScreen() {
 
   const handleDiscardAudio = async () => {
     if (!recordedAudio) return;
-    await recorder.discard(recordedAudio.uri).catch(() => {});
+    await recorder.discard(recordedAudio.uri).catch(() => { });
     setRecordedAudio(null);
-  };
-
-  const queueDebriefToOutbox = async (
-    activeSession: SessionContextDTO,
-    combinedNote: string,
-    metadata: EvidenceMetadata,
-    audioFile: CaptureFile | null
-  ) => {
-    const id = `debrief-${Date.now()}`;
-    let persistedAudioUri: string | undefined;
-
-    if (audioFile) {
-      const baseDir = FileSystem.documentDirectory;
-      if (!baseDir) {
-        throw new Error('Device document directory unavailable.');
-      }
-      const outboxDir = `${baseDir}outbox/`;
-      await FileSystem.makeDirectoryAsync(outboxDir, { intermediates: true });
-      persistedAudioUri = `${outboxDir}${id}.m4a`;
-      await FileSystem.copyAsync({
-        from: audioFile.uri,
-        to: persistedAudioUri,
-      });
-    }
-
-    const item: QueuedDebriefItem = {
-      id,
-      sessionId: activeSession.sessionId,
-      organizationId: activeSession.organizationId,
-      branch: activeSession.branch,
-      autoSplit: autoSplitMode,
-      taggedStudentIds: autoSplitMode ? [] : selectedStudentIds,
-      manualNote: combinedNote,
-      localAudioUri: persistedAudioUri,
-      metadata,
-      queuedAt: new Date().toISOString(),
-    };
-
-    const existingRaw = await AsyncStorage.getItem(VOICE_DEBRIEF_OUTBOX_KEY);
-    const existing: QueuedDebriefItem[] = existingRaw
-      ? (JSON.parse(existingRaw) as QueuedDebriefItem[])
-      : [];
-    existing.unshift(item);
-    await AsyncStorage.setItem(VOICE_DEBRIEF_OUTBOX_KEY, JSON.stringify(existing));
   };
 
   const handleSubmitDebrief = async () => {
@@ -314,7 +263,6 @@ export default function SettledDebriefScreen() {
       let result: IngestEvidenceResponseDTO;
 
       if (recordedAudio) {
-        // Lightweight multipart upload for .m4a voice debrief
         const form = new FormData();
         form.append('file', {
           uri: recordedAudio.uri,
@@ -329,9 +277,12 @@ export default function SettledDebriefScreen() {
         form.append('manualNote', combinedNote);
         form.append('metadata', JSON.stringify(metadata));
 
+
+
+        // Voice debrief (inside if (recordedAudio))
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: { Accept: 'application/json' },
+          headers: await getAuthenticatedUploadHeaders(),
           body: form,
         });
 
@@ -339,6 +290,9 @@ export default function SettledDebriefScreen() {
           throw new Error(`Upload failed (${res.status})`);
         }
         result = (await res.json()) as IngestEvidenceResponseDTO;
+
+
+
       } else {
         const payload: IngestEvidenceRequestDTO = {
           sessionId: session.sessionId,
@@ -349,32 +303,53 @@ export default function SettledDebriefScreen() {
           metadata,
         };
 
+
+
+
+
+        // Text-only note (inside else)
         result = await http<IngestEvidenceResponseDTO>(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await getAuthenticatedUploadHeaders('application/json'),
           body: JSON.stringify(payload),
         });
+
       }
 
       if (recordedAudio) {
-        await recorder.discard(recordedAudio.uri).catch(() => {});
+        await recorder.discard(recordedAudio.uri).catch(() => { });
         setRecordedAudio(null);
       }
 
-      Alert.alert(
-        'Debrief Structured & Saved',
-        result.structuredInsight.summary,
-        [{ text: 'Done', onPress: () => router.back() }]
-      );
+      setReviewInsight({
+        evidenceId: result.evidenceId,
+        summary: result.structuredInsight.summary,
+        attributedStudentIds: resolvedStudentIds,
+        curriculumTags: result.structuredInsight.curriculumTags,
+      });
     } catch {
-      await queueDebriefToOutbox(session, combinedNote, metadata, recordedAudio);
+      await OutboxSyncService.enqueue({
+        kind: recordedAudio ? 'VOICE_DEBRIEF' : 'TEXT_NOTE',
+        sessionId: session.sessionId,
+        organizationId: session.organizationId,
+        branch: session.branch,
+        autoSplit: autoSplitMode,
+        taggedStudentIds: resolvedStudentIds,
+        manualNote: combinedNote,
+        metadata,
+        sourceMediaUri: recordedAudio?.uri,
+        mediaMimeType: recordedAudio?.mimeType ?? 'audio/mp4',
+        mediaExtension: recordedAudio ? 'm4a' : undefined,
+      });
+
       if (recordedAudio) {
-        await recorder.discard(recordedAudio.uri).catch(() => {});
+        await recorder.discard(recordedAudio.uri).catch(() => { });
         setRecordedAudio(null);
       }
+
       Alert.alert(
         'Saved to Local Outbox',
-        `Stamped for ${session.sessionName}. Your voice/note debrief will sync and auto-split once the cloud endpoint is ready.`,
+        `Stamped for ${session.sessionName}. Your voice/note debrief will auto-sync once the cloud endpoint is ready.`,
         [{ text: 'Done', onPress: () => router.back() }]
       );
     } finally {
@@ -398,7 +373,6 @@ export default function SettledDebriefScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Top Bar */}
         <View style={styles.topHeader}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -437,7 +411,6 @@ export default function SettledDebriefScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Active Session Context Pill */}
           <View style={styles.sessionContextPill}>
             <Ionicons name="calendar-outline" size={14} color="#475569" />
             <Text style={styles.sessionContextText} numberOfLines={1}>
@@ -725,6 +698,19 @@ export default function SettledDebriefScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <InsightReviewModal
+        visible={Boolean(reviewInsight)}
+        insight={reviewInsight}
+        branchConfig={branchConfig}
+        sessionName={session.sessionName}
+        roster={session.activeRoster}
+        onConfirm={() => {
+          setReviewInsight(null);
+          router.back();
+        }}
+        onDiscard={() => setReviewInsight(null)}
+      />
     </SafeAreaView>
   );
 }

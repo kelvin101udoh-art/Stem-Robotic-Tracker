@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./image/assets/android-icon-foreground.png",
@@ -28,6 +29,21 @@
     },
     "plugins": [
       "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "STEMTrack uses the camera to capture classroom learning evidence.",
+          "microphonePermission": "STEMTrack uses the microphone to record audio during classroom sessions.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "STEMTrack uses the microphone for settled teacher voice debriefs."
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -42,8 +58,14 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      "expo-secure-store"
     ],
+    "extra": {
+      "eas": {
+        "projectId": "f0c7d1a2-3b6e-4f5c-a9a8-0d8b1e5f3c4e"
+      }
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

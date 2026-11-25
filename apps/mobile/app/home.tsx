@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SessionStorageService } from '../src/core/session';
+import { OutboxSyncService } from '../src/core/outbox';
 import {
   formatTimeWindow,
   getTodayTimetable,
@@ -31,11 +32,21 @@ export default function SessionHomeScreen() {
   const [activeWindow, setActiveWindow] = useState<string>('Auto-Matched');
   const [pickerVisible, setPickerVisible] = useState(false);
 
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isSyncingOutbox, setIsSyncingOutbox] = useState(false);
+
   const todayLabel = new Date().toLocaleDateString('en-GB', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
   });
+
+  useEffect(() => {
+    return OutboxSyncService.subscribe((count, syncing) => {
+      setPendingCount(count);
+      setIsSyncingOutbox(syncing);
+    });
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -57,7 +68,6 @@ export default function SessionHomeScreen() {
       if (existingSlot) {
         windowLabel = formatTimeWindow(existingSlot);
       } else if (todaySlots.length > 0) {
-        // Layer 1: Auto-match timetable to current clock time
         const { session: matched, isExactMatch } =
           matchSessionToCurrentTime(todaySlots);
         const updated = await SessionStorageService.switchActiveSession(
@@ -97,7 +107,54 @@ export default function SessionHomeScreen() {
     setPickerVisible(false);
   };
 
-  const handleEndSession = () => {
+  const handleManualSync = async () => {
+    if (isSyncingOutbox) return;
+    const { synced, remaining } = await OutboxSyncService.syncNow();
+
+    if (remaining === 0 && synced > 0) {
+      Alert.alert('Sync Complete', `All ${synced} observation(s) synced cleanly.`);
+    } else if (remaining > 0) {
+      Alert.alert(
+        'Still Pending Sync',
+        `${remaining} observation(s) could not reach the server yet. Once the Supabase submit-evidence function is deployed and online, they will sync automatically.`
+      );
+    }
+  };
+
+  const handleEndSession = async () => {
+    const unsynced = await OutboxSyncService.getPendingCount();
+
+    if (unsynced > 0) {
+      Alert.alert(
+        'Unsynced Observations on Device',
+        `${unsynced} observation${unsynced === 1 ? '' : 's'} haven't synced yet. Sync now before handing over this device?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sync Now',
+            onPress: async () => {
+              const { synced, remaining } = await OutboxSyncService.syncNow();
+              Alert.alert(
+                'Sync Result',
+                remaining === 0
+                  ? `All ${synced} observation(s) synced cleanly.`
+                  : `${synced} synced, ${remaining} still queued.`
+              );
+            },
+          },
+          {
+            text: 'Exit & Keep Queued',
+            style: 'destructive',
+            onPress: async () => {
+              await SessionStorageService.clearSession();
+              router.replace('/');
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     Alert.alert(
       'End Session',
       'Close this terminal session and clear local credentials?',
@@ -177,6 +234,27 @@ export default function SessionHomeScreen() {
           </View>
         </TouchableOpacity>
 
+        {/* Pending Outbox Sync Pill */}
+        {pendingCount > 0 && (
+          <TouchableOpacity
+            style={styles.syncPill}
+            onPress={handleManualSync}
+            disabled={isSyncingOutbox}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isSyncingOutbox ? 'sync' : 'cloud-upload-outline'}
+              size={15}
+              color="#b45309"
+            />
+            <Text style={styles.syncPillText}>
+              {isSyncingOutbox
+                ? `Syncing ${pendingCount} queued observation(s)...`
+                : `${pendingCount} pending sync • Tap to retry`}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Strictly 2 Primary Action Buttons */}
         <View style={styles.actionsStack}>
           <TouchableOpacity
@@ -220,24 +298,23 @@ export default function SessionHomeScreen() {
             <View style={styles.cardTopRow}>
               <View style={styles.iconCircleSoft}>
                 <Ionicons
-                  name="create-outline"
+                  name="mic-outline"
                   size={26}
                   color={branchConfig.accentColor}
                 />
               </View>
               <View style={styles.manualTag}>
-                <Text style={styles.manualTagText}>SETTLED LOGGING</Text>
+                <Text style={styles.manualTagText}>SETTLED DEBRIEF</Text>
               </View>
             </View>
 
             <View style={styles.cardBody}>
               <Text style={styles.secondaryTitle}>
-                Manual Note & {branchConfig.learnerTerm} Tag
+                Settled Voice & Note Debrief
               </Text>
               <Text style={styles.secondaryDesc}>
-                Write structured observations when settled, pick{' '}
-                {branchConfig.learnerTerm.toLowerCase()}(s), and attach to{' '}
-                {session.sessionName}.
+                Speak a 45-second class debrief or type notes—AI auto-splits and
+                pins records into {session.sessionName}.
               </Text>
             </View>
 
@@ -248,7 +325,7 @@ export default function SessionHomeScreen() {
                   { color: branchConfig.accentColor },
                 ]}
               >
-                Open Manual Entry
+                Open Voice & Note Debrief
               </Text>
               <Ionicons
                 name="arrow-forward"
@@ -378,7 +455,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    marginBottom: 18,
+    marginBottom: 14,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -402,6 +479,23 @@ const styles = StyleSheet.create({
     borderColor: '#cbd5e1',
   },
   switchPillText: { fontSize: 12, fontWeight: '700', color: '#334155' },
+  syncPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginBottom: 14,
+  },
+  syncPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400e',
+  },
   actionsStack: { flex: 1, gap: 16 },
   primaryButtonCard: {
     flex: 1,

@@ -1,6 +1,8 @@
-// stem-robotic-tracker-monorepo/apps/mobile/app/capture-learning.tsx
+// apps/mobile/app/capture-learning.tsx
 
 
+
+import { getAuthenticatedUploadHeaders } from '../src/api/http';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -19,9 +21,13 @@ import {
   useMicrophonePermissions,
 } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { SessionStorageService } from '../src/core/session';
+import { OutboxSyncService } from '../src/core/outbox';
+import {
+  InsightReviewModal,
+  type ReviewableInsight,
+} from '../src/ui/components/InsightReviewModal';
 import type {
   BranchConfig,
   EvidenceMetadata,
@@ -29,26 +35,16 @@ import type {
   SessionContextDTO,
 } from 'stemtrack-sdk';
 
-const OUTBOX_INDEX_KEY = '@stemtrack:evidence_outbox_index:v2';
-
-interface QueuedEvidenceItem {
-  id: string;
-  localMediaUri: string;
-  sessionId: string;
-  organizationId: string;
-  branch: SessionContextDTO['branch'];
-  manualNote: string;
-  metadata: EvidenceMetadata;
-  queuedAt: string;
-}
-
-function createBranchMetadata(session: SessionContextDTO): EvidenceMetadata {
+function createBranchMetadata(
+  branch: SessionContextDTO['branch'],
+  clientTimestamp: string
+): EvidenceMetadata {
   const base = {
     captureMode: 'LIVE_VOICE' as const,
-    clientTimestamp: new Date().toISOString(),
+    clientTimestamp,
   };
 
-  switch (session.branch) {
+  switch (branch) {
     case 'ROBOTICS_CLUB':
       return { ...base, branch: 'ROBOTICS_CLUB' };
     case 'SEND_PROVISION':
@@ -69,6 +65,9 @@ export default function LiveMediaCaptureScreen() {
   const [branchConfig, setBranchConfig] = useState<BranchConfig | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [reviewInsight, setReviewInsight] = useState<ReviewableInsight | null>(
+    null
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -102,44 +101,6 @@ export default function LiveMediaCaptureScreen() {
     requestMicPermission,
   ]);
 
-  const queueToFilesystemOutbox = async (
-    tempVideoUri: string,
-    activeSession: SessionContextDTO,
-    activeConfig: BranchConfig,
-    metadata: EvidenceMetadata
-  ) => {
-    const baseDir = FileSystem.documentDirectory;
-    if (!baseDir) {
-      throw new Error('Device document directory unavailable.');
-    }
-
-    const outboxDir = `${baseDir}outbox/`;
-    await FileSystem.makeDirectoryAsync(outboxDir, { intermediates: true });
-
-    const id = `ev-${Date.now()}`;
-    const persistedUri = `${outboxDir}${id}.mp4`;
-    await FileSystem.copyAsync({ from: tempVideoUri, to: persistedUri });
-
-    const item: QueuedEvidenceItem = {
-      id,
-      localMediaUri: persistedUri,
-      sessionId: activeSession.sessionId,
-      organizationId: activeSession.organizationId,
-      branch: activeSession.branch,
-      manualNote: `Live audio/video observation captured in ${activeConfig.displayName}.`,
-      metadata,
-      queuedAt: new Date().toISOString(),
-    };
-
-    const existingRaw = await AsyncStorage.getItem(OUTBOX_INDEX_KEY);
-    const existing: QueuedEvidenceItem[] = existingRaw
-      ? (JSON.parse(existingRaw) as QueuedEvidenceItem[])
-      : [];
-
-    existing.unshift(item);
-    await AsyncStorage.setItem(OUTBOX_INDEX_KEY, JSON.stringify(existing));
-  };
-
   const uploadEvidenceMultipart = async (
     videoUri: string,
     activeSession: SessionContextDTO,
@@ -160,6 +121,7 @@ export default function LiveMediaCaptureScreen() {
     form.append('sessionId', activeSession.sessionId);
     form.append('organizationId', activeSession.organizationId);
     form.append('branch', activeSession.branch);
+    form.append('autoSplit', 'true');
     form.append('taggedStudentIds', JSON.stringify([]));
     form.append(
       'manualNote',
@@ -167,11 +129,17 @@ export default function LiveMediaCaptureScreen() {
     );
     form.append('metadata', JSON.stringify(metadata));
 
+    // const res = await fetch(endpoint, {
+    //   method: 'POST',
+    //   headers: {
+    //     Accept: 'application/json',
+    //   },
+    //   body: form,
+    // });
+
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-      },
+      headers: await getAuthenticatedUploadHeaders(),
       body: form,
     });
 
@@ -183,30 +151,10 @@ export default function LiveMediaCaptureScreen() {
     return (await res.json()) as IngestEvidenceResponseDTO;
   };
 
-  function createBranchMetadata(
-    branch: SessionContextDTO['branch'],
-    clientTimestamp: string
-  ): EvidenceMetadata {
-    const base = {
-      captureMode: 'LIVE_VOICE' as const,
-      clientTimestamp,
-    };
-
-    switch (branch) {
-      case 'ROBOTICS_CLUB':
-        return { ...base, branch: 'ROBOTICS_CLUB' };
-      case 'SEND_PROVISION':
-        return { ...base, branch: 'SEND_PROVISION' };
-      case 'EARLY_YEARS':
-        return { ...base, branch: 'EARLY_YEARS' };
-    }
-  }
-
   const handleToggleRecording = async () => {
     if (!session || !branchConfig || !cameraRef.current || isProcessing) return;
 
     if (!isRecording) {
-      // Lock session context & timestamp at the exact moment capture begins
       const immutableTimestamp = new Date().toISOString();
       const lockedSession: SessionContextDTO = {
         ...session,
@@ -237,21 +185,30 @@ export default function LiveMediaCaptureScreen() {
             metadata
           );
 
-          Alert.alert(
-            'Evidence Processed & Pinned',
-            response.structuredInsight.summary,
-            [{ text: 'Done' }]
-          );
+          setReviewInsight({
+            evidenceId: response.evidenceId,
+            summary: response.structuredInsight.summary,
+            attributedStudentIds: [],
+            curriculumTags: response.structuredInsight.curriculumTags,
+          });
         } catch {
-          await queueToFilesystemOutbox(
-            videoResult.uri,
-            lockedSession,
-            branchConfig,
-            metadata
-          );
+          await OutboxSyncService.enqueue({
+            kind: 'LIVE_VIDEO',
+            sessionId: lockedSession.sessionId,
+            organizationId: lockedSession.organizationId,
+            branch: lockedSession.branch,
+            autoSplit: true,
+            taggedStudentIds: [],
+            manualNote: `Live audio/video observation captured in ${branchConfig.displayName}.`,
+            metadata,
+            sourceMediaUri: videoResult.uri,
+            mediaMimeType: 'video/mp4',
+            mediaExtension: 'mp4',
+          });
+
           Alert.alert(
             'Queued Offline',
-            'Saved to local device outbox. It will sync once the edge endpoint is reachable.'
+            `Saved to local device outbox for ${lockedSession.sessionName}. It will auto-sync when connected.`
           );
         } finally {
           await FileSystem.deleteAsync(videoResult.uri, {
@@ -334,8 +291,8 @@ export default function LiveMediaCaptureScreen() {
         <View style={styles.overlayBanner}>
           <Ionicons name="scan-outline" size={16} color="#38bdf8" />
           <Text style={styles.overlayBannerText}>
-            Auto-identifying {branchConfig.learnerTerm.toLowerCase()} faces from
-            onboarding roster
+            Auto-identifying {branchConfig.learnerTerm.toLowerCase()} faces for{' '}
+            {session.sessionName}
           </Text>
         </View>
       </View>
@@ -376,6 +333,19 @@ export default function LiveMediaCaptureScreen() {
               : 'No student selection needed—AI pins evidence automatically.'}
         </Text>
       </View>
+
+      <InsightReviewModal
+        visible={Boolean(reviewInsight)}
+        insight={reviewInsight}
+        branchConfig={branchConfig}
+        sessionName={session.sessionName}
+        roster={session.activeRoster}
+        onConfirm={() => {
+          setReviewInsight(null);
+          router.back();
+        }}
+        onDiscard={() => setReviewInsight(null)}
+      />
     </SafeAreaView>
   );
 }
