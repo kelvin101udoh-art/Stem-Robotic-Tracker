@@ -96,7 +96,7 @@ openai_api_key = "env(OPENAI_API_KEY)"
 
 # Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
 # are monitored, and you can view the emails that would have been sent from the web interface.
-[inbucket]
+[local_smtp]
 enabled = true
 # Port to use for the email testing server web interface.
 port = 54324
@@ -385,9 +385,8 @@ s3_region = "env(S3_REGION)"
 # Configures AWS_ACCESS_KEY_ID for S3 bucket
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
+# Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
-[functions.auth-access-key]
-verify_jwt = false
 
 # [experimental.pgdelta]
 # When enabled, pg-delta becomes the active engine for supported schema flows.
@@ -396,3 +395,12 @@ verify_jwt = false
 # declarative_schema_path = "./declarative"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+[functions.auth-access-key]
+verify_jwt = false
+
+[functions.submit-evidence]
+verify_jwt = false
+
+[functions.confirm-evidence]
+verify_jwt = false

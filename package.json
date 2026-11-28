@@ -13,6 +13,7 @@
     "lint": "turbo run lint"
   },
   "devDependencies": {
+    "supabase": "^3.4.0",
     "turbo": "^2.8.16"
   }
 }

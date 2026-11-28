@@ -1,239 +1,318 @@
 // supabase/functions/submit-evidence/index.ts
 
 
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
-type TrackBranch = 'ROBOTICS_CLUB' | 'SEND_PROVISION' | 'EARLY_YEARS';
+import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
+import {
+  getServiceClient,
+  verifyMobileSessionToken,
+} from '../_shared/session-auth.ts';
+import {
+  processClassroomEvidence,
+  type TrackBranch,
+} from '../_shared/branch-ai.ts';
 
-interface RosterCandidate {
-  id: string;
-  firstName: string;
-  lastName: string;
-  avatarUrl?: string;
-}
-
-interface IngestPayload {
-  sessionId: string;
-  organizationId: string;
-  branch: TrackBranch;
-  taggedStudentIds: string[];
-  transcriptionAudioBase64?: string;
-  mediaFileUrl?: string;
-  manualNote?: string;
-  metadata: Record<string, unknown>;
-}
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-function buildBranchSystemPrompt(branch: TrackBranch): string {
-  switch (branch) {
-    case 'SEND_PROVISION':
-      return [
-        'You are a UK SEND & EHCP statutory behaviour analyst.',
-        'Analyze the educator note/media and extract objective, safeguarding-compliant behaviour & regulation evidence.',
-        'Return strict JSON with keys: matchedStudentIds (string[]), summary (string), curriculumTags (string[]), behaviorOrRegulationNote (string).',
-        'Frame behaviour neutrally (antecedent, observed action, regulation zone/co-regulation, and EHCP outcome alignment) without diagnosing.',
-      ].join(' ');
-    case 'EARLY_YEARS':
-      return [
-        'You are an Early Years Foundation Stage (EYFS) Development Matters specialist.',
-        'Analyze child-initiated play, communication, and continuous provision moments.',
-        'Return strict JSON with keys: matchedStudentIds (string[]), summary (string), curriculumTags (string[]), behaviorOrRegulationNote (string).',
-      ].join(' ');
-    case 'ROBOTICS_CLUB':
-    default:
-      return [
-        'You are a STEM & Robotics learning evidence engine aligned with UK Computing & Engineering Milestones.',
-        'Extract engineering concepts, iterative debugging, and collaborative problem-solving.',
-        'Return strict JSON with keys: matchedStudentIds (string[]), summary (string), curriculumTags (string[]), behaviorOrRegulationNote (string).',
-      ].join(' ');
+function parseJsonSafe<T>(value: FormDataEntryValue | null, fallback: T): T {
+  if (typeof value !== 'string' || !value.trim()) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
   }
 }
 
-async function runMultimodalBranchLLM(args: {
-  openAiApiKey: string;
-  branch: TrackBranch;
-  manualNote?: string;
-  mediaBase64?: string;
-  roster: RosterCandidate[];
-  preselectedStudentIds: string[];
-}) {
-  const userContent: Array<Record<string, unknown>> = [
-    {
-      type: 'text',
-      text: JSON.stringify({
-        branch: args.branch,
-        preselectedStudentIds: args.preselectedStudentIds,
-        manualNote: args.manualNote ?? '',
-        rosterCandidates: args.roster.map((r) => ({
-          id: r.id,
-          name: `${r.firstName} ${r.lastName}`,
-          hasOnboardingPortrait: Boolean(r.avatarUrl),
-        })),
-        instruction:
-          args.preselectedStudentIds.length > 0
-            ? 'Use preselectedStudentIds as the pinned students.'
-            : 'Identify any visible/mentioned roster learners from the media/onboarding context and return their IDs in matchedStudentIds.',
-      }),
-    },
-  ];
-
-  // Attach onboarding reference portraits when auto-pinning from media
-  if (args.preselectedStudentIds.length === 0) {
-    for (const member of args.roster) {
-      if (member.avatarUrl) {
-        userContent.push({
-          type: 'image_url',
-          image_url: { url: member.avatarUrl, detail: 'low' },
-        });
-      }
-    }
-  }
-
-  if (args.mediaBase64) {
-    userContent.push({
-      type: 'input_audio',
-      input_audio: {
-        data: args.mediaBase64,
-        format: 'mp4',
-      },
-    });
-  }
-
-  const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${args.openAiApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: buildBranchSystemPrompt(args.branch) },
-        { role: 'user', content: userContent },
-      ],
-    }),
-  });
-
-  if (!aiRes.ok) {
-    const errText = await aiRes.text().catch(() => '');
-    throw new Error(`LLM processing failed (${aiRes.status}): ${errText}`);
-  }
-
-  const completion = await aiRes.json();
-  const rawContent = completion.choices?.[0]?.message?.content ?? '{}';
-  const parsed = JSON.parse(rawContent) as {
-    matchedStudentIds?: string[];
-    summary?: string;
-    curriculumTags?: string[];
-    behaviorOrRegulationNote?: string;
-  };
-
-  const resolvedIds =
-    args.preselectedStudentIds.length > 0
-      ? args.preselectedStudentIds
-      : Array.isArray(parsed.matchedStudentIds)
-        ? parsed.matchedStudentIds
-        : [];
-
-  return {
-    resolvedStudentIds: resolvedIds,
-    structuredInsight: {
-      summary: parsed.summary ?? 'Observation structured and saved.',
-      curriculumTags: Array.isArray(parsed.curriculumTags) ? parsed.curriculumTags : [],
-      behaviorOrRegulationNote: parsed.behaviorOrRegulationNote,
-    },
-  };
-}
-
-serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const openAiApiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+  if (req.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed' }, 405);
+  }
 
-    if (!supabaseUrl || !serviceRoleKey || !openAiApiKey) {
-      throw new Error('Missing required Edge Function environment secrets.');
+  const supabase = getServiceClient();
+  const geminiKey = Deno.env.get('GEMINI_API_KEY')?.trim();
+  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')?.trim();
+
+  // 1. Verify Mobile Session Token
+  const mobileSession = await verifyMobileSessionToken(req, supabase);
+  if (!mobileSession) {
+    return jsonResponse(
+      { error: 'Unauthorized: invalid or expired X-Session-Token.' },
+      401
+    );
+  }
+
+  try {
+    const contentType = req.headers.get('content-type') ?? '';
+    let sessionId = mobileSession.sessionId;
+    let branch: TrackBranch = 'ROBOTICS_CLUB';
+    let autoSplit = true;
+    let taggedStudentIds: string[] = [];
+    let manualNote = '';
+    let metadata: Record<string, unknown> = {};
+    let evidenceType = 'text_note';
+    let uploadedFile: File | null = null;
+
+    if (contentType.includes('multipart/form-data')) {
+      const form = await req.formData();
+      const fileEntry = form.get('file');
+      if (fileEntry instanceof File) {
+        uploadedFile = fileEntry;
+        evidenceType = fileEntry.type.startsWith('video/')
+          ? 'live_video_debrief'
+          : 'voice_debrief';
+      }
+
+      sessionId = String(form.get('sessionId') ?? mobileSession.sessionId).trim();
+      branch = (String(form.get('branch') ?? 'ROBOTICS_CLUB').trim() ||
+        'ROBOTICS_CLUB') as TrackBranch;
+      autoSplit = String(form.get('autoSplit') ?? 'true') !== 'false';
+      taggedStudentIds = parseJsonSafe<string[]>(form.get('taggedStudentIds'), []);
+      manualNote = String(form.get('manualNote') ?? '').trim();
+      metadata = parseJsonSafe<Record<string, unknown>>(form.get('metadata'), {});
+    } else {
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      sessionId = String(body.sessionId ?? mobileSession.sessionId).trim();
+      branch = (String(body.branch ?? 'ROBOTICS_CLUB').trim() ||
+        'ROBOTICS_CLUB') as TrackBranch;
+      autoSplit = body.autoSplit !== false;
+      taggedStudentIds = Array.isArray(body.taggedStudentIds)
+        ? (body.taggedStudentIds as string[])
+        : [];
+      manualNote = String(body.manualNote ?? '').trim();
+      metadata =
+        typeof body.metadata === 'object' && body.metadata !== null
+          ? (body.metadata as Record<string, unknown>)
+          : {};
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-    const payload = (await req.json()) as IngestPayload;
-
-    if (!payload.sessionId || !payload.organizationId || !payload.branch) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required sessionId, organizationId, or branch.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    if (!uploadedFile && !manualNote) {
+      return jsonResponse(
+        { error: 'Either a media file or manual note is required.' },
+        400
       );
     }
 
-    // Fetch session roster + onboarding portraits (avatar_url) for automatic face/identity attribution
-    const { data: rosterRows } = await supabase
-      .from('students')
-      .select('id, first_name, last_name, avatar_url')
-      .eq('club_id', payload.organizationId);
+    // 2. Verify Tenant Boundary & Fetch Club Plan / Monthly Quota
+    const startOfMonth = new Date();
+    startOfMonth.setUTCDate(1);
+    startOfMonth.setUTCHours(0, 0, 0, 0);
 
-    const roster: RosterCandidate[] = (rosterRows ?? []).map((row) => ({
-      id: String(row.id),
-      firstName: String(row.first_name ?? ''),
-      lastName: String(row.last_name ?? ''),
-      avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
-    }));
+    const [{ data: sessionRow }, { data: clubRow }, { count: monthlyCount }] =
+      await Promise.all([
+        supabase
+          .from('sessions')
+          .select('id, club_id, branch')
+          .eq('id', sessionId)
+          .eq('club_id', mobileSession.clubId)
+          .maybeSingle(),
+        supabase
+          .from('clubs')
+          .select('plan_tier, monthly_ai_quota, default_branch')
+          .eq('id', mobileSession.clubId)
+          .single(),
+        supabase
+          .from('kiki_usage')
+          .select('id', { count: 'exact', head: true })
+          .eq('club_id', mobileSession.clubId)
+          .eq('success', true)
+          .gte('created_at', startOfMonth.toISOString()),
+      ]);
 
-    const { resolvedStudentIds, structuredInsight } = await runMultimodalBranchLLM({
-      openAiApiKey,
-      branch: payload.branch,
-      manualNote: payload.manualNote,
-      mediaBase64: payload.transcriptionAudioBase64,
-      roster,
-      preselectedStudentIds: payload.taggedStudentIds ?? [],
-    });
-
-    // Persist sanitized evidence record (raw base64 media is never stored in DB)
-    const { data: inserted, error: insertError } = await supabase
-      .from('session_evidence')
-      .insert({
-        session_id: payload.sessionId,
-        club_id: payload.organizationId,
-        branch: payload.branch,
-        student_ids: resolvedStudentIds,
-        summary: structuredInsight.summary,
-        curriculum_tags: structuredInsight.curriculumTags,
-        ehcp_or_behaviour_note: structuredInsight.behaviorOrRegulationNote ?? null,
-        metadata: payload.metadata,
-      })
-      .select('id')
-      .single();
-
-    if (insertError) {
-      throw new Error(`Database insert failed: ${insertError.message}`);
+    if (!sessionRow || !clubRow) {
+      return jsonResponse(
+        { error: 'Forbidden: session does not belong to this organization.' },
+        403
+      );
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        evidenceId: inserted?.id ?? crypto.randomUUID(),
-        structuredInsight,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const effectiveBranch: TrackBranch =
+      (sessionRow.branch as TrackBranch | null) ??
+      (clubRow.default_branch as TrackBranch) ??
+      branch;
+
+    const usedThisMonth = monthlyCount ?? 0;
+    const quota = clubRow.monthly_ai_quota ?? 600;
+    const quotaExceeded = usedThisMonth >= quota;
+    const isProTier =
+      clubRow.plan_tier === 'PRO_UNLIMITED' || clubRow.plan_tier === 'MAT_CUSTOM';
+
+    // 3. Load Active Roster & Active Student Goals
+    const [{ data: studentsData }, { data: goalsData }] = await Promise.all([
+      supabase
+        .from('students')
+        .select('id, full_name')
+        .eq('club_id', mobileSession.clubId)
+        .limit(80),
+      supabase
+        .from('student_goals')
+        .select('id, student_id, title, framework_area')
+        .eq('club_id', mobileSession.clubId)
+        .in('status', ['ACTIVE', 'IN_PROGRESS'])
+        .limit(120),
+    ]);
+
+    const roster = (studentsData ?? []).map((s) => ({
+      id: String(s.id),
+      fullName: String(s.full_name),
+    }));
+
+    const goals = (goalsData ?? []).map((g) => ({
+      id: String(g.id),
+      studentId: String(g.student_id),
+      title: String(g.title),
+      frameworkArea: (g.framework_area as string | null) ?? null,
+    }));
+
+    // 4. Process Evidence with Soft Fair-Use Quota Protection
+    let aiResult;
+    if (quotaExceeded && !isProTier) {
+      // Starter/Growth exceeded cap: save safely as PENDING_REVIEW without incurring AI cost
+      aiResult = {
+        observations: [
+          {
+            attributedStudentIds: taggedStudentIds,
+            linkedGoalIds: [],
+            sanitizedSummary:
+              manualNote ||
+              'Monthly AI allowance reached. Please add a brief summary or upgrade your plan.',
+            severity: 'INFO' as const,
+            requiresFollowup: false,
+            structuredInsight: {
+              notice: 'Saved in basic mode because monthly AI quota was reached.',
+            },
+          },
+        ],
+        tokenCost: 0,
+        modelsUsed: [],
+        fallbackReason: 'monthly_quota_reached',
+      };
+    } else {
+      // Pro Fair-Use over 5,000 drops Claude escalation and stays on Gemini-only
+      const allowClaudeEscalation = !quotaExceeded;
+      aiResult = await processClassroomEvidence({
+        mediaFile: uploadedFile,
+        manualNote,
+        branch: effectiveBranch,
+        autoSplit,
+        taggedStudentIds,
+        roster,
+        goals,
+        allowClaudeEscalation,
+        geminiKey,
+        anthropicKey,
+      });
+      if (quotaExceeded && isProTier) {
+        aiResult.fallbackReason = 'pro_fair_use_gemini_only';
       }
-    );
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unexpected edge error.';
-    return new Response(JSON.stringify({ success: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    }
+
+    // Explicitly release raw media reference — never persisted
+    uploadedFile = null;
+
+    // 5. Insert PENDING_REVIEW Rows into session_evidence
+    const clientTimestamp =
+      typeof metadata.clientTimestamp === 'string'
+        ? metadata.clientTimestamp
+        : new Date().toISOString();
+
+    const rowsToInsert = aiResult.observations.map((obs) => ({
+      club_id: mobileSession.clubId,
+      session_id: sessionRow.id,
+      type: evidenceType,
+      content: obs.sanitizedSummary,
+      meta: {
+        ...metadata,
+        autoSplitApplied: autoSplit,
+        audioDiscardedAtEdge: true,
+        modelsUsed: aiResult.modelsUsed,
+        aiFallbackReason: aiResult.fallbackReason ?? null,
+      },
+      created_by: mobileSession.teacherId,
+      branch: effectiveBranch,
+      source: 'MOBILE_CAPTURE',
+      review_status: 'PENDING_REVIEW',
+      attributed_student_ids: obs.attributedStudentIds,
+      linked_goal_ids: obs.linkedGoalIds,
+      structured_insight: obs.structuredInsight,
+      severity: obs.severity,
+      followup_status: obs.requiresFollowup ? 'OPEN' : 'NONE',
+      client_timestamp: clientTimestamp,
+      parent_visible: false,
+    }));
+
+    const { data: insertedRows, error: insertError } = await supabase
+      .from('session_evidence')
+      .insert(rowsToInsert)
+      .select(
+        'id, branch, content, attributed_student_ids, linked_goal_ids, structured_insight, severity, followup_status, review_status, client_timestamp'
+      );
+
+    if (insertError) {
+      console.error('session_evidence insert failed:', insertError);
+      return jsonResponse({ error: 'Failed to save structured evidence.' }, 500);
+    }
+
+    // 6. Log AI Metering in kiki_usage
+    if (aiResult.modelsUsed.length > 0) {
+      await supabase
+        .from('kiki_usage')
+        .insert({
+          club_id: mobileSession.clubId,
+          mode: `evidence_${effectiveBranch.toLowerCase()}`,
+          token_cost: aiResult.tokenCost,
+          success: true,
+          http_status: 200,
+        })
+        .then(() => {})
+        .catch(() => {});
+    }
+
+    const primary = insertedRows?.[0];
+
+    return jsonResponse({
+      success: true,
+      evidenceId: primary?.id ?? null,
+      reviewStatus: 'PENDING_REVIEW',
+      splitCount: insertedRows?.length ?? 0,
+      quotaStatus: {
+        used: usedThisMonth + (aiResult.modelsUsed.length > 0 ? 1 : 0),
+        limit: quota,
+        fallbackReason: aiResult.fallbackReason ?? null,
+      },
+      items: (insertedRows ?? []).map((row) => ({
+        id: row.id,
+        branch: row.branch,
+        summary: row.content,
+        attributedStudentIds: row.attributed_student_ids,
+        linkedGoalIds: row.linked_goal_ids,
+        structuredInsight: row.structured_insight,
+        severity: row.severity,
+        followupStatus: row.followup_status,
+        reviewStatus: row.review_status,
+        clientTimestamp: row.client_timestamp,
+      })),
     });
+  } catch (err) {
+    console.error('submit-evidence error:', err);
+
+    await supabase
+      .from('kiki_usage')
+      .insert({
+        club_id: mobileSession.clubId,
+        mode: 'evidence_ingest',
+        token_cost: 0,
+        success: false,
+        http_status: 500,
+        error_text: err instanceof Error ? err.message : 'Unknown error',
+      })
+      .then(() => {})
+      .catch(() => {});
+
+    return jsonResponse(
+      { error: 'Evidence processing failed. Item remains safely queued offline.' },
+      500
+    );
   }
 });
